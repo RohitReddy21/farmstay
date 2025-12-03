@@ -26,7 +26,7 @@ const FarmDetails = () => {
     useEffect(() => {
         const fetchFarm = async () => {
             try {
-                const { data } = await axios.get(`https://farmstay-backend.onrender.com//api/farms/${id}`);
+                const { data } = await axios.get(`https://farmstay-backend.onrender.com/api/farms/${id}`);
                 setFarm(data);
             } catch (error) {
                 console.error(error);
@@ -46,7 +46,7 @@ const FarmDetails = () => {
 
         try {
             const stripe = await stripePromise;
-            const { data } = await axios.post('https://farmstay-backend.onrender.com//api/bookings', {
+            const { data } = await axios.post('https://farmstay-backend.onrender.com/api/bookings', {
                 farmId: id,
                 userId: user._id,
                 ...bookingData
@@ -235,3 +235,4 @@ const FarmDetails = () => {
 };
 
 export default FarmDetails;
+

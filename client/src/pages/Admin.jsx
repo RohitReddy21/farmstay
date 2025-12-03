@@ -29,10 +29,10 @@ const Admin = () => {
                 headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
             };
 
-            const usersRes = await axios.get('https://farmstay-backend.onrender.com//api/admin/users', config);
+            const usersRes = await axios.get('https://farmstay-backend.onrender.com/api/admin/users', config);
             setUsers(usersRes.data);
 
-            const bookingsRes = await axios.get('https://farmstay-backend.onrender.com//api/admin/bookings', config);
+            const bookingsRes = await axios.get('https://farmstay-backend.onrender.com/api/admin/bookings', config);
             setBookings(bookingsRes.data);
         } catch (error) {
             console.error(error);
@@ -76,3 +76,4 @@ const Admin = () => {
 };
 
 export default Admin;
+

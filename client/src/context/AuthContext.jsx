@@ -19,7 +19,7 @@ export const AuthProvider = ({ children }) => {
                             Authorization: `Bearer ${token}`
                         }
                     };
-                    const { data } = await axios.get('https://farmstay-backend.onrender.com//api/auth/me', config);
+                    const { data } = await axios.get('https://farmstay-backend.onrender.com/api/auth/me', config);
                     setUser(data);
                 } catch (error) {
                     console.error('Auth check failed:', error);
@@ -32,13 +32,13 @@ export const AuthProvider = ({ children }) => {
     }, []);
 
     const login = async (email, password) => {
-        const { data } = await axios.post('https://farmstay-backend.onrender.com//api/auth/login', { email, password });
+        const { data } = await axios.post('https://farmstay-backend.onrender.com/api/auth/login', { email, password });
         localStorage.setItem('token', data.token);
         setUser(data.user);
     };
 
     const register = async (name, email, password) => {
-        const { data } = await axios.post('https://farmstay-backend.onrender.com//api/auth/register', { name, email, password });
+        const { data } = await axios.post('https://farmstay-backend.onrender.com/api/auth/register', { name, email, password });
         localStorage.setItem('token', data.token);
         setUser(data.user);
     };
@@ -54,3 +54,4 @@ export const AuthProvider = ({ children }) => {
         </AuthContext.Provider>
     );
 };
+

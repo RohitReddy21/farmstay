@@ -21,7 +21,7 @@ const Farms = () => {
     const fetchFarms = async () => {
         try {
             const query = new URLSearchParams(filters).toString();
-            const { data } = await axios.get(`https://farmstay-backend.onrender.com//api/farms?${query}`);
+            const { data } = await axios.get(`https://farmstay-backend.onrender.com/api/farms?${query}`);
             setFarms(data);
         } catch (error) {
             console.error(error);
@@ -102,3 +102,4 @@ const Farms = () => {
 };
 
 export default Farms;
+
