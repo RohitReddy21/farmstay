@@ -1,32 +1,14 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import { useAuth } from '../context/AuthContext';
-import { loadStripe } from '@stripe/stripe-js';
-import { MapPin, Users, Check, ChevronLeft, ChevronRight } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import API_URL from '../config';
 
-// Replace with your publishable key
-const stripePromise = loadStripe('pk_test_your_publishable_key');
+// ... imports ...
 
 const FarmDetails = () => {
-    const { id } = useParams();
-    const navigate = useNavigate();
-    const { user } = useAuth();
-    const [farm, setFarm] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [currentImageIndex, setCurrentImageIndex] = useState(0);
-
-    const [bookingData, setBookingData] = useState({
-        startDate: '',
-        endDate: '',
-        guests: 1
-    });
+    // ... hooks ...
 
     useEffect(() => {
         const fetchFarm = async () => {
             try {
-                const { data } = await axios.get(`https://farmstay-backend.onrender.com/api/farms/${id}`);
+                const { data } = await axios.get(`${API_URL}/api/farms/${id}`);
                 setFarm(data);
             } catch (error) {
                 console.error(error);
@@ -38,15 +20,10 @@ const FarmDetails = () => {
     }, [id]);
 
     const handleBooking = async (e) => {
-        e.preventDefault();
-        if (!user) {
-            navigate('/login');
-            return;
-        }
-
+        // ...
         try {
             const stripe = await stripePromise;
-            const { data } = await axios.post('https://farmstay-backend.onrender.com/api/bookings', {
+            const { data } = await axios.post(`${API_URL}/api/bookings`, {
                 farmId: id,
                 userId: user._id,
                 ...bookingData

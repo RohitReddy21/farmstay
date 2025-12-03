@@ -1,27 +1,14 @@
-import { useState, useEffect } from 'react';
-import axios from 'axios';
-import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
-import { MapPin, Users, DollarSign } from 'lucide-react';
+import API_URL from '../config';
 
 const Farms = () => {
-    const [farms, setFarms] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [filters, setFilters] = useState({
-        location: '',
-        minPrice: '',
-        maxPrice: '',
-        capacity: ''
-    });
+    // ... state ...
 
-    useEffect(() => {
-        fetchFarms();
-    }, []);
+    // ... useEffect ...
 
     const fetchFarms = async () => {
         try {
             const query = new URLSearchParams(filters).toString();
-            const { data } = await axios.get(`https://farmstay-backend.onrender.com/api/farms?${query}`);
+            const { data } = await axios.get(`${API_URL}/api/farms?${query}`);
             setFarms(data);
         } catch (error) {
             console.error(error);
