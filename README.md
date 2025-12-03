@@ -80,7 +80,7 @@ A full-stack MERN application for booking farm stays with user authentication, p
    cd server
    npm run dev
    ```
-   Backend runs on: `http://localhost:5000`
+   Backend runs on: `https://farmstay-backend.onrender.com/`
 
 2. **Start Frontend** (in a new terminal)
    ```bash

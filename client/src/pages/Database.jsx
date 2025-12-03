@@ -26,7 +26,7 @@ const Database = () => {
             const config = {
                 headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
             };
-            const { data } = await axios.get('http://localhost:5000/api/db/view', config);
+            const { data } = await axios.get('https://farmstay-backend.onrender.com//api/db/view', config);
             setDbData(data);
         } catch (error) {
             console.error(error);
