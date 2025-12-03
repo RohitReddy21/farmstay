@@ -10,7 +10,7 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors({
-  origin: 'http://localhost:5173', // Vite default port
+  origin: process.env.CLIENT_URL || 'http://localhost:5173',
   credentials: true
 }));
 app.use(express.json());
@@ -42,7 +42,11 @@ const connectDB = async () => {
 
   } catch (err) {
     console.error('MongoDB Connection Error:', err);
-    // process.exit(1); // Keep running to show error
+    // In production, we want to fail fast if DB is missing
+    if (process.env.NODE_ENV === 'production') {
+      console.error('Exiting due to DB connection failure');
+      process.exit(1);
+    }
   }
 };
 
