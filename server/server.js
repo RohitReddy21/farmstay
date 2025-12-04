@@ -73,6 +73,9 @@ app.use('/api/farms', require('./routes/farmRoutes'));
 app.use('/api/bookings', require('./routes/bookingRoutes'));
 app.use('/api/admin', require('./routes/adminRoutes'));
 app.use('/api/db', require('./routes/dbViewerRoutes'));
+app.use('/api/users', require('./routes/userRoutes'));
+app.use('/api/favorites', require('./routes/favoriteRoutes'));
+app.use('/api/reviews', require('./routes/reviewRoutes'));
 
 // Basic Route
 app.get('/', (req, res) => {

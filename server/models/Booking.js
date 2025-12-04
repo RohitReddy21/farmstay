@@ -11,7 +11,7 @@ const bookingSchema = new mongoose.Schema({
     guestPhone: { type: String, required: true },
     status: {
         type: String,
-        enum: ['pending', 'confirmed', 'cancelled'],
+        enum: ['pending', 'confirmed', 'cancelled', 'completed'],
         default: 'pending'
     },
     paymentId: { type: String } // Stripe Payment Intent ID
