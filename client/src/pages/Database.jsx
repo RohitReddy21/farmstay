@@ -20,7 +20,7 @@ const Database = () => {
             return;
         }
         fetchDatabase();
-    }, [user]);
+    }, [user, navigate]);
 
     const fetchDatabase = async () => {
         try {
@@ -71,8 +71,7 @@ const Database = () => {
                                         <td className="px-4 py-3">{user.name}</td>
                                         <td className="px-4 py-3">{user.email}</td>
                                         <td className="px-4 py-3">
-                                            <span className={`px-2 py-1 rounded-full text-xs ${user.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'
-                                                }`}>
+                                            <span className={`px-2 py-1 rounded-full text-xs ${user.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}`}>
                                                 {user.role}
                                             </span>
                                         </td>
@@ -154,8 +153,7 @@ const Database = () => {
                                             </td>
                                             <td className="px-4 py-3 font-bold">₹{booking.totalPrice}</td>
                                             <td className="px-4 py-3">
-                                                <span className={`px-2 py-1 rounded-full text-xs ${booking.status === 'confirmed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                                                    }`}>
+                                                <span className={`px-2 py-1 rounded-full text-xs ${booking.status === 'confirmed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
                                                     {booking.status}
                                                 </span>
                                             </td>
@@ -179,4 +177,3 @@ const Database = () => {
 };
 
 export default Database;
-
