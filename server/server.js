@@ -22,7 +22,7 @@ const connectDB = async () => {
 
     // If local connection fails or for dev convenience, use Memory Server
     // Note: In a real app, you'd want to fail if production DB is missing
-    if (process.env.NODE_ENV !== 'production') {
+    if (!mongoUri && process.env.NODE_ENV !== 'production') {
       try {
         const { MongoMemoryServer } = require('mongodb-memory-server');
         const mongod = await MongoMemoryServer.create();
@@ -73,3 +73,4 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
