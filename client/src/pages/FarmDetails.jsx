@@ -6,6 +6,7 @@ import { loadStripe } from '@stripe/stripe-js';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MapPin, Users, Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import API_URL from '../config';
+import FavoriteButton from '../components/FavoriteButton';
 
 const stripePromise = loadStripe('pk_test_your_key_here'); // Replace with your Stripe public key
 
@@ -236,7 +237,10 @@ const FarmDetails = () => {
                 </div>
 
                 <div>
-                    <h1 className="text-4xl font-bold text-gray-900 mb-2">{farm.title}</h1>
+                    <div className="flex items-start justify-between mb-2">
+                        <h1 className="text-4xl font-bold text-gray-900">{farm.title}</h1>
+                        <FavoriteButton farmId={farm._id} size={28} />
+                    </div>
                     <div className="flex items-center text-gray-600 mb-6">
                         <MapPin size={20} className="mr-2" /> {farm.location}
                         <span className="mx-4">|</span>
@@ -361,8 +365,8 @@ const FarmDetails = () => {
                             type="submit"
                             disabled={dateConflict}
                             className={`w-full py-4 rounded-xl font-bold text-lg transition-all shadow-lg transform ${dateConflict
-                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                    : 'bg-primary text-white hover:bg-green-600 hover:-translate-y-0.5 active:translate-y-0'
+                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                : 'bg-primary text-white hover:bg-green-600 hover:-translate-y-0.5 active:translate-y-0'
                                 }`}
                         >
                             {dateConflict ? 'Dates Unavailable' : 'Book Now'}

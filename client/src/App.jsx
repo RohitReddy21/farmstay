@@ -11,6 +11,7 @@ import Database from './pages/Database';
 import Success from './pages/Success';
 import Profile from './pages/Profile';
 import MyBookings from './pages/MyBookings';
+import Favorites from './pages/Favorites';
 
 function App() {
   return (
@@ -30,6 +31,7 @@ function App() {
               <Route path="/success" element={<Success />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/bookings" element={<MyBookings />} />
+              <Route path="/favorites" element={<Favorites />} />
             </Routes>
           </main>
           <footer className="bg-white py-6 text-center text-gray-500">

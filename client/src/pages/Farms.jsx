@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { MapPin, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
 import API_URL from '../config';
+import FavoriteButton from '../components/FavoriteButton';
 
 const Farms = () => {
     const [farms, setFarms] = useState([]);
@@ -80,7 +81,12 @@ const Farms = () => {
                             whileHover={{ y: -5 }}
                             className="bg-white rounded-2xl overflow-hidden shadow-lg border border-gray-100"
                         >
-                            <img src={farm.images[0] || 'https://via.placeholder.com/400'} alt={farm.title} className="w-full h-56 object-cover" />
+                            <div className="relative">
+                                <img src={farm.images[0] || 'https://via.placeholder.com/400'} alt={farm.title} className="w-full h-56 object-cover" />
+                                <div className="absolute top-3 right-3">
+                                    <FavoriteButton farmId={farm._id} />
+                                </div>
+                            </div>
                             <div className="p-6">
                                 <div className="flex justify-between items-start mb-2">
                                     <h3 className="text-xl font-bold text-gray-900 line-clamp-1">{farm.title}</h3>

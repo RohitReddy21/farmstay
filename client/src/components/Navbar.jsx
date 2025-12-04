@@ -30,6 +30,7 @@ const Navbar = () => {
                                 )}
                                 <Link to="/profile" className="text-gray-600 hover:text-primary transition">Profile</Link>
                                 <Link to="/bookings" className="text-gray-600 hover:text-primary transition">My Bookings</Link>
+                                <Link to="/favorites" className="text-gray-600 hover:text-primary transition">Favorites</Link>
                                 <span className="text-gray-800 font-medium">Hi, {user.name}</span>
                                 <button onClick={logout} className="text-red-500 hover:text-red-600 transition">Logout</button>
                             </>
@@ -67,6 +68,7 @@ const Navbar = () => {
                                 <>
                                     <Link to="/profile" onClick={() => setIsOpen(false)} className="text-gray-600 hover:text-primary">Profile</Link>
                                     <Link to="/bookings" onClick={() => setIsOpen(false)} className="text-gray-600 hover:text-primary">My Bookings</Link>
+                                    <Link to="/favorites" onClick={() => setIsOpen(false)} className="text-gray-600 hover:text-primary">Favorites</Link>
                                     <span className="text-gray-800 font-medium">Hi, {user.name}</span>
                                     <button onClick={() => { logout(); setIsOpen(false); }} className="text-left text-red-500 hover:text-red-600">Logout</button>
                                 </>
