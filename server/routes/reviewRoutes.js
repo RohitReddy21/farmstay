@@ -22,7 +22,7 @@ router.post('/', verifyToken, async (req, res) => {
             if (!booking) {
                 return res.status(404).json({ message: 'Booking not found' });
             }
-            if (booking.user.toString() !== req.user.id) {
+            if (booking.user.toString() !== req.user._id) {
                 return res.status(403).json({ message: 'Not authorized' });
             }
             if (booking.status !== 'completed') {
@@ -32,7 +32,7 @@ router.post('/', verifyToken, async (req, res) => {
 
         // Check if user already reviewed this farm for this booking
         const existingReview = await Review.findOne({
-            user: req.user.id,
+            user: req.user._id,
             farm: farmId,
             booking: bookingId
         });
@@ -42,7 +42,7 @@ router.post('/', verifyToken, async (req, res) => {
         }
 
         const review = await Review.create({
-            user: req.user.id,
+            user: req.user._id,
             farm: farmId,
             booking: bookingId,
             rating,
@@ -98,7 +98,7 @@ router.put('/:id', verifyToken, async (req, res) => {
         }
 
         // Check if review belongs to user
-        if (review.user.toString() !== req.user.id) {
+        if (review.user.toString() !== req.user._id) {
             return res.status(403).json({ message: 'Not authorized' });
         }
 
@@ -129,7 +129,7 @@ router.delete('/:id', verifyToken, async (req, res) => {
         }
 
         // Check if review belongs to user
-        if (review.user.toString() !== req.user.id) {
+        if (review.user.toString() !== req.user._id) {
             return res.status(403).json({ message: 'Not authorized' });
         }
 

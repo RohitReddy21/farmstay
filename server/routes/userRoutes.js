@@ -10,7 +10,7 @@ const { verifyToken } = require('../middleware/authMiddleware');
 // @access  Private
 router.get('/profile', verifyToken, async (req, res) => {
     try {
-        const user = await User.findById(req.user.id).select('-password');
+        const user = await User.findById(req.user._id).select('-password');
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
@@ -28,7 +28,7 @@ router.put('/profile', verifyToken, async (req, res) => {
     try {
         const { name, email, phone } = req.body;
 
-        const user = await User.findById(req.user.id);
+        const user = await User.findById(req.user._id);
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
@@ -71,7 +71,7 @@ router.put('/password', verifyToken, async (req, res) => {
             return res.status(400).json({ message: 'Please provide both current and new password' });
         }
 
-        const user = await User.findById(req.user.id);
+        const user = await User.findById(req.user._id);
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
@@ -100,7 +100,7 @@ router.put('/password', verifyToken, async (req, res) => {
 // @access  Private
 router.get('/bookings', verifyToken, async (req, res) => {
     try {
-        const bookings = await Booking.find({ user: req.user.id })
+        const bookings = await Booking.find({ user: req.user._id })
             .populate('farm', 'title location price images')
             .sort({ createdAt: -1 });
 
@@ -123,7 +123,7 @@ router.delete('/bookings/:id', verifyToken, async (req, res) => {
         }
 
         // Check if booking belongs to user
-        if (booking.user.toString() !== req.user.id) {
+        if (booking.user.toString() !== req.user._id) {
             return res.status(403).json({ message: 'Not authorized to cancel this booking' });
         }
 

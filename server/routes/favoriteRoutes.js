@@ -10,7 +10,7 @@ router.post('/:farmId', verifyToken, async (req, res) => {
     try {
         // Check if already favorited
         const existingFavorite = await Favorite.findOne({
-            user: req.user.id,
+            user: req.user._id,
             farm: req.params.farmId
         });
 
@@ -19,7 +19,7 @@ router.post('/:farmId', verifyToken, async (req, res) => {
         }
 
         const favorite = await Favorite.create({
-            user: req.user.id,
+            user: req.user._id,
             farm: req.params.farmId
         });
 
@@ -36,7 +36,7 @@ router.post('/:farmId', verifyToken, async (req, res) => {
 router.delete('/:farmId', verifyToken, async (req, res) => {
     try {
         const favorite = await Favorite.findOneAndDelete({
-            user: req.user.id,
+            user: req.user._id,
             farm: req.params.farmId
         });
 
@@ -56,7 +56,7 @@ router.delete('/:farmId', verifyToken, async (req, res) => {
 // @access  Private
 router.get('/', verifyToken, async (req, res) => {
     try {
-        const favorites = await Favorite.find({ user: req.user.id })
+        const favorites = await Favorite.find({ user: req.user._id })
             .populate('farm')
             .sort({ createdAt: -1 });
 
@@ -73,7 +73,7 @@ router.get('/', verifyToken, async (req, res) => {
 router.get('/check/:farmId', verifyToken, async (req, res) => {
     try {
         const favorite = await Favorite.findOne({
-            user: req.user.id,
+            user: req.user._id,
             farm: req.params.farmId
         });
 
