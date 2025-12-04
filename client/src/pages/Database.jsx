@@ -42,6 +42,15 @@ const Database = () => {
     const handleDelete = async (collection, id) => {
         if (!window.confirm('Are you sure you want to delete this item?')) return;
 
+        // Optimistic Update: Remove item from UI immediately
+        const previousData = { ...dbData };
+        setDbData(prev => {
+            const newData = { ...prev };
+            newData.collections[collection].data = newData.collections[collection].data.filter(item => item._id !== id);
+            newData.collections[collection].count = Math.max(0, newData.collections[collection].count - 1);
+            return newData;
+        });
+
         try {
             const token = localStorage.getItem('token');
             await axios.delete(`${API_URL}/api/admin/${collection}/${id}`, {
@@ -49,11 +58,12 @@ const Database = () => {
                     Authorization: `Bearer ${token}`
                 }
             });
-            // Refresh data
-            fetchDatabase();
+            // Success - item stays removed
         } catch (error) {
             console.error('Error deleting item:', error);
-            alert('Failed to delete item');
+            alert('Failed to delete item. Restoring...');
+            // Revert on error
+            setDbData(previousData);
         }
     };
 
