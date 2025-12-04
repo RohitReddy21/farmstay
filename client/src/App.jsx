@@ -9,6 +9,8 @@ import FarmDetails from './pages/FarmDetails';
 import Admin from './pages/Admin';
 import Database from './pages/Database';
 import Success from './pages/Success';
+import Profile from './pages/Profile';
+import MyBookings from './pages/MyBookings';
 
 function App() {
   return (
@@ -26,6 +28,8 @@ function App() {
               <Route path="/admin" element={<Admin />} />
               <Route path="/database" element={<Database />} />
               <Route path="/success" element={<Success />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/bookings" element={<MyBookings />} />
             </Routes>
           </main>
           <footer className="bg-white py-6 text-center text-gray-500">
