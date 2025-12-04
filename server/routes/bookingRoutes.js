@@ -6,6 +6,24 @@ const User = require('../models/User');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const { sendBookingNotification } = require('../utils/notifications');
 
+// Helper function to check for date overlaps
+async function hasOverlap(farmId, startDate, endDate) {
+    const overlap = await Booking.findOne({
+        farm: farmId,
+        status: { $in: ['confirmed', 'pending'] },
+        $or: [
+            // New booking starts during existing booking
+            { startDate: { $lte: startDate }, endDate: { $gte: startDate } },
+            // New booking ends during existing booking
+            { startDate: { $lte: endDate }, endDate: { $gte: endDate } },
+            // New booking completely contains existing booking
+            { startDate: { $gte: startDate }, endDate: { $lte: endDate } }
+        ]
+    });
+    return !!overlap;
+}
+
+
 // @route   POST /api/bookings
 // @desc    Create a booking and get Stripe Session
 // @access  Private
@@ -21,6 +39,15 @@ router.post('/', async (req, res) => {
         const end = new Date(endDate);
         const nights = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
         const totalPrice = nights * farm.price;
+
+        // Check for date overlaps
+        const overlap = await hasOverlap(farmId, start, end);
+        if (overlap) {
+            return res.status(409).json({
+                message: 'Selected dates are not available. Please choose different dates.'
+            });
+        }
+
 
         // Check if using placeholder keys or dev mode - Mock Payment
         const isDevOrInvalidKey = !process.env.STRIPE_SECRET_KEY ||
@@ -134,6 +161,22 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
     }
 
     res.json({ received: true });
+});
+
+// @route   GET /api/bookings/farm/:id/availability
+// @desc    Get unavailable dates for a farm
+// @access  Public
+router.get('/farm/:id/availability', async (req, res) => {
+    try {
+        const bookings = await Booking.find({
+            farm: req.params.id,
+            status: { $in: ['confirmed', 'pending'] }
+        }).select('startDate endDate');
+        res.json(bookings);
+    } catch (error) {
+        console.error('Error fetching availability:', error);
+        res.status(500).json({ message: 'Server Error' });
+    }
 });
 
 module.exports = router;

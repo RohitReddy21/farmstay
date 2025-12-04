@@ -16,6 +16,7 @@ const FarmDetails = () => {
     const [farm, setFarm] = useState(null);
     const [loading, setLoading] = useState(true);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
+    const [unavailableDates, setUnavailableDates] = useState([]);
     const [bookingData, setBookingData] = useState({
         startDate: '',
         endDate: '',
@@ -36,6 +37,16 @@ const FarmDetails = () => {
             }
         };
         fetchFarm();
+
+        const fetchAvailability = async () => {
+            try {
+                const { data } = await axios.get(`${API_URL}/api/bookings/farm/${id}/availability`);
+                setUnavailableDates(data);
+            } catch (error) {
+                console.error('Error fetching availability:', error);
+            }
+        };
+        fetchAvailability();
     }, [id]);
 
     const handleBooking = async (e) => {
@@ -60,6 +71,19 @@ const FarmDetails = () => {
         try {
             const startDate = new Date(bookingData.startDate);
             const endDate = new Date(bookingData.endDate);
+
+            // Client-side validation: Check for overlaps
+            const hasConflict = unavailableDates.some(booking => {
+                const bookingStart = new Date(booking.startDate);
+                const bookingEnd = new Date(booking.endDate);
+                return (startDate <= bookingEnd && endDate >= bookingStart);
+            });
+
+            if (hasConflict) {
+                alert('❌ Booking Failed\n\nThe selected dates overlap with an existing booking.\n\nPlease choose different dates.');
+                return;
+            }
+
             const nights = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
             const totalPrice = nights * farm.price;
 
@@ -76,7 +100,8 @@ const FarmDetails = () => {
             });
 
             if (data.success) {
-                // Mock success
+                // Mock success with detailed notification
+                alert(`✅ Booking Confirmed!\n\nFarm: ${farm.title}\nDates: ${bookingData.startDate} to ${bookingData.endDate}\nGuests: ${bookingData.guests}\nTotal: ₹${totalPrice.toLocaleString()}\n\nThank you for booking with FarmStay!`);
                 navigate('/success');
                 return;
             }
@@ -90,7 +115,11 @@ const FarmDetails = () => {
             }
         } catch (error) {
             console.error('Booking error:', error);
-            alert('Booking failed. Please try again.');
+            if (error.response?.status === 409) {
+                alert(`❌ Booking Failed\n\n${error.response.data.message}\n\nPlease select different dates.`);
+            } else {
+                alert('❌ Booking Failed\n\nSomething went wrong. Please try again or contact support.');
+            }
         }
     };
 
@@ -211,12 +240,29 @@ const FarmDetails = () => {
                         <span className="text-gray-500 mb-1">/ night</span>
                     </div>
 
+                    {/* Unavailable Dates Warning */}
+                    {unavailableDates.length > 0 && (
+                        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                            <p className="text-sm font-medium text-yellow-800 mb-2">
+                                ⚠️ Unavailable Dates:
+                            </p>
+                            <ul className="text-xs text-yellow-700 space-y-1">
+                                {unavailableDates.map((booking, idx) => (
+                                    <li key={idx}>
+                                        {new Date(booking.startDate).toLocaleDateString()} - {new Date(booking.endDate).toLocaleDateString()}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+
                     <form onSubmit={handleBooking} className="space-y-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Check-in</label>
                             <input
                                 type="date"
                                 required
+                                min={new Date().toISOString().split('T')[0]}
                                 className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
                                 onChange={(e) => setBookingData({ ...bookingData, startDate: e.target.value })}
                             />
@@ -226,6 +272,7 @@ const FarmDetails = () => {
                             <input
                                 type="date"
                                 required
+                                min={new Date().toISOString().split('T')[0]}
                                 className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
                                 onChange={(e) => setBookingData({ ...bookingData, endDate: e.target.value })}
                             />
