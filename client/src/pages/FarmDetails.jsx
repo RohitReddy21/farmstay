@@ -19,7 +19,9 @@ const FarmDetails = () => {
     const [bookingData, setBookingData] = useState({
         startDate: '',
         endDate: '',
-        guests: 1
+        guests: 1,
+        guestName: '',
+        guestPhone: ''
     });
 
     useEffect(() => {
@@ -50,6 +52,11 @@ const FarmDetails = () => {
             return;
         }
 
+        if (!bookingData.guestName || !bookingData.guestPhone) {
+            alert('Please enter your name and mobile number');
+            return;
+        }
+
         try {
             const startDate = new Date(bookingData.startDate);
             const endDate = new Date(bookingData.endDate);
@@ -63,7 +70,9 @@ const FarmDetails = () => {
                 startDate: bookingData.startDate,
                 endDate: bookingData.endDate,
                 guests: bookingData.guests,
-                totalPrice: totalPrice
+                totalPrice: totalPrice,
+                guestName: bookingData.guestName,
+                guestPhone: bookingData.guestPhone
             });
 
             if (data.success) {
@@ -219,6 +228,28 @@ const FarmDetails = () => {
                                 required
                                 className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
                                 onChange={(e) => setBookingData({ ...bookingData, endDate: e.target.value })}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                            <input
+                                type="text"
+                                required
+                                placeholder="Enter your full name"
+                                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
+                                value={bookingData.guestName}
+                                onChange={(e) => setBookingData({ ...bookingData, guestName: e.target.value })}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Mobile Number</label>
+                            <input
+                                type="tel"
+                                required
+                                placeholder="Enter mobile number"
+                                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
+                                value={bookingData.guestPhone}
+                                onChange={(e) => setBookingData({ ...bookingData, guestPhone: e.target.value })}
                             />
                         </div>
                         <div>

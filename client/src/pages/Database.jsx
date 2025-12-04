@@ -39,6 +39,24 @@ const Database = () => {
         }
     };
 
+    const handleDelete = async (collection, id) => {
+        if (!window.confirm('Are you sure you want to delete this item?')) return;
+
+        try {
+            const token = localStorage.getItem('token');
+            await axios.delete(`${API_URL}/api/admin/${collection}/${id}`, {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            });
+            // Refresh data
+            fetchDatabase();
+        } catch (error) {
+            console.error('Error deleting item:', error);
+            alert('Failed to delete item');
+        }
+    };
+
     if (loading) return <div className="text-center py-20">Loading database...</div>;
     if (!dbData) return <div className="text-center py-20">Failed to load database</div>;
 
@@ -62,6 +80,7 @@ const Database = () => {
                                     <th className="px-4 py-3 text-left">Email</th>
                                     <th className="px-4 py-3 text-left">Role</th>
                                     <th className="px-4 py-3 text-left">Created At</th>
+                                    <th className="px-4 py-3 text-left">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -77,6 +96,14 @@ const Database = () => {
                                         </td>
                                         <td className="px-4 py-3 text-sm text-gray-600">
                                             {new Date(user.createdAt).toLocaleString()}
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <button
+                                                onClick={() => handleDelete('users', user._id)}
+                                                className="bg-red-100 text-red-600 px-3 py-1 rounded hover:bg-red-200 text-sm"
+                                            >
+                                                Delete
+                                            </button>
                                         </td>
                                     </tr>
                                 ))}
@@ -101,6 +128,7 @@ const Database = () => {
                                     <th className="px-4 py-3 text-left">Location</th>
                                     <th className="px-4 py-3 text-left">Price (₹)</th>
                                     <th className="px-4 py-3 text-left">Capacity</th>
+                                    <th className="px-4 py-3 text-left">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -111,6 +139,14 @@ const Database = () => {
                                         <td className="px-4 py-3">{farm.location}</td>
                                         <td className="px-4 py-3">₹{farm.price}</td>
                                         <td className="px-4 py-3">{farm.capacity}</td>
+                                        <td className="px-4 py-3">
+                                            <button
+                                                onClick={() => handleDelete('farms', farm._id)}
+                                                className="bg-red-100 text-red-600 px-3 py-1 rounded hover:bg-red-200 text-sm"
+                                            >
+                                                Delete
+                                            </button>
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -136,10 +172,13 @@ const Database = () => {
                                     <tr>
                                         <th className="px-4 py-3 text-left">ID</th>
                                         <th className="px-4 py-3 text-left">User</th>
+                                        <th className="px-4 py-3 text-left">Guest Name</th>
+                                        <th className="px-4 py-3 text-left">Phone</th>
                                         <th className="px-4 py-3 text-left">Farm</th>
                                         <th className="px-4 py-3 text-left">Dates</th>
                                         <th className="px-4 py-3 text-left">Total (₹)</th>
                                         <th className="px-4 py-3 text-left">Status</th>
+                                        <th className="px-4 py-3 text-left">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -147,6 +186,8 @@ const Database = () => {
                                         <tr key={booking._id} className="border-t hover:bg-gray-50">
                                             <td className="px-4 py-3 text-sm font-mono">{booking._id}</td>
                                             <td className="px-4 py-3">{booking.user?.name || 'N/A'}</td>
+                                            <td className="px-4 py-3">{booking.guestName || 'N/A'}</td>
+                                            <td className="px-4 py-3">{booking.guestPhone || 'N/A'}</td>
                                             <td className="px-4 py-3">{booking.farm?.title || 'N/A'}</td>
                                             <td className="px-4 py-3 text-sm">
                                                 {new Date(booking.startDate).toLocaleDateString()} - {new Date(booking.endDate).toLocaleDateString()}
@@ -156,6 +197,14 @@ const Database = () => {
                                                 <span className={`px-2 py-1 rounded-full text-xs ${booking.status === 'confirmed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
                                                     {booking.status}
                                                 </span>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <button
+                                                    onClick={() => handleDelete('bookings', booking._id)}
+                                                    className="bg-red-100 text-red-600 px-3 py-1 rounded hover:bg-red-200 text-sm"
+                                                >
+                                                    Delete
+                                                </button>
                                             </td>
                                         </tr>
                                     ))}

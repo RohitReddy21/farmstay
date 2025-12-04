@@ -29,3 +29,37 @@ router.get('/bookings', verifyAdmin, async (req, res) => {
 });
 
 module.exports = router;
+
+// @route   DELETE /api/admin/users/:id
+// @desc    Delete a user
+router.delete('/users/:id', verifyAdmin, async (req, res) => {
+    try {
+        await User.findByIdAndDelete(req.params.id);
+        res.json({ message: 'User removed' });
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error' });
+    }
+});
+
+// @route   DELETE /api/admin/bookings/:id
+// @desc    Delete a booking
+router.delete('/bookings/:id', verifyAdmin, async (req, res) => {
+    try {
+        await Booking.findByIdAndDelete(req.params.id);
+        res.json({ message: 'Booking removed' });
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error' });
+    }
+});
+
+// @route   DELETE /api/admin/farms/:id
+// @desc    Delete a farm
+router.delete('/farms/:id', verifyAdmin, async (req, res) => {
+    try {
+        const Farm = require('../models/Farm');
+        await Farm.findByIdAndDelete(req.params.id);
+        res.json({ message: 'Farm removed' });
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error' });
+    }
+});

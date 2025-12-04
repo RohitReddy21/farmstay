@@ -10,7 +10,7 @@ const { sendBookingNotification } = require('../utils/notifications');
 // @desc    Create a booking and get Stripe Session
 // @access  Private
 router.post('/', async (req, res) => {
-    const { farmId, startDate, endDate, guests, userId } = req.body;
+    const { farmId, startDate, endDate, guests, userId, guestName, guestPhone } = req.body;
 
     try {
         const farm = await Farm.findById(farmId);
@@ -39,6 +39,8 @@ router.post('/', async (req, res) => {
                 endDate,
                 guests,
                 totalPrice,
+                guestName,
+                guestPhone,
                 status: 'confirmed',
                 paymentId: 'mock_payment_' + Date.now()
             });
@@ -76,7 +78,9 @@ router.post('/', async (req, res) => {
                 startDate,
                 endDate,
                 guests,
-                totalPrice
+                totalPrice,
+                guestName,
+                guestPhone
             }
         });
 
@@ -103,7 +107,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
 
     if (event.type === 'checkout.session.completed') {
         const session = event.data.object;
-        const { farmId, userId, startDate, endDate, guests, totalPrice } = session.metadata;
+        const { farmId, userId, startDate, endDate, guests, totalPrice, guestName, guestPhone } = session.metadata;
 
         try {
             // Create Booking in DB
@@ -114,6 +118,8 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
                 endDate,
                 guests,
                 totalPrice,
+                guestName,
+                guestPhone,
                 status: 'confirmed',
                 paymentId: session.payment_intent
             });
