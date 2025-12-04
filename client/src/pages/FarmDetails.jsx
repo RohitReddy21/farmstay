@@ -17,6 +17,7 @@ const FarmDetails = () => {
     const [loading, setLoading] = useState(true);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [unavailableDates, setUnavailableDates] = useState([]);
+    const [dateConflict, setDateConflict] = useState(null);
     const [bookingData, setBookingData] = useState({
         startDate: '',
         endDate: '',
@@ -24,6 +25,34 @@ const FarmDetails = () => {
         guestName: '',
         guestPhone: ''
     });
+
+    // Check for date conflicts whenever dates change
+    const checkDateConflict = (start, end) => {
+        if (!start || !end) {
+            setDateConflict(null);
+            return false;
+        }
+
+        const startDate = new Date(start);
+        const endDate = new Date(end);
+
+        const conflict = unavailableDates.find(booking => {
+            const bookingStart = new Date(booking.startDate);
+            const bookingEnd = new Date(booking.endDate);
+            return (startDate <= bookingEnd && endDate >= bookingStart);
+        });
+
+        if (conflict) {
+            setDateConflict({
+                start: new Date(conflict.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                end: new Date(conflict.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+            });
+            return true;
+        }
+
+        setDateConflict(null);
+        return false;
+    };
 
     useEffect(() => {
         const fetchFarm = async () => {
@@ -240,19 +269,22 @@ const FarmDetails = () => {
                         <span className="text-gray-500 mb-1">/ night</span>
                     </div>
 
-                    {/* Unavailable Dates Warning */}
-                    {unavailableDates.length > 0 && (
-                        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                            <p className="text-sm font-medium text-yellow-800 mb-2">
-                                ⚠️ Unavailable Dates:
-                            </p>
-                            <ul className="text-xs text-yellow-700 space-y-1">
-                                {unavailableDates.map((booking, idx) => (
-                                    <li key={idx}>
-                                        {new Date(booking.startDate).toLocaleDateString()} - {new Date(booking.endDate).toLocaleDateString()}
-                                    </li>
-                                ))}
-                            </ul>
+                    {/* Dynamic Date Conflict Warning */}
+                    {dateConflict && (
+                        <div className="mb-4 p-4 bg-gradient-to-r from-red-50 to-rose-50 border-2 border-red-200 rounded-xl shadow-sm animate-pulse">
+                            <div className="flex items-start gap-3">
+                                <div className="flex-shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                                    <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                    </svg>
+                                </div>
+                                <div className="flex-1">
+                                    <h4 className="text-red-900 font-bold text-sm mb-1">Dates Unavailable</h4>
+                                    <p className="text-red-700 text-xs leading-relaxed">
+                                        These dates overlap with an existing booking from <span className="font-semibold">{dateConflict.start}</span> to <span className="font-semibold">{dateConflict.end}</span>. Please select different dates.
+                                    </p>
+                                </div>
+                            </div>
                         </div>
                     )}
 
@@ -263,8 +295,14 @@ const FarmDetails = () => {
                                 type="date"
                                 required
                                 min={new Date().toISOString().split('T')[0]}
-                                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
-                                onChange={(e) => setBookingData({ ...bookingData, startDate: e.target.value })}
+                                value={bookingData.startDate}
+                                className={`w-full p-3 border-2 rounded-lg focus:ring-2 focus:ring-primary outline-none transition-all ${dateConflict ? 'border-red-300 bg-red-50' : 'border-gray-200'
+                                    }`}
+                                onChange={(e) => {
+                                    const newData = { ...bookingData, startDate: e.target.value };
+                                    setBookingData(newData);
+                                    checkDateConflict(e.target.value, bookingData.endDate);
+                                }}
                             />
                         </div>
                         <div>
@@ -273,8 +311,14 @@ const FarmDetails = () => {
                                 type="date"
                                 required
                                 min={new Date().toISOString().split('T')[0]}
-                                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
-                                onChange={(e) => setBookingData({ ...bookingData, endDate: e.target.value })}
+                                value={bookingData.endDate}
+                                className={`w-full p-3 border-2 rounded-lg focus:ring-2 focus:ring-primary outline-none transition-all ${dateConflict ? 'border-red-300 bg-red-50' : 'border-gray-200'
+                                    }`}
+                                onChange={(e) => {
+                                    const newData = { ...bookingData, endDate: e.target.value };
+                                    setBookingData(newData);
+                                    checkDateConflict(bookingData.startDate, e.target.value);
+                                }}
                             />
                         </div>
                         <div>
@@ -283,7 +327,7 @@ const FarmDetails = () => {
                                 type="text"
                                 required
                                 placeholder="Enter your full name"
-                                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
+                                className="w-full p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all"
                                 value={bookingData.guestName}
                                 onChange={(e) => setBookingData({ ...bookingData, guestName: e.target.value })}
                             />
@@ -294,29 +338,34 @@ const FarmDetails = () => {
                                 type="tel"
                                 required
                                 placeholder="Enter mobile number"
-                                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
+                                className="w-full p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all"
                                 value={bookingData.guestPhone}
                                 onChange={(e) => setBookingData({ ...bookingData, guestPhone: e.target.value })}
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Guests</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Number of Guests</label>
                             <input
                                 type="number"
                                 min="1"
                                 max={farm.capacity}
                                 required
                                 value={bookingData.guests}
-                                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
+                                className="w-full p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all"
                                 onChange={(e) => setBookingData({ ...bookingData, guests: e.target.value })}
                             />
+                            <p className="text-xs text-gray-500 mt-1">Maximum {farm.capacity} guests</p>
                         </div>
 
                         <button
                             type="submit"
-                            className="w-full bg-primary text-white py-4 rounded-xl font-bold text-lg hover:bg-green-600 transition shadow-lg transform hover:-translate-y-0.5"
+                            disabled={dateConflict}
+                            className={`w-full py-4 rounded-xl font-bold text-lg transition-all shadow-lg transform ${dateConflict
+                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                    : 'bg-primary text-white hover:bg-green-600 hover:-translate-y-0.5 active:translate-y-0'
+                                }`}
                         >
-                            Book Now
+                            {dateConflict ? 'Dates Unavailable' : 'Book Now'}
                         </button>
                         <p className="text-center text-sm text-gray-500 mt-2">You won't be charged yet</p>
                     </form>
