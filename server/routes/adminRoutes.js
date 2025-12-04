@@ -28,7 +28,6 @@ router.get('/bookings', verifyAdmin, async (req, res) => {
     }
 });
 
-module.exports = router;
 
 // @route   DELETE /api/admin/users/:id
 // @desc    Delete a user
@@ -63,3 +62,5 @@ router.delete('/farms/:id', verifyAdmin, async (req, res) => {
         res.status(500).json({ message: 'Server Error' });
     }
 });
+
+module.exports = router;
