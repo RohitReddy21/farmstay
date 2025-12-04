@@ -1,9 +1,23 @@
+import { useState, useEffect } from 'react';
+import axios from 'axios';
+import { Link } from 'react-router-dom';
+import { MapPin, Users } from 'lucide-react';
+import { motion } from 'framer-motion';
 import API_URL from '../config';
 
 const Farms = () => {
-    // ... state ...
+    const [farms, setFarms] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [filters, setFilters] = useState({
+        location: '',
+        minPrice: '',
+        maxPrice: '',
+        capacity: ''
+    });
 
-    // ... useEffect ...
+    useEffect(() => {
+        fetchFarms();
+    }, []);
 
     const fetchFarms = async () => {
         try {

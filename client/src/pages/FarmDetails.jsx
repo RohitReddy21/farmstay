@@ -1,9 +1,26 @@
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import axios from 'axios';
+import { loadStripe } from '@stripe/stripe-js';
+import { motion, AnimatePresence } from 'framer-motion';
+import { MapPin, Users, Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import API_URL from '../config';
 
-// ... imports ...
+const stripePromise = loadStripe('pk_test_your_key_here'); // Replace with your Stripe public key
 
 const FarmDetails = () => {
-    // ... hooks ...
+    const { id } = useParams();
+    const navigate = useNavigate();
+    const { user } = useAuth();
+    const [farm, setFarm] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [currentImageIndex, setCurrentImageIndex] = useState(0);
+    const [bookingData, setBookingData] = useState({
+        startDate: '',
+        endDate: '',
+        guests: 1
+    });
 
     useEffect(() => {
         const fetchFarm = async () => {
@@ -20,13 +37,33 @@ const FarmDetails = () => {
     }, [id]);
 
     const handleBooking = async (e) => {
-        // ...
+        e.preventDefault();
+
+        if (!user) {
+            alert('Please log in to make a booking');
+            navigate('/login');
+            return;
+        }
+
+        if (!bookingData.startDate || !bookingData.endDate) {
+            alert('Please select check-in and check-out dates');
+            return;
+        }
+
         try {
+            const startDate = new Date(bookingData.startDate);
+            const endDate = new Date(bookingData.endDate);
+            const nights = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+            const totalPrice = nights * farm.price;
+
             const stripe = await stripePromise;
             const { data } = await axios.post(`${API_URL}/api/bookings`, {
                 farmId: id,
                 userId: user._id,
-                ...bookingData
+                startDate: bookingData.startDate,
+                endDate: bookingData.endDate,
+                guests: bookingData.guests,
+                totalPrice: totalPrice
             });
 
             if (data.success) {
