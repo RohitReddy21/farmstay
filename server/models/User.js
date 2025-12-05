@@ -19,7 +19,9 @@ const userSchema = new mongoose.Schema({
         type: String,
         enum: ['user', 'admin'],
         default: 'user'
-    }
+    },
+    resetPasswordToken: String,
+    resetPasswordExpire: Date
 }, { timestamps: true });
 
 // Password Hash Middleware
@@ -30,8 +32,12 @@ userSchema.pre('save', async function (next) {
     next();
 });
 
-// Match Password Method
+// Match Password Method (both names for compatibility)
 userSchema.methods.matchPassword = async function (enteredPassword) {
+    return await bcrypt.compare(enteredPassword, this.password);
+};
+
+userSchema.methods.comparePassword = async function (enteredPassword) {
     return await bcrypt.compare(enteredPassword, this.password);
 };
 

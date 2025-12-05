@@ -5,6 +5,7 @@ import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
 import Farms from './pages/Farms';
 import FarmDetails from './pages/FarmDetails';
 import Admin from './pages/Admin';
@@ -13,6 +14,8 @@ import Success from './pages/Success';
 import Profile from './pages/Profile';
 import MyBookings from './pages/MyBookings';
 import Favorites from './pages/Favorites';
+
+import Chatbot from './components/Chatbot';
 
 function App() {
   return (
@@ -26,6 +29,7 @@ function App() {
                 <Route path="/" element={<Home />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/farms" element={<Farms />} />
                 <Route path="/farm/:id" element={<FarmDetails />} />
                 <Route path="/admin" element={<Admin />} />
@@ -36,6 +40,7 @@ function App() {
                 <Route path="/favorites" element={<Favorites />} />
               </Routes>
             </main>
+            <Chatbot />
             <footer className="bg-white dark:bg-gray-800 py-6 text-center text-gray-500 dark:text-gray-400 transition-colors duration-200">
               <p>&copy; 2024 FarmStay. All rights reserved.</p>
             </footer>

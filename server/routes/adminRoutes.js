@@ -29,6 +29,31 @@ router.get('/bookings', verifyAdmin, async (req, res) => {
 });
 
 
+// @route   PUT /api/admin/users/:id/role
+// @desc    Update user role
+router.put('/users/:id/role', verifyAdmin, async (req, res) => {
+    try {
+        const { role } = req.body;
+        if (!['user', 'admin'].includes(role)) {
+            return res.status(400).json({ message: 'Invalid role' });
+        }
+
+        const user = await User.findByIdAndUpdate(
+            req.params.id,
+            { role },
+            { new: true }
+        ).select('-password');
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        res.json(user);
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error' });
+    }
+});
+
 // @route   DELETE /api/admin/users/:id
 // @desc    Delete a user
 router.delete('/users/:id', verifyAdmin, async (req, res) => {

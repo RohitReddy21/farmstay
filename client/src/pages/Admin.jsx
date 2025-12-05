@@ -24,8 +24,6 @@ const Admin = () => {
 
     const fetchData = async () => {
         try {
-            // Note: In a real app, you'd need admin middleware check on backend
-            // For this demo, we'll just fetch data if logged in
             const config = {
                 headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
             };
@@ -40,33 +38,80 @@ const Admin = () => {
         }
     };
 
+    const handleRoleUpdate = async (userId, newRole) => {
+        try {
+            const config = {
+                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+            };
+            await axios.put(`${API_URL}/api/admin/users/${userId}/role`, { role: newRole }, config);
+            fetchData(); // Refresh list
+        } catch (error) {
+            console.error('Error updating role:', error);
+            alert('Failed to update role');
+        }
+    };
+
     return (
         <div className="container mx-auto px-4 py-8">
             <h1 className="text-3xl font-bold mb-8">Admin Dashboard</h1>
 
             <div className="grid md:grid-cols-2 gap-8">
                 <div className="bg-white p-6 rounded-xl shadow-md">
-                    <h2 className="text-xl font-bold mb-4">Registered Users ({users.length})</h2>
-                    <ul className="space-y-2">
-                        {users.map(u => (
-                            <li key={u._id} className="border-b pb-2">
-                                <span className="font-medium">{u.name}</span> - {u.email}
-                            </li>
-                        ))}
-                    </ul>
+                    <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white">Registered Users ({users.length})</h2>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left">
+                            <thead>
+                                <tr className="border-b dark:border-gray-700">
+                                    <th className="pb-2 dark:text-gray-300">Name</th>
+                                    <th className="pb-2 dark:text-gray-300">Email</th>
+                                    <th className="pb-2 dark:text-gray-300">Role</th>
+                                    <th className="pb-2 dark:text-gray-300">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {users.map(u => (
+                                    <tr key={u._id} className="border-b dark:border-gray-700 last:border-0">
+                                        <td className="py-3 font-medium dark:text-white">{u.name}</td>
+                                        <td className="py-3 text-gray-600 dark:text-gray-400">{u.email}</td>
+                                        <td className="py-3">
+                                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${u.role === 'admin'
+                                                ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300'
+                                                : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                                                }`}>
+                                                {u.role}
+                                            </span>
+                                        </td>
+                                        <td className="py-3">
+                                            {u.email !== 'admin@farmstay.com' && (
+                                                <button
+                                                    onClick={() => handleRoleUpdate(u._id, u.role === 'admin' ? 'user' : 'admin')}
+                                                    className={`text-xs px-3 py-1 rounded-md transition-colors ${u.role === 'admin'
+                                                            ? 'bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200'
+                                                            : 'bg-blue-100 hover:bg-blue-200 text-blue-800 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 dark:text-blue-300'
+                                                        }`}
+                                                >
+                                                    {u.role === 'admin' ? 'Demote' : 'Promote'}
+                                                </button>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
-                <div className="bg-white p-6 rounded-xl shadow-md">
-                    <h2 className="text-xl font-bold mb-4">Recent Bookings ({bookings.length})</h2>
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border dark:border-gray-700">
+                    <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white">Recent Bookings ({bookings.length})</h2>
                     <ul className="space-y-4">
                         {bookings.map(b => (
-                            <li key={b._id} className="border-b pb-2">
-                                <div className="font-medium">{b.farm?.title || 'Unknown Farm'}</div>
-                                <div className="text-sm text-gray-600">
+                            <li key={b._id} className="border-b dark:border-gray-700 pb-2 last:border-0">
+                                <div className="font-medium dark:text-white">{b.farm?.title || 'Unknown Farm'}</div>
+                                <div className="text-sm text-gray-600 dark:text-gray-400">
                                     {new Date(b.startDate).toLocaleDateString()} - {new Date(b.endDate).toLocaleDateString()}
                                 </div>
-                                <div className="text-sm">User: {b.user?.name || 'Unknown'}</div>
-                                <div className="font-bold text-green-600">₹{b.totalPrice}</div>
+                                <div className="text-sm dark:text-gray-300">User: {b.user?.name || 'Unknown'}</div>
+                                <div className="font-bold text-green-600 dark:text-green-400">₹{b.totalPrice}</div>
                             </li>
                         ))}
                     </ul>
