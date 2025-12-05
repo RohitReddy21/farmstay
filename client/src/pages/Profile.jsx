@@ -114,8 +114,8 @@ const Profile = () => {
 
             {message.text && (
                 <div className={`mb-6 p-4 rounded-lg ${message.type === 'success'
-                        ? 'bg-green-50 text-green-800 border border-green-200'
-                        : 'bg-red-50 text-red-800 border border-red-200'
+                    ? 'bg-green-50 text-green-800 border border-green-200'
+                    : 'bg-red-50 text-red-800 border border-red-200'
                     }`}>
                     {message.text}
                 </div>
@@ -123,9 +123,9 @@ const Profile = () => {
 
             <div className="grid md:grid-cols-2 gap-8">
                 {/* Profile Information */}
-                <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100">
-                    <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-                        <User size={24} className="text-primary" />
+                <div className="bg-white p-5 md:p-6 rounded-xl md:rounded-2xl shadow-lg border border-gray-100">
+                    <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-4 md:mb-6 flex items-center gap-2">
+                        <User size={20} className="md:w-6 md:h-6 text-primary" />
                         Profile Information
                     </h2>
 
@@ -135,13 +135,13 @@ const Profile = () => {
                                 Full Name
                             </label>
                             <div className="relative">
-                                <User className="absolute left-3 top-3 text-gray-400" size={20} />
+                                <User className="absolute left-3 top-3 text-gray-400" size={18} />
                                 <input
                                     type="text"
                                     required
                                     value={profileData.name}
                                     onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
-                                    className="w-full pl-10 p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all"
+                                    className="w-full pl-10 p-2.5 md:p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all text-sm md:text-base"
                                 />
                             </div>
                         </div>
@@ -151,13 +151,13 @@ const Profile = () => {
                                 Email
                             </label>
                             <div className="relative">
-                                <Mail className="absolute left-3 top-3 text-gray-400" size={20} />
+                                <Mail className="absolute left-3 top-3 text-gray-400" size={18} />
                                 <input
                                     type="email"
                                     required
                                     value={profileData.email}
                                     onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
-                                    className="w-full pl-10 p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all"
+                                    className="w-full pl-10 p-2.5 md:p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all text-sm md:text-base"
                                 />
                             </div>
                         </div>
@@ -167,12 +167,12 @@ const Profile = () => {
                                 Phone Number
                             </label>
                             <div className="relative">
-                                <Phone className="absolute left-3 top-3 text-gray-400" size={20} />
+                                <Phone className="absolute left-3 top-3 text-gray-400" size={18} />
                                 <input
                                     type="tel"
                                     value={profileData.phone}
                                     onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
-                                    className="w-full pl-10 p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all"
+                                    className="w-full pl-10 p-2.5 md:p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all text-sm md:text-base"
                                 />
                             </div>
                         </div>
@@ -180,18 +180,18 @@ const Profile = () => {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full bg-primary text-white py-3 rounded-lg font-semibold hover:bg-green-600 transition-all shadow-md flex items-center justify-center gap-2 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                            className="w-full bg-primary text-white py-2.5 md:py-3 rounded-lg font-semibold hover:bg-green-600 transition-all shadow-md flex items-center justify-center gap-2 disabled:bg-gray-300 disabled:cursor-not-allowed text-sm md:text-base"
                         >
-                            <Save size={20} />
+                            <Save size={18} className="md:w-5 md:h-5" />
                             {loading ? 'Saving...' : 'Save Changes'}
                         </button>
                     </form>
                 </div>
 
                 {/* Change Password */}
-                <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100">
-                    <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-                        <Lock size={24} className="text-primary" />
+                <div className="bg-white p-5 md:p-6 rounded-xl md:rounded-2xl shadow-lg border border-gray-100">
+                    <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-4 md:mb-6 flex items-center gap-2">
+                        <Lock size={20} className="md:w-6 md:h-6 text-primary" />
                         Change Password
                     </h2>
 
@@ -247,9 +247,9 @@ const Profile = () => {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full bg-primary text-white py-3 rounded-lg font-semibold hover:bg-green-600 transition-all shadow-md flex items-center justify-center gap-2 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                            className="w-full bg-primary text-white py-2.5 md:py-3 rounded-lg font-semibold hover:bg-green-600 transition-all shadow-md flex items-center justify-center gap-2 disabled:bg-gray-300 disabled:cursor-not-allowed text-sm md:text-base"
                         >
-                            <Lock size={20} />
+                            <Lock size={18} className="md:w-5 md:h-5" />
                             {loading ? 'Changing...' : 'Change Password'}
                         </button>
                     </form>

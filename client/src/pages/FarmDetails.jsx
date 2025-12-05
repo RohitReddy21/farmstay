@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import { loadStripe } from '@stripe/stripe-js';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MapPin, Users, Check, ChevronLeft, ChevronRight } from 'lucide-react';
+import { MapPin, Users, Check, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
 
 import API_URL from '../config';
 import FavoriteButton from '../components/FavoriteButton';
@@ -217,14 +217,13 @@ const FarmDetails = () => {
     if (!farm) return <div className="text-center py-20">Farm not found</div>;
 
     return (
-        <div className="space-y-12">
-            <div className="grid md:grid-cols-3 gap-8">
-                {/* Left: Images & Info */}
-                <div className="md:col-span-2 space-y-8">
-                    {/* Image Gallery */}
-                    <div className="space-y-4">
+        <div className="space-y-6 md:space-y-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
+                {/* Left: Images */}
+                <div className="lg:col-span-2 space-y-3 md:space-y-4">
+                    <div className="space-y-3 md:space-y-4">
                         {/* Main Image with Navigation */}
-                        <div className="relative rounded-3xl overflow-hidden shadow-lg h-[500px] group">
+                        <div className="relative rounded-2xl md:rounded-3xl overflow-hidden shadow-xl h-[300px] sm:h-[400px] md:h-[500px] group">
                             <AnimatePresence mode="wait">
                                 <motion.img
                                     key={currentImageIndex}
@@ -243,19 +242,19 @@ const FarmDetails = () => {
                                 <>
                                     <button
                                         onClick={prevImage}
-                                        className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white p-3 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                                        className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white p-2 md:p-3 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
                                     >
-                                        <ChevronLeft className="w-6 h-6" />
+                                        <ChevronLeft className="w-5 h-5 md:w-6 md:h-6" />
                                     </button>
                                     <button
                                         onClick={nextImage}
-                                        className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white p-3 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                                        className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white p-2 md:p-3 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
                                     >
-                                        <ChevronRight className="w-6 h-6" />
+                                        <ChevronRight className="w-5 h-5 md:w-6 md:h-6" />
                                     </button>
 
                                     {/* Image Counter */}
-                                    <div className="absolute bottom-4 right-4 bg-black/60 text-white px-3 py-1 rounded-full text-sm">
+                                    <div className="absolute bottom-3 md:bottom-4 right-3 md:right-4 bg-black/60 text-white px-2 md:px-3 py-1 rounded-full text-xs md:text-sm">
                                         {currentImageIndex + 1} / {farm.images.length}
                                     </div>
                                 </>
@@ -264,7 +263,7 @@ const FarmDetails = () => {
 
                         {/* Thumbnail Gallery */}
                         {farm.images.length > 1 && (
-                            <div className="grid grid-cols-5 gap-2">
+                            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
                                 {farm.images.map((image, index) => (
                                     <button
                                         key={index}
@@ -284,51 +283,14 @@ const FarmDetails = () => {
                             </div>
                         )}
                     </div>
-
-                    <div>
-                        <div className="flex items-start justify-between mb-2">
-                            <h1 className="text-4xl font-bold text-gray-900">{farm.title}</h1>
-                            <FavoriteButton farmId={farm._id} size={28} />
-                        </div>
-                        <div className="flex items-center text-gray-600 mb-6">
-                            <MapPin size={20} className="mr-2" /> {farm.location}
-                            <span className="mx-4">|</span>
-                            <Users size={20} className="mr-2" /> Capacity: {farm.capacity} guests
-                            {totalReviews > 0 && (
-                                <>
-                                    <span className="mx-4">|</span>
-                                    <div className="flex items-center gap-1">
-                                        <StarRating rating={averageRating} size={18} />
-                                        <span className="text-sm font-medium ml-1">({totalReviews} reviews)</span>
-                                    </div>
-                                </>
-                            )}
-                        </div>
-
-                        <div className="prose max-w-none text-gray-700 mb-8">
-                            <h3 className="text-2xl font-semibold mb-4">About this farm</h3>
-                            <p className="whitespace-pre-line">{farm.description}</p>
-                        </div>
-
-                        <div>
-                            <h3 className="text-2xl font-semibold mb-4">Amenities</h3>
-                            <div className="grid grid-cols-2 gap-4">
-                                {farm.amenities.map((amenity, index) => (
-                                    <div key={index} className="flex items-center text-gray-600">
-                                        <Check size={18} className="text-primary mr-2" /> {amenity}
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
                 </div>
 
                 {/* Right: Booking Card */}
-                <div className="md:col-span-1">
-                    <div className="bg-white p-6 rounded-2xl shadow-xl sticky top-24 border border-gray-100">
-                        <div className="flex justify-between items-end mb-6">
-                            <span className="text-3xl font-bold text-gray-900">₹{farm.price}</span>
-                            <span className="text-gray-500 mb-1">/ night</span>
+                <div className="lg:col-span-1">
+                    <div className="bg-white p-5 md:p-6 rounded-xl md:rounded-2xl shadow-xl lg:sticky lg:top-24 border border-gray-100">
+                        <div className="flex justify-between items-end mb-4 md:mb-6">
+                            <span className="text-2xl md:text-3xl font-bold text-gray-900">₹{farm.price}</span>
+                            <span className="text-gray-500 mb-1 text-sm md:text-base">/ night</span>
                         </div>
 
                         {/* Dynamic Date Conflict Warning */}
@@ -350,7 +312,7 @@ const FarmDetails = () => {
                             </div>
                         )}
 
-                        <form onSubmit={handleBooking} className="space-y-4">
+                        <form onSubmit={handleBooking} className="space-y-3 md:space-y-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Check-in</label>
                                 <input
@@ -358,7 +320,7 @@ const FarmDetails = () => {
                                     required
                                     min={new Date().toISOString().split('T')[0]}
                                     value={bookingData.startDate}
-                                    className={`w-full p-3 border-2 rounded-lg focus:ring-2 focus:ring-primary outline-none transition-all ${dateConflict ? 'border-red-300 bg-red-50' : 'border-gray-200'
+                                    className={`w-full p-2.5 md:p-3 border-2 rounded-lg focus:ring-2 focus:ring-primary outline-none transition-all text-sm md:text-base ${dateConflict ? 'border-red-300 bg-red-50' : 'border-gray-200'
                                         }`}
                                     onChange={(e) => {
                                         const newData = { ...bookingData, startDate: e.target.value };
@@ -374,7 +336,7 @@ const FarmDetails = () => {
                                     required
                                     min={new Date().toISOString().split('T')[0]}
                                     value={bookingData.endDate}
-                                    className={`w-full p-3 border-2 rounded-lg focus:ring-2 focus:ring-primary outline-none transition-all ${dateConflict ? 'border-red-300 bg-red-50' : 'border-gray-200'
+                                    className={`w-full p-2.5 md:p-3 border-2 rounded-lg focus:ring-2 focus:ring-primary outline-none transition-all text-sm md:text-base ${dateConflict ? 'border-red-300 bg-red-50' : 'border-gray-200'
                                         }`}
                                     onChange={(e) => {
                                         const newData = { ...bookingData, endDate: e.target.value };
@@ -389,7 +351,7 @@ const FarmDetails = () => {
                                     type="text"
                                     required
                                     placeholder="Enter your full name"
-                                    className="w-full p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all"
+                                    className="w-full p-2.5 md:p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all text-sm md:text-base"
                                     value={bookingData.guestName}
                                     onChange={(e) => setBookingData({ ...bookingData, guestName: e.target.value })}
                                 />
@@ -400,7 +362,7 @@ const FarmDetails = () => {
                                     type="tel"
                                     required
                                     placeholder="Enter mobile number"
-                                    className="w-full p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all"
+                                    className="w-full p-2.5 md:p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all text-sm md:text-base"
                                     value={bookingData.guestPhone}
                                     onChange={(e) => setBookingData({ ...bookingData, guestPhone: e.target.value })}
                                 />
@@ -413,7 +375,7 @@ const FarmDetails = () => {
                                     max={farm.capacity}
                                     required
                                     value={bookingData.guests}
-                                    className="w-full p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all"
+                                    className="w-full p-2.5 md:p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all text-sm md:text-base"
                                     onChange={(e) => setBookingData({ ...bookingData, guests: e.target.value })}
                                 />
                                 <p className="text-xs text-gray-500 mt-1">Maximum {farm.capacity} guests</p>
@@ -422,17 +384,105 @@ const FarmDetails = () => {
                             <button
                                 type="submit"
                                 disabled={dateConflict}
-                                className={`w-full py-4 rounded-xl font-bold text-lg transition-all shadow-lg transform ${dateConflict
+                                className={`w-full py-3 md:py-4 rounded-xl font-bold text-base md:text-lg transition-all shadow-lg transform ${dateConflict
                                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                                     : 'bg-primary text-white hover:bg-green-600 hover:-translate-y-0.5 active:translate-y-0'
                                     }`}
                             >
                                 {dateConflict ? 'Dates Unavailable' : 'Book Now'}
                             </button>
-                            <p className="text-center text-sm text-gray-500 mt-2">You won't be charged yet</p>
+                            <p className="text-center text-xs md:text-sm text-gray-500 mt-2">You won't be charged yet</p>
                         </form>
                     </div>
                 </div>
+            </div>
+
+            {/* Full Width Content Section */}
+            <div className="bg-white rounded-2xl md:rounded-3xl shadow-lg border border-gray-100 p-6 md:p-8 lg:p-10">
+                {/* Title and Meta Info */}
+                <div className="border-b border-gray-200 pb-6 mb-8">
+                    <div className="flex items-start justify-between mb-4">
+                        <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 leading-tight">{farm.title}</h1>
+                        <FavoriteButton farmId={farm._id} size={28} />
+                    </div>
+                    <div className="flex flex-wrap items-center gap-4 md:gap-6 text-gray-600">
+                        <div className="flex items-center gap-2">
+                            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+                                <MapPin size={20} className="text-primary" />
+                            </div>
+                            <span className="font-medium text-base md:text-lg">{farm.location}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+                                <Users size={20} className="text-primary" />
+                            </div>
+                            <span className="text-base md:text-lg">Up to <span className="font-semibold">{farm.capacity}</span> guests</span>
+                        </div>
+                        {totalReviews > 0 && (
+                            <div className="flex items-center gap-2">
+                                <StarRating rating={averageRating} size={20} />
+                                <span className="font-bold text-lg">{averageRating.toFixed(1)}</span>
+                                <span className="text-gray-500">({totalReviews} {totalReviews === 1 ? 'review' : 'reviews'})</span>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Description */}
+                <div className="mb-10">
+                    <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-5 flex items-center gap-3">
+                        <div className="w-1.5 h-8 bg-gradient-to-b from-primary to-green-600 rounded-full"></div>
+                        About this farm
+                    </h2>
+                    <p className="text-gray-700 leading-relaxed whitespace-pre-line text-lg md:text-xl">
+                        {farm.description}
+                    </p>
+                </div>
+
+                {/* Amenities */}
+                <div>
+                    <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-5 flex items-center gap-3">
+                        <div className="w-1.5 h-8 bg-gradient-to-b from-primary to-green-600 rounded-full"></div>
+                        What this place offers
+                    </h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {farm.amenities.map((amenity, index) => (
+                            <div key={index} className="flex items-center gap-3 p-4 bg-gradient-to-br from-gray-50 to-white rounded-xl hover:shadow-md hover:scale-105 transition-all duration-200 border border-gray-100">
+                                <div className="w-10 h-10 bg-gradient-to-br from-primary to-green-600 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm">
+                                    <Check size={20} className="text-white" />
+                                </div>
+                                <span className="text-gray-800 font-medium text-base">{amenity}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {/* Reviews Section */}
+            <div className="bg-white rounded-2xl md:rounded-3xl shadow-lg border border-gray-100 p-6 md:p-8 lg:p-10">
+                <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+                    <div className="w-1.5 h-8 bg-gradient-to-b from-primary to-green-600 rounded-full"></div>
+                    Guest Reviews
+                </h2>
+                <ReviewList reviews={reviews} />
+                {eligibleBookingId && !showReviewForm && (
+                    <button
+                        onClick={() => setShowReviewForm(true)}
+                        className="mt-6 bg-primary text-white px-6 py-3 rounded-lg hover:bg-green-600 transition-all font-medium"
+                    >
+                        Write a Review
+                    </button>
+                )}
+                {showReviewForm && (
+                    <ReviewForm
+                        farmId={id}
+                        bookingId={eligibleBookingId}
+                        onReviewSubmitted={() => {
+                            setShowReviewForm(false);
+                            fetchReviews();
+                        }}
+                    />
+                )}
             </div>
         </div>
     );
