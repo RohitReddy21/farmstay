@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
 const Booking = require('../models/Booking');
-const { verifyAdmin } = require('../middleware/authMiddleware');
+const { verifyAdmin, verifyToken } = require('../middleware/authMiddleware');
 
 const Farm = require('../models/Farm');
 
@@ -19,11 +19,11 @@ router.post('/seed', verifyToken, verifyAdmin, async (req, res) => {
                 price: 4999,
                 capacity: 12,
                 images: [
-                    "/images/maharashtra/img1.jpg",
-                    "/images/maharashtra/img2.jpg",
-                    "/images/maharashtra/img3.jpg",
-                    "/images/maharashtra/img4.jpg",
-                    "/images/maharashtra/img5.jpg"
+                    "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80",
+                    "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=800&q=80",
+                    "https://images.unsplash.com/photo-1501594907352-04cda38ebc29?auto=format&fit=crop&w=800&q=80",
+                    "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=800&q=80",
+                    "https://images.unsplash.com/photo-1472214103451-9374bd1c798e?auto=format&fit=crop&w=800&q=80"
                 ],
                 amenities: [
                     "Swimming Pool",
