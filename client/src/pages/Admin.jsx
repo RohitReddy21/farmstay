@@ -52,9 +52,32 @@ const Admin = () => {
         }
     };
 
+    const handleResetContent = async () => {
+        if (window.confirm('Are you sure? This will reset all farms to the default content.')) {
+            try {
+                const token = localStorage.getItem('token');
+                await axios.post(`${API_URL}/api/admin/seed`, {}, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                alert('Content updated successfully! Please refresh the page.');
+            } catch (error) {
+                console.error('Error resetting content:', error);
+                alert('Failed to reset content');
+            }
+        }
+    };
+
     return (
         <div className="container mx-auto px-4 py-8">
-            <h1 className="text-3xl font-bold mb-8">Admin Dashboard</h1>
+            <div className="flex justify-between items-center mb-8">
+                <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+                <button
+                    onClick={handleResetContent}
+                    className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition"
+                >
+                    Reset Website Content
+                </button>
+            </div>
 
             <div className="grid md:grid-cols-2 gap-8">
                 <div className="bg-white p-6 rounded-xl shadow-md">
