@@ -78,7 +78,13 @@ const Navbar = () => {
                             <Link to="/farms" onClick={() => setIsOpen(false)} className="text-gray-600 hover:text-primary">Explore Farms</Link>
                             {user ? (
                                 <>
-                                    <Link to="/profile" onClick={() => setIsOpen(false)} className="text-gray-600 hover:text-primary">Profile</Link>
+                                    {user.role === 'admin' && (
+                                        <>
+                                            <Link to="/admin" onClick={() => setIsOpen(false)} className="text-gray-600 dark:text-gray-300 hover:text-primary">Admin Dashboard</Link>
+                                            <Link to="/database" onClick={() => setIsOpen(false)} className="text-gray-600 dark:text-gray-300 hover:text-primary">Database</Link>
+                                        </>
+                                    )}
+                                    <Link to="/profile" onClick={() => setIsOpen(false)} className="text-gray-600 dark:text-gray-300 hover:text-primary">Profile</Link>
                                     <Link to="/bookings" onClick={() => setIsOpen(false)} className="text-gray-600 hover:text-primary">My Bookings</Link>
                                     <Link to="/favorites" onClick={() => setIsOpen(false)} className="text-gray-600 hover:text-primary">Favorites</Link>
                                     <span className="text-gray-800 font-medium">Hi, {user.name}</span>

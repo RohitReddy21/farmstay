@@ -3,6 +3,18 @@ const router = express.Router();
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const { verifyToken } = require('../middleware/authMiddleware');
+
+// @route   GET /api/auth/me
+// @desc    Get current user
+router.get('/me', verifyToken, async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id).select('-password');
+        res.json(user);
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error' });
+    }
+});
 
 // @route   POST /api/auth/register
 // @desc    Register user
