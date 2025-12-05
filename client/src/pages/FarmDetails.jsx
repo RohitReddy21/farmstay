@@ -11,6 +11,7 @@ import FavoriteButton from '../components/FavoriteButton';
 import ReviewList from '../components/ReviewList';
 import ReviewForm from '../components/ReviewForm';
 import StarRating from '../components/StarRating';
+import BookingConfirmationModal from '../components/BookingConfirmationModal';
 
 const stripePromise = loadStripe('pk_test_your_key_here'); // Replace with your Stripe public key
 
@@ -28,6 +29,8 @@ const FarmDetails = () => {
     const [totalReviews, setTotalReviews] = useState(0);
     const [eligibleBookingId, setEligibleBookingId] = useState(null);
     const [showReviewForm, setShowReviewForm] = useState(false);
+    const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+    const [confirmedBookingDetails, setConfirmedBookingDetails] = useState(null);
     const [bookingData, setBookingData] = useState({
         startDate: '',
         endDate: '',
@@ -181,13 +184,16 @@ const FarmDetails = () => {
                 // Calculate nights for display
                 const nights = Math.ceil((new Date(bookingData.endDate) - new Date(bookingData.startDate)) / (1000 * 60 * 60 * 24));
 
-                // Show immediate success alert
-                alert(`✅ Booking Confirmed Successfully!\n\nFarm: ${farm.title}\nLocation: ${farm.location}\nCheck-in: ${new Date(bookingData.startDate).toLocaleDateString()}\nCheck-out: ${new Date(bookingData.endDate).toLocaleDateString()}\nNights: ${nights}\nGuests: ${bookingData.guests}\nTotal Amount: ₹${totalPrice.toLocaleString()}\n\nYour booking has been confirmed!\nYou can view it in "My Bookings" section.`);
-
-                // Navigate after a short delay to ensure alert is shown
-                setTimeout(() => {
-                    navigate('/bookings');
-                }, 100);
+                // Set booking details and show modal
+                setConfirmedBookingDetails({
+                    farm,
+                    startDate: bookingData.startDate,
+                    endDate: bookingData.endDate,
+                    guests: bookingData.guests,
+                    totalPrice,
+                    nights
+                });
+                setShowConfirmationModal(true);
                 return;
             }
 
@@ -491,6 +497,16 @@ const FarmDetails = () => {
                     />
                 )}
             </div>
+
+            {/* Booking Confirmation Modal */}
+            <BookingConfirmationModal
+                isOpen={showConfirmationModal}
+                onClose={() => {
+                    setShowConfirmationModal(false);
+                    navigate('/bookings');
+                }}
+                bookingDetails={confirmedBookingDetails}
+            />
         </div>
     );
 };
