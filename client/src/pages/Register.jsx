@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
+import { GoogleLogin } from '@react-oauth/google';
 
 const Register = () => {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const { register } = useAuth();
+    const { register, googleLogin } = useAuth();
     const navigate = useNavigate();
     const [error, setError] = useState('');
 
@@ -21,35 +22,36 @@ const Register = () => {
     };
 
     return (
-        <div className="max-w-md mx-auto mt-20 bg-white p-8 rounded-2xl shadow-xl">
-            <h2 className="text-3xl font-bold text-center mb-8 text-gray-800">Create Account</h2>
-            {error && <div className="bg-red-100 text-red-700 p-3 rounded-lg mb-4">{error}</div>}
+    return (
+        <div className="max-w-md mx-auto mt-20 bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl">
+            <h2 className="text-3xl font-bold text-center mb-8 text-gray-800 dark:text-white">Create Account</h2>
+            {error && <div className="bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-200 p-3 rounded-lg mb-4">{error}</div>}
             <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
                     <input
                         type="text"
-                        className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
+                        className="w-full p-3 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary outline-none dark:bg-gray-700 dark:text-white"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         required
                     />
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
                     <input
                         type="email"
-                        className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
+                        className="w-full p-3 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary outline-none dark:bg-gray-700 dark:text-white"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         required
                     />
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Password</label>
                     <input
                         type="password"
-                        className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
+                        className="w-full p-3 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary outline-none dark:bg-gray-700 dark:text-white"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         required
@@ -59,7 +61,38 @@ const Register = () => {
                     Sign Up
                 </button>
             </form>
-            <p className="mt-6 text-center text-gray-600">
+
+            <div className="mt-6">
+                <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                        <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
+                    </div>
+                    <div className="relative flex justify-center text-sm">
+                        <span className="px-2 bg-white dark:bg-gray-800 text-gray-500">Or sign up with</span>
+                    </div>
+                </div>
+
+                <div className="mt-6 flex justify-center">
+                    <GoogleLogin
+                        onSuccess={async (credentialResponse) => {
+                            try {
+                                await googleLogin(credentialResponse.credential);
+                                navigate('/');
+                            } catch (err) {
+                                setError('Google Sign-Up Failed');
+                            }
+                        }}
+                        onError={() => {
+                            setError('Google Sign-Up Failed');
+                        }}
+                        theme="filled_blue"
+                        shape="pill"
+                        text="signup_with"
+                    />
+                </div>
+            </div>
+
+            <p className="mt-6 text-center text-gray-600 dark:text-gray-400">
                 Already have an account? <Link to="/login" className="text-primary font-semibold hover:underline">Login</Link>
             </p>
         </div>

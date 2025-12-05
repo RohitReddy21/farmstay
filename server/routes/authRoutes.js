@@ -4,6 +4,50 @@ const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { verifyToken } = require('../middleware/authMiddleware');
+const { OAuth2Client } = require('google-auth-library');
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+// @route   POST /api/auth/google
+// @desc    Google Login/Register
+router.post('/google', async (req, res) => {
+    try {
+        const { token } = req.body;
+        const ticket = await client.verifyIdToken({
+            idToken: token,
+            audience: process.env.GOOGLE_CLIENT_ID
+        });
+        const { name, email, picture } = ticket.getPayload();
+
+        let user = await User.findOne({ email });
+
+        if (!user) {
+            // Create new user
+            // Generate a random password since they use Google
+            const randomPassword = crypto.randomBytes(16).toString('hex');
+            user = await User.create({
+                name,
+                email,
+                password: randomPassword,
+                role: 'user'
+            });
+        }
+
+        const jwtToken = jwt.sign({ _id: user._id }, process.env.JWT_SECRET, {
+            expiresIn: '30d'
+        });
+
+        res.json({
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            token: jwtToken
+        });
+    } catch (error) {
+        console.error('Google Auth Error:', error);
+        res.status(401).json({ message: 'Google Authentication Failed' });
+    }
+});
 
 // @route   GET /api/auth/me
 // @desc    Get current user

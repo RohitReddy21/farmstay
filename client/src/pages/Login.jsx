@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
+import { GoogleLogin } from '@react-oauth/google';
 
 const Login = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const { login } = useAuth();
+    const { login, googleLogin } = useAuth();
     const navigate = useNavigate();
     const [error, setError] = useState('');
 
@@ -53,6 +54,35 @@ const Login = () => {
                     Login
                 </button>
             </form>
+
+            <div className="mt-6">
+                <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                        <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
+                    </div>
+                    <div className="relative flex justify-center text-sm">
+                        <span className="px-2 bg-white dark:bg-gray-800 text-gray-500">Or continue with</span>
+                    </div>
+                </div>
+
+                <div className="mt-6 flex justify-center">
+                    <GoogleLogin
+                        onSuccess={async (credentialResponse) => {
+                            try {
+                                await googleLogin(credentialResponse.credential);
+                                navigate('/');
+                            } catch (err) {
+                                setError('Google Login Failed');
+                            }
+                        }}
+                        onError={() => {
+                            setError('Google Login Failed');
+                        }}
+                        theme="filled_blue"
+                        shape="pill"
+                    />
+                </div>
+            </div>
             <p className="mt-6 text-center text-gray-600 dark:text-gray-400">
                 Don't have an account? <Link to="/register" className="text-primary font-semibold hover:underline">Sign up</Link>
             </p>

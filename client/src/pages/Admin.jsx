@@ -44,6 +44,7 @@ const Admin = () => {
                 headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
             };
             await axios.put(`${API_URL}/api/admin/users/${userId}/role`, { role: newRole }, config);
+            await new Promise(r => setTimeout(r, 200));
             fetchData(); // Refresh list
         } catch (error) {
             console.error('Error updating role:', error);
@@ -75,8 +76,8 @@ const Admin = () => {
                                         <td className="py-3 text-gray-600 dark:text-gray-400">{u.email}</td>
                                         <td className="py-3">
                                             <span className={`px-2 py-1 rounded-full text-xs font-semibold ${u.role === 'admin'
-                                                    ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300'
-                                                    : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                                                ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300'
+                                                : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
                                                 }`}>
                                                 {u.role}
                                             </span>
