@@ -22,7 +22,6 @@ const Register = () => {
     };
 
     return (
-    return (
         <div className="max-w-md mx-auto mt-20 bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl">
             <h2 className="text-3xl font-bold text-center mb-8 text-gray-800 dark:text-white">Create Account</h2>
             {error && <div className="bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-200 p-3 rounded-lg mb-4">{error}</div>}

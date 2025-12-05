@@ -171,6 +171,10 @@ const FarmDetails = () => {
                 totalPrice: totalPrice,
                 guestName: bookingData.guestName,
                 guestPhone: bookingData.guestPhone
+            }, {
+                headers: {
+                    Authorization: `Bearer ${localStorage.getItem('token')}`
+                }
             });
 
             if (data.success) {
@@ -303,7 +307,7 @@ const FarmDetails = () => {
 
                         <div className="prose max-w-none text-gray-700 mb-8">
                             <h3 className="text-2xl font-semibold mb-4">About this farm</h3>
-                            <p>{farm.description}</p>
+                            <p className="whitespace-pre-line">{farm.description}</p>
                         </div>
 
                         <div>
