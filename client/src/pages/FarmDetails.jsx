@@ -178,9 +178,16 @@ const FarmDetails = () => {
             });
 
             if (data.success) {
-                // Mock success with detailed notification
-                alert(`✅ Booking Confirmed!\n\nFarm: ${farm.title}\nDates: ${bookingData.startDate} to ${bookingData.endDate}\nGuests: ${bookingData.guests}\nTotal: ₹${totalPrice.toLocaleString()}\n\nThank you for booking with FarmStay!`);
-                navigate('/success');
+                // Calculate nights for display
+                const nights = Math.ceil((new Date(bookingData.endDate) - new Date(bookingData.startDate)) / (1000 * 60 * 60 * 24));
+
+                // Show immediate success alert
+                alert(`✅ Booking Confirmed Successfully!\n\nFarm: ${farm.title}\nLocation: ${farm.location}\nCheck-in: ${new Date(bookingData.startDate).toLocaleDateString()}\nCheck-out: ${new Date(bookingData.endDate).toLocaleDateString()}\nNights: ${nights}\nGuests: ${bookingData.guests}\nTotal Amount: ₹${totalPrice.toLocaleString()}\n\nYour booking has been confirmed!\nYou can view it in "My Bookings" section.`);
+
+                // Navigate after a short delay to ensure alert is shown
+                setTimeout(() => {
+                    navigate('/bookings');
+                }, 100);
                 return;
             }
 
