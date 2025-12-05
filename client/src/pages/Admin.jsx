@@ -75,23 +75,33 @@ const Admin = () => {
                                         <td className="py-3 text-gray-600 dark:text-gray-400">{u.email}</td>
                                         <td className="py-3">
                                             <span className={`px-2 py-1 rounded-full text-xs font-semibold ${u.role === 'admin'
-                                                ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300'
-                                                : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                                                    ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300'
+                                                    : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
                                                 }`}>
                                                 {u.role}
                                             </span>
                                         </td>
                                         <td className="py-3">
                                             {u.email !== 'admin@farmstay.com' && (
-                                                <button
-                                                    onClick={() => handleRoleUpdate(u._id, u.role === 'admin' ? 'user' : 'admin')}
-                                                    className={`text-xs px-3 py-1 rounded-md transition-colors ${u.role === 'admin'
-                                                            ? 'bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200'
-                                                            : 'bg-blue-100 hover:bg-blue-200 text-blue-800 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 dark:text-blue-300'
-                                                        }`}
-                                                >
-                                                    {u.role === 'admin' ? 'Demote' : 'Promote'}
-                                                </button>
+                                                <div className="flex items-center gap-2">
+                                                    <select
+                                                        className="text-sm border rounded p-1 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                                                        defaultValue={u.role}
+                                                        onChange={(e) => {
+                                                            if (e.target.value === 'custom') {
+                                                                const newRole = prompt("Enter new role name:");
+                                                                if (newRole) handleRoleUpdate(u._id, newRole.toLowerCase());
+                                                            } else {
+                                                                handleRoleUpdate(u._id, e.target.value);
+                                                            }
+                                                        }}
+                                                    >
+                                                        <option value="user">User</option>
+                                                        <option value="admin">Admin</option>
+                                                        {!['user', 'admin'].includes(u.role) && <option value={u.role}>{u.role}</option>}
+                                                        <option value="custom">+ Add New Role</option>
+                                                    </select>
+                                                </div>
                                             )}
                                         </td>
                                     </tr>

@@ -34,9 +34,6 @@ router.get('/bookings', verifyAdmin, async (req, res) => {
 router.put('/users/:id/role', verifyAdmin, async (req, res) => {
     try {
         const { role } = req.body;
-        if (!['user', 'admin'].includes(role)) {
-            return res.status(400).json({ message: 'Invalid role' });
-        }
 
         const user = await User.findByIdAndUpdate(
             req.params.id,
