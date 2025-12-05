@@ -5,6 +5,7 @@ import { MapPin, Users, SlidersHorizontal, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import API_URL from '../config';
 import FavoriteButton from '../components/FavoriteButton';
+import FarmCardSkeleton from '../components/FarmCardSkeleton';
 
 const Farms = () => {
     const [farms, setFarms] = useState([]);
