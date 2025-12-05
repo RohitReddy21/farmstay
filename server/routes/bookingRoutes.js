@@ -24,10 +24,12 @@ async function hasOverlap(farmId, startDate, endDate) {
 }
 
 
+const { verifyToken } = require('../middleware/authMiddleware');
+
 // @route   POST /api/bookings
 // @desc    Create a booking and get Stripe Session
 // @access  Private
-router.post('/', async (req, res) => {
+router.post('/', verifyToken, async (req, res) => {
     const { farmId, startDate, endDate, guests, userId, guestName, guestPhone } = req.body;
 
     try {

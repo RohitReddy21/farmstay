@@ -5,7 +5,7 @@ import axios from 'axios';
 import { loadStripe } from '@stripe/stripe-js';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MapPin, Users, Check, ChevronLeft, ChevronRight } from 'lucide-react';
-import { MapPin, Users, Check, ChevronLeft, ChevronRight } from 'lucide-react';
+
 import API_URL from '../config';
 import FavoriteButton from '../components/FavoriteButton';
 import ReviewList from '../components/ReviewList';
@@ -429,55 +429,55 @@ const FarmDetails = () => {
                         </form>
                     </div>
                 </div>
+            </div>
 
-                {/* Reviews Section */}
-                <div className="mt-16 border-t border-gray-200 pt-12">
-                    <div className="flex items-center justify-between mb-8">
-                        <h2 className="text-2xl font-bold text-gray-900">Guest Reviews</h2>
-                        {eligibleBookingId && !showReviewForm && (
-                            <button
-                                onClick={() => setShowReviewForm(true)}
-                                className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-green-600 transition font-semibold"
-                            >
-                                Write a Review
-                            </button>
-                        )}
+            {/* Reviews Section */}
+            <div className="mt-16 border-t border-gray-200 pt-12">
+                <div className="flex items-center justify-between mb-8">
+                    <h2 className="text-2xl font-bold text-gray-900">Guest Reviews</h2>
+                    {eligibleBookingId && !showReviewForm && (
+                        <button
+                            onClick={() => setShowReviewForm(true)}
+                            className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-green-600 transition font-semibold"
+                        >
+                            Write a Review
+                        </button>
+                    )}
+                </div>
+
+                <div className="grid md:grid-cols-3 gap-12">
+                    {/* Rating Summary */}
+                    <div className="md:col-span-1">
+                        <div className="bg-gray-50 p-6 rounded-2xl text-center">
+                            <div className="text-5xl font-bold text-gray-900 mb-2">{averageRating}</div>
+                            <div className="flex justify-center mb-2">
+                                <StarRating rating={averageRating} size={24} />
+                            </div>
+                            <p className="text-gray-500">{totalReviews} verified reviews</p>
+                        </div>
                     </div>
 
-                    <div className="grid md:grid-cols-3 gap-12">
-                        {/* Rating Summary */}
-                        <div className="md:col-span-1">
-                            <div className="bg-gray-50 p-6 rounded-2xl text-center">
-                                <div className="text-5xl font-bold text-gray-900 mb-2">{averageRating}</div>
-                                <div className="flex justify-center mb-2">
-                                    <StarRating rating={averageRating} size={24} />
-                                </div>
-                                <p className="text-gray-500">{totalReviews} verified reviews</p>
-                            </div>
-                        </div>
-
-                        {/* Reviews List */}
-                        <div className="md:col-span-2">
-                            {showReviewForm && (
-                                <ReviewForm
-                                    farmId={id}
-                                    bookingId={eligibleBookingId}
-                                    onCancel={() => setShowReviewForm(false)}
-                                    onReviewAdded={(newReview) => {
-                                        setReviews([newReview, ...reviews]);
-                                        setTotalReviews(prev => prev + 1);
-                                        setShowReviewForm(false);
-                                        showNotification('success', 'Review Submitted', 'Thank you for your feedback!');
-                                    }}
-                                />
-                            )}
-                            <ReviewList reviews={reviews} />
-                        </div>
+                    {/* Reviews List */}
+                    <div className="md:col-span-2">
+                        {showReviewForm && (
+                            <ReviewForm
+                                farmId={id}
+                                bookingId={eligibleBookingId}
+                                onCancel={() => setShowReviewForm(false)}
+                                onReviewAdded={(newReview) => {
+                                    setReviews([newReview, ...reviews]);
+                                    setTotalReviews(prev => prev + 1);
+                                    setShowReviewForm(false);
+                                }}
+                            />
+                        )}
+                        <ReviewList reviews={reviews} />
                     </div>
                 </div>
-            </div >
-            );
+            </div>
+        </div>
+    );
 };
 
-            export default FarmDetails;
+export default FarmDetails;
 
