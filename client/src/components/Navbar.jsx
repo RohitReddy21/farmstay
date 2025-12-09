@@ -36,6 +36,7 @@ const Navbar = () => {
                             <>
                                 {user.role === 'admin' && (
                                     <>
+                                        <Link to="/admin/dashboard" className="text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition px-2 py-1">Dashboard</Link>
                                         <Link to="/admin" className="text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition px-2 py-1">Admin</Link>
                                         <Link to="/database" className="text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition px-2 py-1">Database</Link>
                                     </>
@@ -98,6 +99,13 @@ const Navbar = () => {
                                 <>
                                     {user.role === 'admin' && (
                                         <>
+                                            <Link
+                                                to="/admin/dashboard"
+                                                onClick={() => setIsOpen(false)}
+                                                className="text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-50 dark:hover:bg-gray-700 px-4 py-3 rounded-lg transition-all font-medium"
+                                            >
+                                                Analytics Dashboard
+                                            </Link>
                                             <Link
                                                 to="/admin"
                                                 onClick={() => setIsOpen(false)}

@@ -6,7 +6,7 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = 5001; // Force 5001 to bypass blocked 5000
 
 // Middleware
 const allowedOrigins = [
@@ -76,6 +76,7 @@ app.use('/api/db', require('./routes/dbViewerRoutes'));
 app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/favorites', require('./routes/favoriteRoutes'));
 app.use('/api/reviews', require('./routes/reviewRoutes'));
+app.use('/api/analytics', require('./routes/analyticsRoutes'));
 
 // Basic Route
 app.get('/', (req, res) => {
@@ -89,6 +90,8 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT} - Analytics Dashboard Enabled 🚀`);
 });
 
+
+// Force restart

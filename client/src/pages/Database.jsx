@@ -61,7 +61,13 @@ const Database = () => {
             // Success - item stays removed
         } catch (error) {
             console.error('Error deleting item:', error);
-            alert('Failed to delete item. Restoring...');
+            // Log detailed error from backend if available
+            if (error.response) {
+                console.error('Backend error response:', error.response.data);
+                alert(`Failed to delete item: ${error.response.data.message || error.message}`);
+            } else {
+                alert('Failed to delete item. Restoring...');
+            }
             // Revert on error
             setDbData(previousData);
         }

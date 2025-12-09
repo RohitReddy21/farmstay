@@ -14,6 +14,7 @@ import Success from './pages/Success';
 import Profile from './pages/Profile';
 import MyBookings from './pages/MyBookings';
 import Favorites from './pages/Favorites';
+import AdminDashboard from './pages/AdminDashboard';
 
 import Chatbot from './components/Chatbot';
 
@@ -38,6 +39,7 @@ function App() {
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/bookings" element={<MyBookings />} />
                 <Route path="/favorites" element={<Favorites />} />
+                <Route path="/admin/dashboard" element={<AdminDashboard />} />
               </Routes>
             </main>
             <Chatbot />

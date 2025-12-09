@@ -4,7 +4,9 @@ import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import { loadStripe } from '@stripe/stripe-js';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MapPin, Users, Check, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
+import { MapPin, Users, Check, ChevronLeft, ChevronRight, AlertCircle, X } from 'lucide-react';
+import Calendar from 'react-calendar';
+import 'react-calendar/dist/Calendar.css';
 
 import API_URL from '../config';
 import FavoriteButton from '../components/FavoriteButton';
@@ -30,7 +32,9 @@ const FarmDetails = () => {
     const [eligibleBookingId, setEligibleBookingId] = useState(null);
     const [showReviewForm, setShowReviewForm] = useState(false);
     const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+    const [isCalendarOpen, setIsCalendarOpen] = useState(false);
     const [confirmedBookingDetails, setConfirmedBookingDetails] = useState(null);
+    const [showLightbox, setShowLightbox] = useState(false);
     const [bookingData, setBookingData] = useState({
         startDate: '',
         endDate: '',
@@ -65,6 +69,44 @@ const FarmDetails = () => {
 
         setDateConflict(null);
         return false;
+    };
+
+    const isDateDisabled = ({ date }) => {
+        // Disable past dates
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (date < today) return true;
+
+        // Disable unavailable dates
+        return unavailableDates.some(booking => {
+            const start = new Date(booking.startDate);
+            const end = new Date(booking.endDate);
+            return date >= start && date <= end;
+        });
+    };
+
+    const handleDateChange = (value) => {
+        // value is [start, end] if selectRange is true
+        if (Array.isArray(value)) {
+            const start = value[0];
+            const end = value[1];
+
+            // Adjust offset to avoid timezone issues when converting to string
+            // Using ISOString split T works if time is 00:00:00 and we want local?
+            // Safer to use local date string logic or date-fns format.
+            // But preserving existing logic:
+
+            // Ensure we have correct dates
+            const startStr = start.toLocaleDateString('en-CA'); // YYYY-MM-DD
+            const endStr = end.toLocaleDateString('en-CA');
+
+            setBookingData({
+                ...bookingData,
+                startDate: startStr,
+                endDate: endStr
+            });
+            checkDateConflict(startStr, endStr);
+        }
     };
 
     useEffect(() => {
@@ -235,8 +277,10 @@ const FarmDetails = () => {
                 {/* Left: Images */}
                 <div className="lg:col-span-2 space-y-3 md:space-y-4">
                     <div className="space-y-3 md:space-y-4">
-                        {/* Main Image with Navigation */}
-                        <div className="relative rounded-2xl md:rounded-3xl overflow-hidden shadow-xl h-[300px] sm:h-[400px] md:h-[500px] group">
+                        <div
+                            className="relative rounded-2xl md:rounded-3xl overflow-hidden shadow-xl h-[300px] sm:h-[400px] md:h-[500px] group cursor-zoom-in"
+                            onClick={() => setShowLightbox(true)}
+                        >
                             <AnimatePresence mode="wait">
                                 <motion.img
                                     key={currentImageIndex}
@@ -250,17 +294,17 @@ const FarmDetails = () => {
                                 />
                             </AnimatePresence>
 
-                            {/* Navigation Arrows */}
+                            {/* Navigation Arrows (Stop propagation to prevent opening lightbox if clicking arrow, though nice to have inside lightbox too) */}
                             {farm.images.length > 1 && (
                                 <>
                                     <button
-                                        onClick={prevImage}
+                                        onClick={(e) => { e.stopPropagation(); prevImage(); }}
                                         className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white p-2 md:p-3 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
                                     >
                                         <ChevronLeft className="w-5 h-5 md:w-6 md:h-6" />
                                     </button>
                                     <button
-                                        onClick={nextImage}
+                                        onClick={(e) => { e.stopPropagation(); nextImage(); }}
                                         className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white p-2 md:p-3 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
                                     >
                                         <ChevronRight className="w-5 h-5 md:w-6 md:h-6" />
@@ -325,39 +369,60 @@ const FarmDetails = () => {
                             </div>
                         )}
 
+                        <div className="mb-6 relative">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Select Dates</label>
+
+                            {/* Date Trigger Button */}
+                            <div
+                                onClick={() => setIsCalendarOpen(!isCalendarOpen)}
+                                className="flex gap-4 p-3 bg-gray-50 rounded-xl border border-gray-200 cursor-pointer hover:border-primary/50 transition-all active:scale-[0.99]"
+                            >
+                                <div className="flex-1 text-center border-r border-gray-200">
+                                    <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Check-in</p>
+                                    <p className={`font-bold text-lg ${!bookingData.startDate ? 'text-gray-400' : 'text-gray-900'}`}>
+                                        {bookingData.startDate ? new Date(bookingData.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Add Date'}
+                                    </p>
+                                </div>
+                                <div className="flex-1 text-center">
+                                    <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Check-out</p>
+                                    <p className={`font-bold text-lg ${!bookingData.endDate ? 'text-gray-400' : 'text-gray-900'}`}>
+                                        {bookingData.endDate ? new Date(bookingData.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Add Date'}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Calendar Popup */}
+                            <AnimatePresence>
+                                {isCalendarOpen && (
+                                    <>
+                                        {/* Backdrop */}
+                                        <div
+                                            className="fixed inset-0 z-40"
+                                            onClick={() => setIsCalendarOpen(false)}
+                                        />
+
+                                        {/* Calendar Dropdown */}
+                                        <motion.div
+                                            initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                                            exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                                            transition={{ duration: 0.2 }}
+                                            className="absolute top-full left-0 right-0 mt-2 z-50 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden p-2"
+                                        >
+                                            <Calendar
+                                                selectRange={true}
+                                                onChange={handleDateChange}
+                                                tileDisabled={isDateDisabled}
+                                                minDate={new Date()}
+                                                className="w-full border-none"
+                                            />
+                                        </motion.div>
+                                    </>
+                                )}
+                            </AnimatePresence>
+                        </div>
+
                         <form onSubmit={handleBooking} className="space-y-3 md:space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Check-in</label>
-                                <input
-                                    type="date"
-                                    required
-                                    min={new Date().toISOString().split('T')[0]}
-                                    value={bookingData.startDate}
-                                    className={`w-full p-2.5 md:p-3 border-2 rounded-lg focus:ring-2 focus:ring-primary outline-none transition-all text-sm md:text-base ${dateConflict ? 'border-red-300 bg-red-50' : 'border-gray-200'
-                                        }`}
-                                    onChange={(e) => {
-                                        const newData = { ...bookingData, startDate: e.target.value };
-                                        setBookingData(newData);
-                                        checkDateConflict(e.target.value, bookingData.endDate);
-                                    }}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Check-out</label>
-                                <input
-                                    type="date"
-                                    required
-                                    min={new Date().toISOString().split('T')[0]}
-                                    value={bookingData.endDate}
-                                    className={`w-full p-2.5 md:p-3 border-2 rounded-lg focus:ring-2 focus:ring-primary outline-none transition-all text-sm md:text-base ${dateConflict ? 'border-red-300 bg-red-50' : 'border-gray-200'
-                                        }`}
-                                    onChange={(e) => {
-                                        const newData = { ...bookingData, endDate: e.target.value };
-                                        setBookingData(newData);
-                                        checkDateConflict(bookingData.startDate, e.target.value);
-                                    }}
-                                />
-                            </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
                                 <input
@@ -450,6 +515,30 @@ const FarmDetails = () => {
                     <p className="text-gray-700 leading-relaxed whitespace-pre-line text-lg md:text-xl">
                         {farm.description}
                     </p>
+
+                    {/* Host Profile Section (Mock Data) */}
+                    <div className="mt-8 pt-8 border-t border-gray-100 flex items-start sm:items-center gap-4 md:gap-6 group cursor-pointer">
+                        <div className="relative">
+                            <img
+                                src="https://images.unsplash.com/photo-1560250097-0b93528c311a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=256&q=80"
+                                alt="Host"
+                                className="w-16 h-16 md:w-20 md:h-20 rounded-full object-cover shadow-md ring-4 ring-white group-hover:ring-primary/20 transition-all"
+                            />
+                            <div className="absolute -bottom-1 -right-1 bg-primary text-white p-1 rounded-full shadow-sm">
+                                <Check size={12} strokeWidth={4} />
+                            </div>
+                        </div>
+                        <div className="flex-1">
+                            <h3 className="text-xl font-bold text-gray-900 mb-1">Hosted by Thomas</h3>
+                            <p className="text-gray-500 text-sm mb-2">Superhost · Joined December 2021</p>
+                            <p className="text-gray-600 text-sm md:text-base line-clamp-2">
+                                We love sharing our organic farm with guests! I'm always available to show you around the vineyards or recommend local hiking trails.
+                            </p>
+                        </div>
+                        <button className="hidden sm:block px-4 py-2 border border-gray-300 rounded-lg hover:border-gray-900 hover:bg-gray-50 font-medium transition-all">
+                            Contact Host
+                        </button>
+                    </div>
                 </div>
 
                 {/* Amenities */}
@@ -467,6 +556,29 @@ const FarmDetails = () => {
                                 <span className="text-gray-800 font-medium text-base">{amenity}</span>
                             </div>
                         ))}
+                    </div>
+                </div>
+
+                {/* Map Section */}
+                <div className="border-t border-gray-200 pt-10 mt-10">
+                    <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+                        <div className="w-1.5 h-8 bg-gradient-to-b from-primary to-green-600 rounded-full"></div>
+                        Where you'll be
+                    </h2>
+                    <p className="text-gray-600 mb-6 text-lg">{farm.location}</p>
+                    <div className="w-full h-[300px] md:h-[400px] bg-gray-100 rounded-2xl overflow-hidden shadow-sm border border-gray-200 relative">
+                        <iframe
+                            width="100%"
+                            height="100%"
+                            style={{ border: 0 }}
+                            loading="lazy"
+                            allowFullScreen
+                            referrerPolicy="no-referrer-when-downgrade"
+                            src={`https://maps.google.com/maps?q=${encodeURIComponent(farm.location)}&t=&z=13&ie=UTF8&iwloc=&output=embed`}
+                            title="Farm Location"
+                            className="grayscale-[20%] hover:grayscale-0 transition-all duration-500"
+                        ></iframe>
+                        {/* Map Overlay Guard (Optional: prevents accidental scrolling unless clicked/active, but simple iframe is usually fine) */}
                     </div>
                 </div>
             </div>
@@ -505,11 +617,97 @@ const FarmDetails = () => {
                     setShowConfirmationModal(false);
                     navigate('/bookings');
                 }}
-                bookingDetails={confirmedBookingDetails}
             />
+
+            {/* Lightbox Overlay */}
+            <AnimatePresence>
+                {showLightbox && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-sm p-4"
+                        onClick={() => setShowLightbox(false)}
+                    >
+                        <button
+                            onClick={() => setShowLightbox(false)}
+                            className="absolute top-4 right-4 text-white/70 hover:text-white p-2 transition-colors z-[60]"
+                        >
+                            <X size={32} />
+                        </button>
+
+                        <div className="relative w-full max-w-6xl max-h-screen flex items-center justify-center p-2" onClick={e => e.stopPropagation()}>
+                            <motion.img
+                                key={currentImageIndex}
+                                src={farm.images[currentImageIndex]}
+                                alt="Full screen view"
+                                className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl"
+                                initial={{ y: 20, opacity: 0 }}
+                                animate={{ y: 0, opacity: 1 }}
+                                transition={{ delay: 0.1 }}
+                            />
+
+                            {/* Lightbox Navigation */}
+                            {farm.images.length > 1 && (
+                                <>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); prevImage(); }}
+                                        className="absolute left-2 md:left-8 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white p-3 md:p-4 rounded-full transition-all backdrop-blur-md"
+                                    >
+                                        <ChevronLeft size={32} />
+                                    </button>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); nextImage(); }}
+                                        className="absolute right-2 md:right-8 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white p-3 md:p-4 rounded-full transition-all backdrop-blur-md"
+                                    >
+                                        <ChevronRight size={32} />
+                                    </button>
+                                </>
+                            )}
+                        </div>
+
+                        {/* Lightbox Thumbnails */}
+                        <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 px-4 overflow-x-auto" onClick={e => e.stopPropagation()}>
+                            <div className="flex gap-2 p-2">
+                                {farm.images.map((img, idx) => (
+                                    <button
+                                        key={idx}
+                                        onClick={() => setCurrentImageIndex(idx)}
+                                        className={`w-16 h-12 rounded-md overflow-hidden flex-shrink-0 transition-all ${idx === currentImageIndex ? 'ring-2 ring-white scale-110 opacity-100' : 'opacity-50 hover:opacity-80'
+                                            }`}
+                                    >
+                                        <img src={img} className="w-full h-full object-cover" />
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Sticky Mobile Booking Bar */}
+            <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 md:hidden z-40 shadow-[0_-4px_10px_rgba(0,0,0,0.05)] flex items-center justify-between gap-4">
+                <div>
+                    <p className="text-gray-900 font-bold text-lg">₹{farm.price}<span className="text-sm font-normal text-gray-500"> / night</span></p>
+                    {dateConflict ? (
+                        <p className="text-xs text-red-500 font-medium">Dates unavailable</p>
+                    ) : (
+                        <p className="text-xs text-green-600 font-medium">Available now</p>
+                    )}
+                </div>
+                <button
+                    onClick={() => {
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                        // Optional: Open calendar automatically if desired
+                        setIsCalendarOpen(true);
+                    }}
+                    className="bg-primary text-white px-6 py-3 rounded-xl font-bold hover:bg-green-600 transition-all shadow-lg active:scale-95"
+                >
+                    Reserve
+                </button>
+            </div>
         </div>
     );
 };
 
 export default FarmDetails;
-

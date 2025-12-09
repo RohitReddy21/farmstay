@@ -1,4 +1,5 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const router = express.Router();
 const User = require('../models/User');
 const Booking = require('../models/Booking');
@@ -153,10 +154,14 @@ router.put('/users/:id/role', verifyAdmin, async (req, res) => {
 // @desc    Delete a user
 router.delete('/users/:id', verifyAdmin, async (req, res) => {
     try {
-        await User.findByIdAndDelete(req.params.id);
+        const user = await mongoose.model('User').findByIdAndDelete(req.params.id);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
         res.json({ message: 'User removed' });
     } catch (error) {
-        res.status(500).json({ message: 'Server Error' });
+        console.error('Error deleting user:', error);
+        res.status(500).json({ message: 'Server Error', error: error.message });
     }
 });
 
@@ -164,10 +169,14 @@ router.delete('/users/:id', verifyAdmin, async (req, res) => {
 // @desc    Delete a booking
 router.delete('/bookings/:id', verifyAdmin, async (req, res) => {
     try {
-        await Booking.findByIdAndDelete(req.params.id);
+        const booking = await mongoose.model('Booking').findByIdAndDelete(req.params.id);
+        if (!booking) {
+            return res.status(404).json({ message: 'Booking not found' });
+        }
         res.json({ message: 'Booking removed' });
     } catch (error) {
-        res.status(500).json({ message: 'Server Error' });
+        console.error('Error deleting booking:', error);
+        res.status(500).json({ message: 'Server Error', error: error.message });
     }
 });
 
@@ -175,11 +184,14 @@ router.delete('/bookings/:id', verifyAdmin, async (req, res) => {
 // @desc    Delete a farm
 router.delete('/farms/:id', verifyAdmin, async (req, res) => {
     try {
-        const Farm = require('../models/Farm');
-        await Farm.findByIdAndDelete(req.params.id);
+        const farm = await mongoose.model('Farm').findByIdAndDelete(req.params.id);
+        if (!farm) {
+            return res.status(404).json({ message: 'Farm not found' });
+        }
         res.json({ message: 'Farm removed' });
     } catch (error) {
-        res.status(500).json({ message: 'Server Error' });
+        console.error('Error deleting farm:', error);
+        res.status(500).json({ message: 'Server Error', error: error.message });
     }
 });
 
