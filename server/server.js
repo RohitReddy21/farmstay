@@ -6,7 +6,7 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 const app = express();
-const PORT = 5001; // Force 5001 to bypass blocked 5000
+const PORT = process.env.PORT || 5001;
 
 // Middleware
 const allowedOrigins = [
