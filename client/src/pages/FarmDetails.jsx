@@ -499,8 +499,8 @@ const FarmDetails = () => {
                         {totalReviews > 0 && (
                             <div className="flex items-center gap-2">
                                 <StarRating rating={averageRating} size={20} />
-                                <span className="font-bold text-lg">{averageRating.toFixed(1)}</span>
-                                <span className="text-gray-500">({totalReviews} {totalReviews === 1 ? 'review' : 'reviews'})</span>
+                                <span className="font-bold text-xs">{averageRating.toFixed(1)}</span>
+                                <span className="text-gray-500 text-xs">({totalReviews} {totalReviews === 1 ? 'review' : 'reviews'})</span>
                             </div>
                         )}
                     </div>
@@ -512,7 +512,7 @@ const FarmDetails = () => {
                         <div className="w-1.5 h-8 bg-gradient-to-b from-primary to-green-600 rounded-full"></div>
                         About this farm
                     </h2>
-                    <p className="text-gray-700 leading-relaxed whitespace-pre-line text-lg md:text-xl">
+                    <p className="text-gray-700 leading-relaxed whitespace-pre-line text-xs md:text-base">
                         {farm.description}
                     </p>
 

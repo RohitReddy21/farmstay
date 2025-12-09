@@ -7,6 +7,9 @@ export default {
     ],
     theme: {
         extend: {
+            fontFamily: {
+                sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            },
             colors: {
                 primary: '#2ecc71', // Emerald Green
                 secondary: '#3498db', // Peter River Blue

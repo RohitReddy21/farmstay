@@ -4,9 +4,9 @@ import { ArrowRight, Star, MapPin, Users, Heart, Shield, Leaf, Award } from 'luc
 
 const Home = () => {
     return (
-        <div className="space-y-12 md:space-y-16 lg:space-y-20 pb-12 md:pb-16 lg:pb-20">
+        <div className="space-y-12 md:space-y-16 lg:space-y-20 pb-12 md:pb-20 lg:pb-20">
             {/* Hero Section */}
-            <section className="relative h-[500px] md:h-[600px] lg:h-[600px] rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl mx-4 mt-4 group">
+            <section className="relative h-[500px] md:h-[600px] lg:h-[600px] rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl mx-2 mt-2 group">
                 <motion.img
                     initial={{ scale: 1.1 }}
                     animate={{ scale: 1 }}
