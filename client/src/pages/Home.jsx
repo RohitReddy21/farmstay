@@ -76,7 +76,7 @@ const Home = () => {
                                 <div className="absolute top-4 right-4 bg-white/90 backdrop-blur rounded-full p-2 shadow-sm z-10">
                                     {feature.icon}
                                 </div>
-                                <img src={feature.img} alt={feature.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                                <img src={feature.img} alt={feature.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" />
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                             </div>
                             <div className="p-6 md:p-8">
@@ -147,7 +147,7 @@ const Home = () => {
                             className="bg-white p-6 md:p-8 rounded-xl md:rounded-2xl shadow-lg hover:shadow-xl transition-shadow"
                         >
                             <div className="flex items-center mb-4">
-                                <img src={testimonial.avatar} alt={testimonial.name} className="w-12 h-12 rounded-full mr-4" />
+                                <img src={testimonial.avatar} alt={testimonial.name} className="w-12 h-12 rounded-full mr-4" loading="lazy" />
                                 <div>
                                     <h4 className="font-bold text-sm md:text-base">{testimonial.name}</h4>
                                     <p className="text-xs md:text-sm text-gray-500">{testimonial.location}</p>
