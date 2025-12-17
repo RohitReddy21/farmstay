@@ -5,6 +5,10 @@ const dotenv = require('dotenv');
 const compression = require('compression');
 
 dotenv.config();
+if (!process.env.JWT_SECRET) {
+  console.warn('JWT_SECRET not found in environment variables. Using default for development.');
+  process.env.JWT_SECRET = 'dev_secret_key_123';
+}
 
 const app = express();
 app.use(compression());

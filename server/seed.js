@@ -5,16 +5,15 @@ const User = require('./models/User');
 const seedData = async () => {
     try {
         // Seed Admin User
-        const adminExists = await User.findOne({ email: 'admin@farmstay.com' });
-        if (!adminExists) {
-            await User.create({
-                name: 'Admin',
-                email: 'admin@farmstay.com',
-                password: 'admin123',
-                role: 'admin'
-            });
-            console.log('Admin user created');
-        }
+        // Seed Admin User
+        await User.deleteOne({ email: 'admin@farmstay.com' });
+        await User.create({
+            name: 'Admin',
+            email: 'admin@farmstay.com',
+            password: 'admin123',
+            role: 'admin'
+        });
+        console.log('Admin user reset/created');
 
         // Seed Farms
         const farmCount = await Farm.countDocuments();
