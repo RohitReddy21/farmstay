@@ -135,7 +135,7 @@ const Profile = () => {
                                 Full Name
                             </label>
                             <div className="relative">
-                                <User className="absolute left-3 top-3 text-gray-400" size={18} />
+                                <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                                 <input
                                     type="text"
                                     required
@@ -151,7 +151,7 @@ const Profile = () => {
                                 Email
                             </label>
                             <div className="relative">
-                                <Mail className="absolute left-3 top-3 text-gray-400" size={18} />
+                                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                                 <input
                                     type="email"
                                     required
@@ -167,7 +167,7 @@ const Profile = () => {
                                 Phone Number
                             </label>
                             <div className="relative">
-                                <Phone className="absolute left-3 top-3 text-gray-400" size={18} />
+                                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                                 <input
                                     type="tel"
                                     value={profileData.phone}
@@ -201,7 +201,7 @@ const Profile = () => {
                                 Current Password
                             </label>
                             <div className="relative">
-                                <Lock className="absolute left-3 top-3 text-gray-400" size={20} />
+                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                                 <input
                                     type="password"
                                     required
@@ -217,7 +217,7 @@ const Profile = () => {
                                 New Password
                             </label>
                             <div className="relative">
-                                <Lock className="absolute left-3 top-3 text-gray-400" size={20} />
+                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                                 <input
                                     type="password"
                                     required
@@ -233,7 +233,7 @@ const Profile = () => {
                                 Confirm New Password
                             </label>
                             <div className="relative">
-                                <Lock className="absolute left-3 top-3 text-gray-400" size={20} />
+                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                                 <input
                                     type="password"
                                     required

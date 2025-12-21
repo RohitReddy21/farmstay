@@ -146,6 +146,72 @@ const AdminDashboard = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Recent Bookings Table */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+                    <Calendar size={20} /> Recent Bookings
+                </h2>
+                <div className="overflow-x-auto">
+                    <table className="w-full">
+                        <thead>
+                            <tr className="border-b border-gray-200">
+                                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Guest</th>
+                                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Farm</th>
+                                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Dates</th>
+                                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Guests</th>
+                                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Amount</th>
+                                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Status</th>
+                                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Booked On</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {data.recentBookings && data.recentBookings.length > 0 ? (
+                                data.recentBookings.map((booking, index) => (
+                                    <tr key={booking._id || index} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                                        <td className="py-3 px-4">
+                                            <div className="flex flex-col">
+                                                <span className="text-sm font-medium text-gray-900">{booking.guestName || booking.user?.name || 'N/A'}</span>
+                                                <span className="text-xs text-gray-500">{booking.guestPhone || booking.user?.email || ''}</span>
+                                            </div>
+                                        </td>
+                                        <td className="py-3 px-4">
+                                            <div className="flex flex-col">
+                                                <span className="text-sm font-medium text-gray-900">{booking.farm?.title || 'N/A'}</span>
+                                                <span className="text-xs text-gray-500">{booking.farm?.location || ''}</span>
+                                            </div>
+                                        </td>
+                                        <td className="py-3 px-4">
+                                            <div className="flex flex-col">
+                                                <span className="text-sm text-gray-900">{new Date(booking.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                                                <span className="text-xs text-gray-500">to {new Date(booking.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                                            </div>
+                                        </td>
+                                        <td className="py-3 px-4 text-sm text-gray-900">{booking.guests}</td>
+                                        <td className="py-3 px-4 text-sm font-semibold text-gray-900">₹{booking.totalPrice?.toLocaleString()}</td>
+                                        <td className="py-3 px-4">
+                                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${booking.status === 'confirmed' ? 'bg-green-100 text-green-800' :
+                                                    booking.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                                        booking.status === 'completed' ? 'bg-blue-100 text-blue-800' :
+                                                            'bg-red-100 text-red-800'
+                                                }`}>
+                                                {booking.status}
+                                            </span>
+                                        </td>
+                                        <td className="py-3 px-4 text-sm text-gray-500">
+                                            {new Date(booking.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan="7" className="py-8 text-center text-gray-500">No bookings found</td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     );
 };

@@ -90,6 +90,14 @@ router.get('/dashboard', verifyAdmin, async (req, res) => {
             }
         ]);
 
+        // 7. Recent Bookings (Last 10)
+        const recentBookings = await Booking.find()
+            .sort({ createdAt: -1 })
+            .limit(10)
+            .populate('user', 'name email')
+            .populate('farm', 'title location')
+            .select('startDate endDate guests totalPrice status createdAt guestName guestPhone');
+
         res.json({
             stats: {
                 totalRevenue,
@@ -98,7 +106,8 @@ router.get('/dashboard', verifyAdmin, async (req, res) => {
                 totalFarms
             },
             revenueChart: revenueChartData,
-            farmDistribution
+            farmDistribution,
+            recentBookings
         });
 
     } catch (error) {
