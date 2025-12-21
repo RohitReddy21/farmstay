@@ -17,6 +17,7 @@ const PORT = process.env.PORT || 5001;
 // Middleware
 const allowedOrigins = [
   'http://localhost:5173',
+  'http://localhost:5174',
   'http://localhost:5188',
   'https://farmstay-eight.vercel.app',
   process.env.CLIENT_URL

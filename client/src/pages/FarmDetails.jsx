@@ -613,6 +613,7 @@ const FarmDetails = () => {
             {/* Booking Confirmation Modal */}
             <BookingConfirmationModal
                 isOpen={showConfirmationModal}
+                bookingDetails={confirmedBookingDetails}
                 onClose={() => {
                     setShowConfirmationModal(false);
                     navigate('/bookings');
