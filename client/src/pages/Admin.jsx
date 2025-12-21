@@ -139,8 +139,17 @@ const Admin = () => {
                     <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white">Recent Bookings ({bookings.length})</h2>
                     <ul className="space-y-4">
                         {bookings.map(b => (
-                            <li key={b._id} className="border-b dark:border-gray-700 pb-2 last:border-0">
-                                <div className="font-medium dark:text-white">{b.farm?.title || 'Unknown Farm'}</div>
+                            <li key={b._id} className="border-b dark:border-gray-700 pb-3 last:border-0">
+                                <div className="flex justify-between items-start mb-2">
+                                    <div className="font-medium dark:text-white">{b.farm?.title || 'Unknown Farm'}</div>
+                                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${b.status === 'confirmed' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
+                                            b.status === 'pending' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300' :
+                                                b.status === 'completed' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' :
+                                                    'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+                                        }`}>
+                                        {b.status || 'pending'}
+                                    </span>
+                                </div>
                                 <div className="text-sm text-gray-600 dark:text-gray-400">
                                     {new Date(b.startDate).toLocaleDateString()} - {new Date(b.endDate).toLocaleDateString()}
                                 </div>
