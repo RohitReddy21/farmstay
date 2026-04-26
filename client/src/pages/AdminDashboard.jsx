@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import API_URL from '../config';
 import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import AdminFarmManager from '../components/AdminFarmManager';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
     AreaChart, Area, PieChart, Pie, Cell
@@ -13,9 +15,22 @@ const AdminDashboard = () => {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const { user } = useAuth();
+    const navigate = useNavigate();
 
     useEffect(() => {
+        if (!user) {
+            setLoading(false);
+            navigate('/login');
+            return;
+        }
+        if (user.role !== 'admin') {
+            setLoading(false);
+            navigate('/');
+            return;
+        }
+
         const fetchAnalytics = async () => {
+            setLoading(true);
             try {
                 const token = localStorage.getItem('token');
                 const response = await axios.get(`${API_URL}/api/analytics/dashboard`, {
@@ -30,7 +45,10 @@ const AdminDashboard = () => {
         };
 
         fetchAnalytics();
-    }, []);
+    }, [user, navigate]);
+
+    if (!user) return null;
+    if (user.role !== 'admin') return null;
 
     if (loading) return <div className="flex justify-center items-center h-screen">Loading Analytics...</div>;
     if (!data) return <div className="text-center py-20">Failed to load dashboard data</div>;
@@ -212,6 +230,8 @@ const AdminDashboard = () => {
                     </table>
                 </div>
             </div>
+
+            <AdminFarmManager />
         </div>
     );
 };

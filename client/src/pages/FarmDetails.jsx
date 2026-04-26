@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MapPin, Users, Check, ChevronLeft, ChevronRight, AlertCircle, X } from 'lucide-react';
+import { MapPin, Users, Check, ChevronLeft, ChevronRight, AlertCircle, X, Play } from 'lucide-react';
 import { DateRange } from 'react-date-range';
 import 'react-date-range/dist/styles.css'; 
 import 'react-date-range/dist/theme/default.css';
@@ -23,7 +23,8 @@ const FarmDetails = () => {
     const { addToCart } = useCart();
     const [farm, setFarm] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [currentImageIndex, setCurrentImageIndex] = useState(0);
+    const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
+    const [allMedia, setAllMedia] = useState([]); // Combined images and videos
     const [unavailableDates, setUnavailableDates] = useState([]);
     const [dateConflict, setDateConflict] = useState(null);
     const [reviews, setReviews] = useState([]);
@@ -47,6 +48,62 @@ const FarmDetails = () => {
         guestName: '',
         guestPhone: ''
     });
+
+    // Combine images and videos into a single media array
+    const combineMedia = (farmData) => {
+        const images = (farmData.images || []).map(img => ({ type: 'image', url: img }));
+        const videos = (farmData.videos || []).map(vid => ({ type: 'video', url: vid }));
+        return [...images, ...videos];
+    };
+
+    const isVideoFileUrl = (url) => {
+        const u = String(url || '');
+        return (
+            /\.(mp4|webm|ogg|mov)(\?|#|$)/i.test(u) ||
+            u.includes('/video/upload/') ||
+            u.includes('resource_type=video')
+        );
+    };
+
+    const toYouTubeEmbedUrl = (rawUrl) => {
+        const url = String(rawUrl || '').trim();
+        if (!url) return '';
+
+        try {
+            const u = new URL(url);
+            const host = u.hostname.replace(/^www\./, '');
+
+            if (host === 'youtu.be') {
+                const id = u.pathname.split('/').filter(Boolean)[0];
+                return id ? `https://www.youtube.com/embed/${id}` : url;
+            }
+
+            if (host === 'youtube.com' || host === 'm.youtube.com') {
+                if (u.pathname === '/watch') {
+                    const id = u.searchParams.get('v');
+                    return id ? `https://www.youtube.com/embed/${id}` : url;
+                }
+                if (u.pathname.startsWith('/shorts/')) {
+                    const id = u.pathname.split('/').filter(Boolean)[1];
+                    return id ? `https://www.youtube.com/embed/${id}` : url;
+                }
+                if (u.pathname.startsWith('/embed/')) {
+                    return url;
+                }
+            }
+        } catch (e) {
+            // ignore
+        }
+
+        return url;
+    };
+
+    const buildEmbedSrc = (rawUrl, controls) => {
+        const embedUrl = toYouTubeEmbedUrl(rawUrl);
+        if (!embedUrl) return '';
+        const sep = embedUrl.includes('?') ? '&' : '?';
+        return `${embedUrl}${sep}controls=${controls ? 1 : 0}`;
+    };
 
     // Check for date conflicts whenever dates change
     const checkDateConflict = (start, end) => {
@@ -113,6 +170,7 @@ const FarmDetails = () => {
             try {
                 const { data } = await axios.get(`${API_URL}/api/farms/${id}`);
                 setFarm(data);
+                setAllMedia(combineMedia(data));
             } catch (error) {
                 console.error('Error fetching farm details:', error);
             } finally {
@@ -241,15 +299,15 @@ const FarmDetails = () => {
         }
     };
 
-    const nextImage = () => {
-        if (farm && farm.images) {
-            setCurrentImageIndex((prev) => (prev + 1) % farm.images.length);
+    const nextMedia = () => {
+        if (allMedia.length > 0) {
+            setCurrentMediaIndex((prev) => (prev + 1) % allMedia.length);
         }
     };
 
-    const prevImage = () => {
-        if (farm && farm.images) {
-            setCurrentImageIndex((prev) => (prev - 1 + farm.images.length) % farm.images.length);
+    const prevMedia = () => {
+        if (allMedia.length > 0) {
+            setCurrentMediaIndex((prev) => (prev - 1 + allMedia.length) % allMedia.length);
         }
     };
 
@@ -259,67 +317,129 @@ const FarmDetails = () => {
     return (
         <div className="space-y-6 md:space-y-8">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
-                {/* Left: Images */}
+                {/* Left: Media Gallery (Images & Videos) */}
                 <div className="lg:col-span-2 space-y-3 md:space-y-4">
                     <div className="space-y-3 md:space-y-4">
+                        {/* Main Media Display */}
                         <div
-                            className="relative rounded-2xl md:rounded-3xl overflow-hidden shadow-xl h-[300px] sm:h-[400px] md:h-[500px] group cursor-zoom-in"
+                            className="relative rounded-2xl md:rounded-3xl overflow-hidden shadow-xl h-[300px] sm:h-[400px] md:h-[500px] group cursor-zoom-in bg-black"
                             onClick={() => setShowLightbox(true)}
                         >
                             <AnimatePresence mode="wait">
-                                <motion.img
-                                    key={currentImageIndex}
-                                    src={farm.images[currentImageIndex] || 'https://via.placeholder.com/800'}
-                                    alt={`${farm.title} - Image ${currentImageIndex + 1}`}
-                                    className="w-full h-full object-cover"
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    exit={{ opacity: 0 }}
-                                    transition={{ duration: 0.3 }}
-                                />
+                                {allMedia.length > 0 && allMedia[currentMediaIndex]?.type === 'image' ? (
+                                    <motion.img
+                                        key={currentMediaIndex}
+                                        src={allMedia[currentMediaIndex].url}
+                                        alt={`${farm.title} - Media ${currentMediaIndex + 1}`}
+                                        className="w-full h-full object-cover"
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        exit={{ opacity: 0 }}
+                                        transition={{ duration: 0.3 }}
+                                    />
+                                ) : allMedia.length > 0 && allMedia[currentMediaIndex]?.type === 'video' ? (
+                                    isVideoFileUrl(allMedia[currentMediaIndex].url) ? (
+                                        <motion.video
+                                            key={currentMediaIndex}
+                                            src={allMedia[currentMediaIndex].url}
+                                            title={`${farm.title} - Video ${currentMediaIndex + 1}`}
+                                            className="w-full h-full"
+                                            controls
+                                            playsInline
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            exit={{ opacity: 0 }}
+                                            transition={{ duration: 0.3 }}
+                                        />
+                                    ) : (
+                                        <motion.iframe
+                                            key={currentMediaIndex}
+                                            src={buildEmbedSrc(allMedia[currentMediaIndex].url, true)}
+                                            title={`${farm.title} - Video ${currentMediaIndex + 1}`}
+                                            className="w-full h-full"
+                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                            allowFullScreen
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            exit={{ opacity: 0 }}
+                                            transition={{ duration: 0.3 }}
+                                        />
+                                    )
+                                ) : (
+                                    <motion.div className="w-full h-full bg-gray-300" />
+                                )}
                             </AnimatePresence>
 
-                            {/* Navigation Arrows (Stop propagation to prevent opening lightbox if clicking arrow, though nice to have inside lightbox too) */}
-                            {farm.images.length > 1 && (
+                            {/* Navigation Arrows */}
+                            {allMedia.length > 1 && (
                                 <>
                                     <button
-                                        onClick={(e) => { e.stopPropagation(); prevImage(); }}
-                                        className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white p-2 md:p-3 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                                        onClick={(e) => { e.stopPropagation(); prevMedia(); }}
+                                        className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white p-2 md:p-3 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
                                     >
                                         <ChevronLeft className="w-5 h-5 md:w-6 md:h-6" />
                                     </button>
                                     <button
-                                        onClick={(e) => { e.stopPropagation(); nextImage(); }}
-                                        className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white p-2 md:p-3 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                                        onClick={(e) => { e.stopPropagation(); nextMedia(); }}
+                                        className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white p-2 md:p-3 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
                                     >
                                         <ChevronRight className="w-5 h-5 md:w-6 md:h-6" />
                                     </button>
 
-                                    {/* Image Counter */}
-                                    <div className="absolute bottom-3 md:bottom-4 right-3 md:right-4 bg-black/60 text-white px-2 md:px-3 py-1 rounded-full text-xs md:text-sm">
-                                        {currentImageIndex + 1} / {farm.images.length}
+                                    {/* Media Counter */}
+                                    <div className="absolute bottom-3 md:bottom-4 right-3 md:right-4 bg-black/60 text-white px-2 md:px-3 py-1 rounded-full text-xs md:text-sm z-10">
+                                        {currentMediaIndex + 1} / {allMedia.length}
                                     </div>
                                 </>
+                            )}
+
+                            {/* Video Indicator */}
+                            {allMedia.length > 0 && allMedia[currentMediaIndex]?.type === 'video' && (
+                                <div className="absolute top-3 left-3 bg-primary text-white px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 z-10">
+                                    <Play size={12} /> Video
+                                </div>
                             )}
                         </div>
 
                         {/* Thumbnail Gallery */}
-                        {farm.images.length > 1 && (
+                        {allMedia.length > 1 && (
                             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
-                                {farm.images.map((image, index) => (
+                                {allMedia.map((media, index) => (
                                     <button
                                         key={index}
-                                        onClick={() => setCurrentImageIndex(index)}
-                                        className={`rounded-lg overflow-hidden h-20 transition-all ${index === currentImageIndex
+                                        onClick={() => setCurrentMediaIndex(index)}
+                                        className={`rounded-lg overflow-hidden h-20 transition-all relative group ${index === currentMediaIndex
                                             ? 'ring-4 ring-primary scale-105'
                                             : 'opacity-60 hover:opacity-100'
                                             }`}
                                     >
-                                        <img
-                                            src={image}
-                                            alt={`Thumbnail ${index + 1}`}
-                                            className="w-full h-full object-cover"
-                                        />
+                                        {media.type === 'image' ? (
+                                            <img
+                                                src={media.url}
+                                                alt={`Thumbnail ${index + 1}`}
+                                                className="w-full h-full object-cover"
+                                            />
+                                        ) : (
+                                            <div className="w-full h-full bg-gray-800 flex items-center justify-center relative">
+                                                {isVideoFileUrl(media.url) ? (
+                                                    <video
+                                                        src={media.url}
+                                                        className="w-full h-full object-cover opacity-70"
+                                                        muted
+                                                        playsInline
+                                                    />
+                                                ) : (
+                                                    <iframe
+                                                        src={buildEmbedSrc(media.url, false)}
+                                                        className="w-full h-full"
+                                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                        allowFullScreen
+                                                        title={`Video Thumbnail ${index + 1}`}
+                                                    />
+                                                )}
+                                                <Play className="absolute w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                                            </div>
+                                        )}
                                     </button>
                                 ))}
                             </div>
@@ -642,7 +762,7 @@ const FarmDetails = () => {
                 }}
             />
 
-            {/* Lightbox Overlay */}
+            {/* Lightbox Overlay - Media (Images & Videos) */}
             <AnimatePresence>
                 {showLightbox && (
                     <motion.div
@@ -660,46 +780,92 @@ const FarmDetails = () => {
                         </button>
 
                         <div className="relative w-full max-w-6xl max-h-screen flex items-center justify-center p-2" onClick={e => e.stopPropagation()}>
-                            <motion.img
-                                key={currentImageIndex}
-                                src={farm.images[currentImageIndex]}
-                                alt="Full screen view"
-                                className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl"
-                                initial={{ y: 20, opacity: 0 }}
-                                animate={{ y: 0, opacity: 1 }}
-                                transition={{ delay: 0.1 }}
-                            />
+                            <AnimatePresence mode="wait">
+                                {allMedia[currentMediaIndex]?.type === 'image' ? (
+                                    <motion.img
+                                        key={currentMediaIndex}
+                                        src={allMedia[currentMediaIndex]?.url}
+                                        alt="Full screen view"
+                                        className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl"
+                                        initial={{ y: 20, opacity: 0 }}
+                                        animate={{ y: 0, opacity: 1 }}
+                                        exit={{ y: -20, opacity: 0 }}
+                                        transition={{ delay: 0.1 }}
+                                    />
+                                ) : (
+                                    isVideoFileUrl(allMedia[currentMediaIndex]?.url) ? (
+                                        <motion.video
+                                            key={currentMediaIndex}
+                                            src={allMedia[currentMediaIndex]?.url}
+                                            className="max-w-full max-h-[85vh] rounded-lg shadow-2xl"
+                                            controls
+                                            playsInline
+                                            title="Video Lightbox"
+                                            initial={{ y: 20, opacity: 0 }}
+                                            animate={{ y: 0, opacity: 1 }}
+                                            exit={{ y: -20, opacity: 0 }}
+                                            transition={{ delay: 0.1 }}
+                                        />
+                                    ) : (
+                                        <motion.iframe
+                                            key={currentMediaIndex}
+                                            src={buildEmbedSrc(allMedia[currentMediaIndex]?.url, true)}
+                                            className="max-w-full max-h-[85vh] rounded-lg shadow-2xl"
+                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                            allowFullScreen
+                                            title="Video Lightbox"
+                                            initial={{ y: 20, opacity: 0 }}
+                                            animate={{ y: 0, opacity: 1 }}
+                                            exit={{ y: -20, opacity: 0 }}
+                                            transition={{ delay: 0.1 }}
+                                        />
+                                    )
+                                )}
+                            </AnimatePresence>
 
                             {/* Lightbox Navigation */}
-                            {farm.images.length > 1 && (
+                            {allMedia.length > 1 && (
                                 <>
                                     <button
-                                        onClick={(e) => { e.stopPropagation(); prevImage(); }}
-                                        className="absolute left-2 md:left-8 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white p-3 md:p-4 rounded-full transition-all backdrop-blur-md"
+                                        onClick={(e) => { e.stopPropagation(); prevMedia(); }}
+                                        className="absolute left-2 md:left-8 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white p-3 md:p-4 rounded-full transition-all backdrop-blur-md z-20"
                                     >
                                         <ChevronLeft size={32} />
                                     </button>
                                     <button
-                                        onClick={(e) => { e.stopPropagation(); nextImage(); }}
-                                        className="absolute right-2 md:right-8 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white p-3 md:p-4 rounded-full transition-all backdrop-blur-md"
+                                        onClick={(e) => { e.stopPropagation(); nextMedia(); }}
+                                        className="absolute right-2 md:right-8 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white p-3 md:p-4 rounded-full transition-all backdrop-blur-md z-20"
                                     >
                                         <ChevronRight size={32} />
                                     </button>
                                 </>
+                            )}
+
+                            {/* Media Counter */}
+                            {allMedia.length > 1 && (
+                                <div className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-white/20 text-white px-3 py-1 rounded-full text-sm backdrop-blur-md z-20">
+                                    {currentMediaIndex + 1} / {allMedia.length}
+                                </div>
                             )}
                         </div>
 
                         {/* Lightbox Thumbnails */}
                         <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 px-4 overflow-x-auto" onClick={e => e.stopPropagation()}>
                             <div className="flex gap-2 p-2">
-                                {farm.images.map((img, idx) => (
+                                {allMedia.map((media, idx) => (
                                     <button
                                         key={idx}
-                                        onClick={() => setCurrentImageIndex(idx)}
-                                        className={`w-16 h-12 rounded-md overflow-hidden flex-shrink-0 transition-all ${idx === currentImageIndex ? 'ring-2 ring-white scale-110 opacity-100' : 'opacity-50 hover:opacity-80'
+                                        onClick={() => setCurrentMediaIndex(idx)}
+                                        className={`w-16 h-12 rounded-md overflow-hidden flex-shrink-0 transition-all relative ${idx === currentMediaIndex ? 'ring-2 ring-white scale-110 opacity-100' : 'opacity-50 hover:opacity-80'
                                             }`}
                                     >
-                                        <img src={img} className="w-full h-full object-cover" />
+                                        {media.type === 'image' ? (
+                                            <img src={media.url} alt={`Thumbnail ${idx + 1}`} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="w-full h-full bg-gray-800 flex items-center justify-center">
+                                                <Play className="w-4 h-4 text-white" />
+                                            </div>
+                                        )}
                                     </button>
                                 ))}
                             </div>

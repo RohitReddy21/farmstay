@@ -21,6 +21,10 @@ const seedVineyard = async () => {
                 "/images/vineyard/vineyard4.jpg",
                 "/images/vineyard/vineyard5.jpg"
             ],
+            videos: [
+                "https://www.youtube.com/embed/dQw4w9WgXcQ",
+                "https://www.youtube.com/embed/9bZkp7q19f0"
+            ],
             amenities: [
                 "Swimming Pool",
                 "BBQ Grill",

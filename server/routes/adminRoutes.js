@@ -3,103 +3,199 @@ const mongoose = require('mongoose');
 const router = express.Router();
 const User = require('../models/User');
 const Booking = require('../models/Booking');
-const { verifyAdmin, verifyToken } = require('../middleware/authMiddleware');
-
 const Farm = require('../models/Farm');
+const { verifyAdmin, verifyToken } = require('../middleware/authMiddleware');
+const upload = require('../middleware/uploadMiddleware');
 
-// @route   POST /api/admin/seed
-// @desc    Seed database with correct content
-router.post('/seed', verifyToken, verifyAdmin, async (req, res) => {
+const fileToPublicUrl = (req, file) => {
+    const pathOrUrl = file?.path ? String(file.path) : '';
+    if (pathOrUrl.startsWith('http://') || pathOrUrl.startsWith('https://')) return pathOrUrl;
+
+    const filename = file?.filename ? String(file.filename) : '';
+    if (!filename) return pathOrUrl;
+
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    return `${baseUrl}/uploads/${filename}`;
+};
+
+const farmMediaUpload = (req, res, next) => {
+    const handler = upload.fields([{ name: 'images', maxCount: 10 }, { name: 'videos', maxCount: 5 }]);
+    handler(req, res, (err) => {
+        if (!err) return next();
+        console.error('Farm media upload error:', err);
+        return res.status(400).json({
+            message: 'Upload failed',
+            error: err.message
+        });
+    });
+};
+
+const splitList = (value) => {
+    if (!value) return [];
+    if (Array.isArray(value)) return value.map(String);
+    if (typeof value !== 'string') return [String(value)];
+    return value
+        .split(/[\n,]+/g)
+        .map((s) => s.trim())
+        .filter(Boolean);
+};
+
+const normalizeVideoUrl = (rawUrl) => {
+    const url = String(rawUrl || '').trim();
+    if (!url) return '';
+
     try {
-        await Farm.deleteMany({});
+        // Convert common YouTube URLs to embed format (FarmDetails renders embeds)
+        const u = new URL(url);
+        const host = u.hostname.replace(/^www\./, '');
 
-        const farms = [
-            {
-                title: "Vineyard Farm Stay",
-                location: "Amangal, Telangana",
-                price: 4999,
-                capacity: 12,
-                images: [
-                    "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80",
-                    "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=800&q=80",
-                    "https://images.unsplash.com/photo-1501594907352-04cda38ebc29?auto=format&fit=crop&w=800&q=80",
-                    "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=800&q=80",
-                    "https://images.unsplash.com/photo-1472214103451-9374bd1c798e?auto=format&fit=crop&w=800&q=80"
-                ],
-                amenities: [
-                    "Swimming Pool",
-                    "BBQ Grill",
-                    "Bar",
-                    "Open Campfire",
-                    "Music",
-                    "WiFi",
-                    "Parking",
-                    "Hot Water",
-                    "AC"
-                ],
-                description: `Step away from the noise of everyday life and into the soothing embrace of nature.
-Here, time slows down and serenity takes over, as you’re surrounded by acres of sun-kissed vineyards, gentle breezes, and a sky that turns gold at dusk.
-The tranquil landscapes of Amangal.
+        if (host === 'youtu.be') {
+            const id = u.pathname.split('/').filter(Boolean)[0];
+            return id ? `https://www.youtube.com/embed/${id}` : url;
+        }
 
-Our Rooms – Simple. Traditional. Peaceful.
-Vineyard Farm Stay offers three cozy rooms, each inspired by traditional South Indian design.
-
-What to Expect:
-• Comfortable beds with clean, cotton sheets.
-• Spacious bathrooms with modern fittings and hot water.
-• Common Dining Area.
-• Verandah or sit-out area to relax with a cup of chai.
-
-A Peaceful Escape at Vineyard Farm Stay
-
-Amenities at Vineyard Farm Stay:
-• BBQ Grill – Enjoy a fun evening grilling and dining outdoors.
-• Bar – Relax with refreshing drinks while enjoying vineyard views.
-• Open Campfire – Gather around the campfire to relax and share stories.
-• Music – Enjoy music in the common areas or by the campfire.
-• Swimming Pool
-
-Room Tariffs (Per Night):
-• KRISHNA: ₹6,400
-• GODAVARI: ₹4,999
-• KAVERI: ₹5,600
-
-Includes:
-• Complimentary breakfast
-• Free Wi-Fi
-• Access to all amenities (BBQ grill, swimming pool, etc.)
-
-Additional Charges:
-• Extra bed (per night): ₹999
-• Lunch + Dinner (per person): ₹1,100
-
-Contact & Location:
-📍 Sarayu Green Farms, Talakondapalli Road, Amangal, Telangana – 509410
-📞 Phone: +91 9989854411
-📧 Email: vineyardfarmstay@gmail.com
-📸 Instagram: @vineyardfarmstay
-🕒 Check-in: 11 AM | Check-out: 11 AM`
-            },
-            {
-                title: "Sarayu Green Farms",
-                location: "Amangal, Telangana",
-                price: 3500,
-                capacity: 8,
-                images: [
-                    "https://images.unsplash.com/photo-1500076656116-558758c991c1?auto=format&fit=crop&w=800&q=80",
-                    "https://images.unsplash.com/photo-1470058869958-2a77ade41c02?auto=format&fit=crop&w=800&q=80",
-                    "https://images.unsplash.com/photo-1444858291040-58f756a3bdd6?auto=format&fit=crop&w=800&q=80"
-                ],
-                amenities: ["WiFi", "Kitchen", "Parking", "Garden", "Pets Allowed"],
-                description: "A beautiful green farm stay located in Amangal, perfect for weekend getaways with family and friends. Enjoy the lush greenery and fresh air."
+        if (host === 'youtube.com' || host === 'm.youtube.com') {
+            if (u.pathname === '/watch') {
+                const id = u.searchParams.get('v');
+                return id ? `https://www.youtube.com/embed/${id}` : url;
             }
-        ];
+            if (u.pathname.startsWith('/shorts/')) {
+                const id = u.pathname.split('/').filter(Boolean)[1];
+                return id ? `https://www.youtube.com/embed/${id}` : url;
+            }
+            if (u.pathname.startsWith('/embed/')) {
+                return url;
+            }
+        }
+    } catch (e) {
+        // Not a valid URL; keep as-is
+    }
 
-        await Farm.insertMany(farms);
-        res.json({ message: 'Database updated successfully' });
+    return url;
+};
+
+// @route   GET /api/admin/farms
+// @desc    Get all farms for management
+router.get('/farms', verifyAdmin, async (req, res) => {
+    try {
+        const farms = await Farm.find({});
+        res.json(farms);
     } catch (error) {
-        console.error(error);
         res.status(500).json({ message: 'Server Error' });
+    }
+});
+
+// @route   POST /api/admin/farms
+// @desc    Create a new farm
+router.post('/farms', verifyAdmin, farmMediaUpload, async (req, res) => {
+    try {
+        const { title, description, location, price, capacity, amenities, category, subCategory, availability, videoLinks } = req.body;
+        
+        const imageUrls = req.files?.images ? req.files.images.map(file => fileToPublicUrl(req, file)) : [];
+        const uploadedVideoUrls = req.files?.videos ? req.files.videos.map(file => fileToPublicUrl(req, file)) : [];
+        const linkVideos = splitList(videoLinks).map(normalizeVideoUrl).filter(Boolean);
+        const videoUrls = [...linkVideos, ...uploadedVideoUrls];
+
+        const farm = new Farm({
+            title,
+            description,
+            location,
+            price: Number(price),
+            capacity: Number(capacity),
+            amenities: Array.isArray(amenities) ? amenities : (amenities ? amenities.split(',').map(a => a.trim()) : []),
+            images: imageUrls,
+            videos: videoUrls,
+            category,
+            subCategory,
+            availability
+        });
+
+        await farm.save();
+        res.status(201).json(farm);
+    } catch (error) {
+        console.error('Error creating farm:', error);
+        res.status(500).json({
+            message: 'Server Error',
+            error: error.message,
+            stack: process.env.NODE_ENV !== 'production' ? error.stack : undefined
+        });
+    }
+});
+
+// @route   PUT /api/admin/farms/:id
+// @desc    Update a farm
+router.put('/farms/:id', verifyAdmin, farmMediaUpload, async (req, res) => {
+    try {
+        console.log('Update Farm Request:', {
+            id: req.params.id,
+            body: req.body,
+            imagesCount: req.files?.images ? req.files.images.length : 0,
+            videosCount: req.files?.videos ? req.files.videos.length : 0
+        });
+
+        const { title, description, location, price, capacity, amenities, category, subCategory, availability, existingImages, existingVideos, videoLinks } = req.body;
+        
+        let imageUrls = [];
+        if (existingImages) {
+            try {
+                imageUrls = typeof existingImages === 'string' ? JSON.parse(existingImages) : existingImages;
+            } catch (e) {
+                console.warn('Failed to parse existingImages JSON, using as fallback:', existingImages);
+                imageUrls = Array.isArray(existingImages) ? existingImages : [existingImages];
+            }
+        }
+
+        if (req.files?.images && req.files.images.length > 0) {
+            const newImageUrls = req.files.images.map(file => fileToPublicUrl(req, file));
+            imageUrls = [...imageUrls, ...newImageUrls];
+        }
+
+        let videoUrls = [];
+        if (existingVideos) {
+            try {
+                videoUrls = typeof existingVideos === 'string' ? JSON.parse(existingVideos) : existingVideos;
+            } catch (e) {
+                console.warn('Failed to parse existingVideos JSON, using as fallback:', existingVideos);
+                videoUrls = Array.isArray(existingVideos) ? existingVideos : [existingVideos];
+            }
+        }
+
+        const linkVideos = splitList(videoLinks).map(normalizeVideoUrl).filter(Boolean);
+        videoUrls = [...videoUrls, ...linkVideos];
+
+        if (req.files?.videos && req.files.videos.length > 0) {
+            const newVideoUrls = req.files.videos.map(file => fileToPublicUrl(req, file));
+            videoUrls = [...videoUrls, ...newVideoUrls];
+        }
+
+        const updateData = {
+            title,
+            description,
+            location,
+            price: isNaN(Number(price)) ? 0 : Number(price),
+            capacity: isNaN(Number(capacity)) ? 0 : Number(capacity),
+            amenities: Array.isArray(amenities) ? amenities : (amenities ? amenities.split(',').map(a => a.trim()) : []),
+            images: imageUrls,
+            videos: videoUrls,
+            category,
+            subCategory,
+            availability
+        };
+
+        const farm = await Farm.findByIdAndUpdate(req.params.id, updateData, { new: true });
+        
+        if (!farm) {
+            return res.status(404).json({ message: 'Farm not found' });
+        }
+
+        res.json(farm);
+    } catch (error) {
+        console.error('Error updating farm:', error);
+        res.status(500).json({
+            message: 'Server Error',
+            error: error.message,
+            stack: process.env.NODE_ENV !== 'production' ? error.stack : undefined
+        });
     }
 });
 
@@ -126,7 +222,6 @@ router.get('/bookings', verifyAdmin, async (req, res) => {
         res.status(500).json({ message: 'Server Error' });
     }
 });
-
 
 // @route   PUT /api/admin/bookings/:id/status
 // @desc    Update booking status (accept, reject with reason)

@@ -94,21 +94,31 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
     try {
         const { email, password } = req.body;
+        console.log('Login attempt:', email);
 
         const user = await User.findOne({ email });
         if (!user) {
+            console.log('User not found:', email);
             return res.status(401).json({ message: 'Invalid email or password' });
         }
 
+        console.log('User found, comparing password...');
         const isMatch = await user.comparePassword(password);
         if (!isMatch) {
+            console.log('Password mismatch for:', email);
             return res.status(401).json({ message: 'Invalid email or password' });
+        }
+
+        console.log('Password match, signing token...');
+        if (!process.env.JWT_SECRET) {
+            throw new Error('JWT_SECRET is not defined in environment');
         }
 
         const token = jwt.sign({ _id: user._id }, process.env.JWT_SECRET, {
             expiresIn: '30d'
         });
 
+        console.log('Login successful:', email);
         res.json({
             _id: user._id,
             name: user.name,
@@ -117,6 +127,7 @@ router.post('/login', async (req, res) => {
             token
         });
     } catch (error) {
+        console.error('Login Error:', error);
         res.status(500).json({ message: error.message });
     }
 });

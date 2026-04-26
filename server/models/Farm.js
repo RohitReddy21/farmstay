@@ -7,6 +7,7 @@ const farmSchema = new mongoose.Schema({
     price: { type: Number, required: true },
     capacity: { type: Number, required: true },
     images: [{ type: String }], // Array of image URLs
+    videos: [{ type: String }], // Array of video URLs (MP4, YouTube links, etc.)
     amenities: [{ type: String }],
     category: { type: String, default: 'Farm' },
     subCategory: { type: String },

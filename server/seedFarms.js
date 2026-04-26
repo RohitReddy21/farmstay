@@ -26,6 +26,10 @@ const seedFarms = async () => {
                     "/images/maharashtra/img4.jpg",
                     "/images/maharashtra/img5.jpg"
                 ],
+                videos: [
+                    "https://www.youtube.com/embed/dQw4w9WgXcQ",
+                    "https://www.youtube.com/embed/9bZkp7q19f0"
+                ],
                 amenities: [
                     "Swimming Pool",
                     "BBQ Grill",
@@ -89,6 +93,9 @@ Contact & Location:
                     "https://images.unsplash.com/photo-1500076656116-558758c991c1?auto=format&fit=crop&w=800&q=80",
                     "https://images.unsplash.com/photo-1470058869958-2a77ade41c02?auto=format&fit=crop&w=800&q=80",
                     "https://images.unsplash.com/photo-1444858291040-58f756a3bdd6?auto=format&fit=crop&w=800&q=80"
+                ],
+                videos: [
+                    "https://www.youtube.com/embed/tYzMGcUty6s"
                 ],
                 amenities: ["WiFi", "Kitchen", "Parking", "Garden", "Pets Allowed"],
                 description: "A beautiful green farm stay located in Amangal, perfect for weekend getaways with family and friends. Enjoy the lush greenery and fresh air."

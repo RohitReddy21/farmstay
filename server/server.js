@@ -6,6 +6,7 @@ const compression = require('compression');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { v2: cloudinary } = require('cloudinary');
+const path = require('path');
 
 dotenv.config();
 if (!process.env.JWT_SECRET) {
@@ -16,6 +17,8 @@ if (!process.env.JWT_SECRET) {
 const app = express();
 app.use(compression());
 app.use(helmet());
+
+const serverStartedAt = new Date().toISOString();
 
 // Cloudinary Configuration
 cloudinary.config({
@@ -29,6 +32,9 @@ const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:5174',
   'http://localhost:5188',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:5174',
+  'http://127.0.0.1:5188',
   'https://farmstay-eight.vercel.app',
   process.env.CLIENT_URL
 ].filter(Boolean);
@@ -53,6 +59,7 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 app.use(express.json());
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Rate Limiting
 const limiter = rateLimit({
@@ -118,10 +125,32 @@ app.get('/', (req, res) => {
   res.send('FarmStay API is running');
 });
 
+app.get('/api/health', (req, res) => {
+  res.json({
+    ok: true,
+    startedAt: serverStartedAt,
+    nodeEnv: process.env.NODE_ENV || 'undefined'
+  });
+});
+
 // Error Handling Middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ message: 'Something went wrong!' });
+  const status = err.statusCode || err.status || (err.message === 'Not allowed by CORS' ? 403 : 500);
+  console.error('Unhandled error:', err);
+
+  const hostname = req.hostname || '';
+  const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
+  const message =
+    err?.message ||
+    (typeof err === 'string' ? err : undefined) ||
+    (err ? JSON.stringify(err) : undefined) ||
+    'Something went wrong!';
+
+  res.status(status).json({
+    message,
+    error: err?.message || (typeof err === 'string' ? err : undefined),
+    stack: (process.env.NODE_ENV !== 'production' || isLocalhost) ? err?.stack : undefined
+  });
 });
 
 app.listen(PORT, () => {

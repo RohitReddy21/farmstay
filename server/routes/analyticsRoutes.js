@@ -2,28 +2,23 @@ const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
 const { verifyAdmin } = require('../middleware/authMiddleware');
+const Booking = require('../models/Booking');
+const User = require('../models/User');
+const Farm = require('../models/Farm');
 
 // @route   GET /api/analytics/dashboard
 // @desc    Get dashboard analytics data
 router.get('/dashboard', verifyAdmin, async (req, res) => {
     try {
-        const today = new Date();
-        const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-        const startOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-
-        const Booking = mongoose.model('Booking');
-        const User = mongoose.model('User');
-        const Farm = mongoose.model('Farm');
-
         // 1. Total Revenue
         const totalRevenueAgg = await Booking.aggregate([
-            { $match: { status: 'confirmed' } },
+            { $match: { status: { $in: ['Confirmed', 'Completed'] } } },
             { $group: { _id: null, total: { $sum: '$totalPrice' } } }
         ]);
         const totalRevenue = totalRevenueAgg[0]?.total || 0;
 
         // 2. Total Bookings
-        const totalBookings = await Booking.countDocuments({ status: { $ne: 'cancelled' } });
+        const totalBookings = await Booking.countDocuments({ status: { $ne: 'Cancelled' } });
 
         // 3. Total Users
         const totalUsers = await User.countDocuments({ role: 'user' });
@@ -39,7 +34,7 @@ router.get('/dashboard', verifyAdmin, async (req, res) => {
         const monthlyRevenue = await Booking.aggregate([
             {
                 $match: {
-                    status: 'confirmed',
+                    status: { $in: ['Confirmed', 'Completed'] },
                     createdAt: { $gte: sixMonthsAgo }
                 }
             },
@@ -64,7 +59,7 @@ router.get('/dashboard', verifyAdmin, async (req, res) => {
 
         // 6. Farm Distribution
         const farmDistribution = await Booking.aggregate([
-            { $match: { status: { $ne: 'cancelled' } } },
+            { $match: { status: { $ne: 'Cancelled' } } },
             {
                 $group: {
                     _id: '$property',
