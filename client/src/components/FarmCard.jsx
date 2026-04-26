@@ -27,6 +27,22 @@ const FarmCard = ({ farm }) => {
                     <h3 className="text-base md:text-lg font-bold text-gray-900 dark:text-white line-clamp-1 flex-1">{farm.title}</h3>
                     <span className="bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 text-xs px-2 py-1 rounded-full font-medium whitespace-nowrap">₹{farm.price}/night</span>
                 </div>
+                <div className="flex flex-wrap gap-2 mb-3">
+                    {farm.subCategory && (
+                        <span className="bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-md font-bold border border-blue-100 dark:border-blue-800">
+                            {farm.subCategory}
+                        </span>
+                    )}
+                    {farm.availability && (
+                        <span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-md font-bold border ${
+                            farm.availability === 'All Days' 
+                            ? 'bg-purple-50 text-purple-600 border-purple-100 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800' 
+                            : 'bg-orange-50 text-orange-600 border-orange-100 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-800'
+                        }`}>
+                            {farm.availability}
+                        </span>
+                    )}
+                </div>
                 <div className="flex items-center text-gray-500 dark:text-gray-400 text-xs md:text-sm mb-3 space-x-3">
                     <span className="flex items-center"><MapPin size={14} className="mr-1" /> {farm.location}</span>
                     <span className="flex items-center"><Users size={14} className="mr-1" /> {farm.capacity}</span>

@@ -8,6 +8,13 @@ const farmSchema = new mongoose.Schema({
     capacity: { type: Number, required: true },
     images: [{ type: String }], // Array of image URLs
     amenities: [{ type: String }],
+    category: { type: String, default: 'Farm' },
+    subCategory: { type: String },
+    availability: {
+        type: String,
+        enum: ['All Days', 'Monday to Friday'],
+        default: 'All Days'
+    },
     owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User' } // Optional: if we want to link to an owner
 }, { timestamps: true });
 

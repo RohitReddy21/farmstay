@@ -20,6 +20,7 @@ const Farms = () => {
         maxPrice: 10000,
         capacity: '',
         amenities: [],
+        subCategory: '',
         sortBy: 'default'
     });
 
@@ -59,6 +60,11 @@ const Farms = () => {
         result = result.filter(farm =>
             farm.price >= filters.minPrice && farm.price <= filters.maxPrice
         );
+
+        // SubCategory filter
+        if (filters.subCategory) {
+            result = result.filter(farm => farm.subCategory === filters.subCategory);
+        }
 
         // Capacity filter
         if (filters.capacity) {
@@ -108,6 +114,7 @@ const Farms = () => {
             maxPrice: 10000,
             capacity: '',
             amenities: [],
+            subCategory: '',
             sortBy: 'default'
         });
     };
@@ -215,6 +222,7 @@ const Farms = () => {
                                 </div>
 
                                 {/* Amenities */}
+                                {/* Amenities */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Amenities</label>
                                     <div className="space-y-3">
@@ -228,6 +236,26 @@ const Farms = () => {
                                                 />
                                                 <span className="text-base text-gray-700 dark:text-gray-300">{amenity}</span>
                                             </label>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Category/SubCategory */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Farm Category</label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {['Brown Cows Dairy', 'Vineyard'].map(cat => (
+                                            <button
+                                                key={cat}
+                                                onClick={() => setFilters(prev => ({ ...prev, subCategory: prev.subCategory === cat ? '' : cat }))}
+                                                className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
+                                                    filters.subCategory === cat
+                                                        ? 'bg-primary text-white border-primary shadow-md'
+                                                        : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:border-primary'
+                                                }`}
+                                            >
+                                                {cat}
+                                            </button>
                                         ))}
                                     </div>
                                 </div>

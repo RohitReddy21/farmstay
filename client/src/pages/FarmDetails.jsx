@@ -77,12 +77,21 @@ const FarmDetails = () => {
         today.setHours(0, 0, 0, 0);
         if (date < today) return true;
 
-        // Disable unavailable dates
-        return unavailableDates.some(booking => {
+        // Disable unavailable dates from bookings
+        const isBooked = unavailableDates.some(booking => {
             const start = new Date(booking.startDate);
             const end = new Date(booking.endDate);
             return date >= start && date <= end;
         });
+        if (isBooked) return true;
+
+        // Disable based on farm availability rules
+        if (farm?.availability === 'Monday to Friday') {
+            const day = date.getDay();
+            return day === 0 || day === 6; // Disable Sunday (0) and Saturday (6)
+        }
+
+        return false;
     };
 
     const handleDateChange = (value) => {
@@ -482,6 +491,22 @@ const FarmDetails = () => {
                     <div className="flex items-start justify-between mb-4">
                         <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 leading-tight">{farm.title}</h1>
                         <FavoriteButton farmId={farm._id} size={28} />
+                    </div>
+                    <div className="flex flex-wrap items-center gap-4 md:gap-6 text-gray-600 mb-4">
+                        {farm.subCategory && (
+                            <span className="bg-blue-100 text-blue-800 text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wider border border-blue-200">
+                                {farm.subCategory}
+                            </span>
+                        )}
+                        {farm.availability && (
+                            <span className={`text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wider border ${
+                                farm.availability === 'All Days'
+                                ? 'bg-purple-100 text-purple-800 border-purple-200'
+                                : 'bg-orange-100 text-orange-800 border-orange-200'
+                            }`}>
+                                {farm.availability}
+                            </span>
+                        )}
                     </div>
                     <div className="flex flex-wrap items-center gap-4 md:gap-6 text-gray-600">
                         <div className="flex items-center gap-2">

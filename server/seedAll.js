@@ -1,25 +1,18 @@
 const mongoose = require('mongoose');
+const dotenv = require('dotenv');
 const Farm = require('./models/Farm');
-const User = require('./models/User');
 
-const seedData = async () => {
+dotenv.config();
+
+const seedAll = async () => {
     try {
-        // Seed Admin User
-        // Seed Admin User
-        await User.deleteOne({ email: 'admin@farmstay.com' });
-        await User.create({
-            name: 'Admin',
-            email: 'admin@farmstay.com',
-            password: 'admin123',
-            role: 'admin'
-        });
-        console.log('Admin user reset/created');
+        const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/farmstay';
+        await mongoose.connect(mongoUri);
+        console.log('MongoDB Connected');
 
-        // Seed Farms
-        const farmCount = await Farm.countDocuments();
-        if (farmCount > 0) return;
-
-        console.log('Seeding data...');
+        // Clear existing farms
+        await Farm.deleteMany({});
+        console.log('Cleared existing farms');
 
         const farms = [
             {
@@ -99,10 +92,13 @@ Here, time slows down and serenity takes over, as you’re surrounded by acres o
         ];
 
         await Farm.insertMany(farms);
-        console.log('Data seeded successfully');
+        console.log('Seeded All Farms Successfully');
+
+        process.exit();
     } catch (error) {
-        console.error('Seeding error:', error);
+        console.error(error);
+        process.exit(1);
     }
 };
 
-module.exports = seedData;
+seedAll();
