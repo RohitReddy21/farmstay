@@ -16,6 +16,7 @@ const Register = lazy(() => import('./pages/Register'));
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 const Farms = lazy(() => import('./pages/Farms'));
 const FarmDetails = lazy(() => import('./pages/FarmDetails'));
+const LearningRetreat = lazy(() => import('./pages/LearningRetreat'));
 const Admin = lazy(() => import('./pages/Admin'));
 const Database = lazy(() => import('./pages/Database'));
 const Success = lazy(() => import('./pages/Success'));
@@ -38,6 +39,7 @@ const AnimatedRoutes = () => {
         <Route path="/forgot-password" element={<PageTransition><ForgotPassword /></PageTransition>} />
         <Route path="/farms" element={<PageTransition><Farms /></PageTransition>} />
         <Route path="/farm/:id" element={<PageTransition><FarmDetails /></PageTransition>} />
+        <Route path="/learning-retreat" element={<PageTransition><LearningRetreat /></PageTransition>} />
         <Route path="/admin" element={<PageTransition><Admin /></PageTransition>} />
         <Route path="/database" element={<PageTransition><Database /></PageTransition>} />
         <Route path="/success" element={<PageTransition><Success /></PageTransition>} />

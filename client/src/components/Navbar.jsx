@@ -25,6 +25,7 @@ const Navbar = () => {
                     {/* Desktop Menu */}
                     <div className="hidden md:flex items-center space-x-4 lg:space-x-6">
                         <Link to="/farms" className="text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition px-2 py-1">Explore Farms</Link>
+                        <Link to="/learning-retreat" className="text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition px-2 py-1">Learning Retreat</Link>
 
                         {/* Theme Toggle */}
                         <button
@@ -96,6 +97,13 @@ const Navbar = () => {
                                 className="text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-50 dark:hover:bg-gray-700 px-4 py-3 rounded-lg transition-all font-medium"
                             >
                                 Explore Farms
+                            </Link>
+                            <Link
+                                to="/learning-retreat"
+                                onClick={() => setIsOpen(false)}
+                                className="text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-50 dark:hover:bg-gray-700 px-4 py-3 rounded-lg transition-all font-medium"
+                            >
+                                Learning Retreat
                             </Link>
 
                             {user ? (
