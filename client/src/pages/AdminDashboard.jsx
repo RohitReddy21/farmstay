@@ -177,8 +177,8 @@ const AdminDashboard = () => {
                                         </td>
                                         <td className="py-3 px-4">
                                             <div className="flex flex-col">
-                                                <span className="text-sm font-medium text-gray-900">{booking.farm?.title || 'N/A'}</span>
-                                                <span className="text-xs text-gray-500">{booking.farm?.location || ''}</span>
+                                                <span className="text-sm font-medium text-gray-900">{booking.property?.title || booking.farm?.title || 'N/A'}</span>
+                                                <span className="text-xs text-gray-500">{booking.property?.location || booking.farm?.location || ''}</span>
                                             </div>
                                         </td>
                                         <td className="py-3 px-4">

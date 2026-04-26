@@ -67,7 +67,7 @@ router.get('/dashboard', verifyAdmin, async (req, res) => {
             { $match: { status: { $ne: 'cancelled' } } },
             {
                 $group: {
-                    _id: '$farm',
+                    _id: '$property',
                     count: { $sum: 1 }
                 }
             },
@@ -95,7 +95,7 @@ router.get('/dashboard', verifyAdmin, async (req, res) => {
             .sort({ createdAt: -1 })
             .limit(10)
             .populate('user', 'name email')
-            .populate('farm', 'title location')
+            .populate('property', 'title location')
             .select('startDate endDate guests totalPrice status createdAt guestName guestPhone');
 
         res.json({

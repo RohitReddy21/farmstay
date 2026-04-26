@@ -13,7 +13,7 @@ router.get('/view', verifyAdmin, async (req, res) => {
         const farms = await Farm.find({});
         const bookings = await Booking.find({})
             .populate('user', 'name email')
-            .populate('farm', 'title');
+            .populate('property', 'title');
 
         res.json({
             database: 'In-Memory MongoDB',
