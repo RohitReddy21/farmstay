@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
 import axios from 'axios';
-import { loadStripe } from '@stripe/stripe-js';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MapPin, Users, Check, ChevronLeft, ChevronRight, AlertCircle, X } from 'lucide-react';
-import Calendar from 'react-calendar';
-import 'react-calendar/dist/Calendar.css';
+import { DateRange } from 'react-date-range';
+import 'react-date-range/dist/styles.css'; 
+import 'react-date-range/dist/theme/default.css';
 
 import API_URL from '../config';
 import FavoriteButton from '../components/FavoriteButton';
@@ -15,12 +16,11 @@ import ReviewForm from '../components/ReviewForm';
 import StarRating from '../components/StarRating';
 import BookingConfirmationModal from '../components/BookingConfirmationModal';
 
-const stripePromise = loadStripe('pk_test_your_key_here'); // Replace with your Stripe public key
-
 const FarmDetails = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const { user } = useAuth();
+    const { addToCart } = useCart();
     const [farm, setFarm] = useState(null);
     const [loading, setLoading] = useState(true);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -35,9 +35,14 @@ const FarmDetails = () => {
     const [isCalendarOpen, setIsCalendarOpen] = useState(false);
     const [confirmedBookingDetails, setConfirmedBookingDetails] = useState(null);
     const [showLightbox, setShowLightbox] = useState(false);
+    const [dateSelection, setDateSelection] = useState([
+        {
+            startDate: new Date(),
+            endDate: new Date(),
+            key: 'selection'
+        }
+    ]);
     const [bookingData, setBookingData] = useState({
-        startDate: '',
-        endDate: '',
         guests: 1,
         guestName: '',
         guestPhone: ''
@@ -71,7 +76,7 @@ const FarmDetails = () => {
         return false;
     };
 
-    const isDateDisabled = ({ date }) => {
+    const isDateDisabled = (date) => {
         // Disable past dates
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -94,28 +99,13 @@ const FarmDetails = () => {
         return false;
     };
 
-    const handleDateChange = (value) => {
-        // value is [start, end] if selectRange is true
-        if (Array.isArray(value)) {
-            const start = value[0];
-            const end = value[1];
-
-            // Adjust offset to avoid timezone issues when converting to string
-            // Using ISOString split T works if time is 00:00:00 and we want local?
-            // Safer to use local date string logic or date-fns format.
-            // But preserving existing logic:
-
-            // Ensure we have correct dates
-            const startStr = start.toLocaleDateString('en-CA'); // YYYY-MM-DD
-            const endStr = end.toLocaleDateString('en-CA');
-
-            setBookingData({
-                ...bookingData,
-                startDate: startStr,
-                endDate: endStr
-            });
-            checkDateConflict(startStr, endStr);
-        }
+    const handleDateChange = (item) => {
+        setDateSelection([item.selection]);
+        
+        const startStr = item.selection.startDate.toLocaleDateString('en-CA');
+        const endStr = item.selection.endDate.toLocaleDateString('en-CA');
+        
+        checkDateConflict(startStr, endStr);
     };
 
     useEffect(() => {
@@ -132,7 +122,7 @@ const FarmDetails = () => {
 
         const fetchAvailability = async () => {
             try {
-                const { data } = await axios.get(`${API_URL}/api/bookings/farm/${id}/availability`);
+                const { data } = await axios.get(`${API_URL}/api/bookings/property/${id}/availability`);
                 setUnavailableDates(data);
             } catch (error) {
                 console.error('Error fetching availability:', error);
@@ -186,8 +176,11 @@ const FarmDetails = () => {
             return;
         }
 
-        if (!bookingData.startDate || !bookingData.endDate) {
-            alert('Please select check-in and check-out dates');
+        const startStr = dateSelection[0].startDate.toLocaleDateString('en-CA');
+        const endStr = dateSelection[0].endDate.toLocaleDateString('en-CA');
+
+        if (startStr === endStr) {
+            alert('Please select a valid date range (minimum 1 night).');
             return;
         }
 
@@ -197,8 +190,8 @@ const FarmDetails = () => {
         }
 
         try {
-            const startDate = new Date(bookingData.startDate);
-            const endDate = new Date(bookingData.endDate);
+            const startDate = dateSelection[0].startDate;
+            const endDate = dateSelection[0].endDate;
 
             // Client-side validation: Check for overlaps
             const hasConflict = unavailableDates.some(booking => {
@@ -214,47 +207,30 @@ const FarmDetails = () => {
 
             const nights = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
             const totalPrice = nights * farm.price;
+            const tax = Math.round(totalPrice * 0.18); // 18% GST example
 
-            const stripe = await stripePromise;
-            const { data } = await axios.post(`${API_URL}/api/bookings`, {
-                farmId: id,
-                userId: user._id,
-                startDate: bookingData.startDate,
-                endDate: bookingData.endDate,
+            // Set Cart Data and Navigate to Cart
+            addToCart({
+                property: farm,
+                propertyId: id,
+                startDate: startStr,
+                endDate: endStr,
                 guests: bookingData.guests,
-                totalPrice: totalPrice,
-                guestName: bookingData.guestName,
-                guestPhone: bookingData.guestPhone
-            }, {
-                headers: {
-                    Authorization: `Bearer ${localStorage.getItem('token')}`
+                guestDetails: {
+                    name: bookingData.guestName,
+                    phone: bookingData.guestPhone
+                },
+                pricing: {
+                    basePrice: farm.price,
+                    nights,
+                    totalPrice,
+                    tax,
+                    grandTotal: totalPrice + tax
                 }
             });
 
-            if (data.success) {
-                // Calculate nights for display
-                const nights = Math.ceil((new Date(bookingData.endDate) - new Date(bookingData.startDate)) / (1000 * 60 * 60 * 24));
+            navigate('/cart');
 
-                // Set booking details and show modal
-                setConfirmedBookingDetails({
-                    farm,
-                    startDate: bookingData.startDate,
-                    endDate: bookingData.endDate,
-                    guests: bookingData.guests,
-                    totalPrice,
-                    nights
-                });
-                setShowConfirmationModal(true);
-                return;
-            }
-
-            const result = await stripe.redirectToCheckout({
-                sessionId: data.id,
-            });
-
-            if (result.error) {
-                console.error(result.error.message);
-            }
         } catch (error) {
             console.error('Booking error:', error);
             if (error.response?.status === 409) {
@@ -354,6 +330,9 @@ const FarmDetails = () => {
                 {/* Right: Booking Card */}
                 <div className="lg:col-span-1">
                     <div className="bg-white p-5 md:p-6 rounded-xl md:rounded-2xl shadow-xl lg:sticky lg:top-24 border border-gray-100">
+                        <div className="mb-4 pb-4 border-b border-gray-100">
+                            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 leading-tight">{farm.title}</h1>
+                        </div>
                         <div className="flex justify-between items-end mb-4 md:mb-6">
                             <span className="text-2xl md:text-3xl font-bold text-gray-900">₹{farm.price}</span>
                             <span className="text-gray-500 mb-1 text-sm md:text-base">/ night</span>
@@ -388,14 +367,14 @@ const FarmDetails = () => {
                             >
                                 <div className="flex-1 text-center border-r border-gray-200">
                                     <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Check-in</p>
-                                    <p className={`font-bold text-lg ${!bookingData.startDate ? 'text-gray-400' : 'text-gray-900'}`}>
-                                        {bookingData.startDate ? new Date(bookingData.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Add Date'}
+                                    <p className="font-bold text-lg text-gray-900">
+                                        {dateSelection[0].startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                                     </p>
                                 </div>
                                 <div className="flex-1 text-center">
                                     <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Check-out</p>
-                                    <p className={`font-bold text-lg ${!bookingData.endDate ? 'text-gray-400' : 'text-gray-900'}`}>
-                                        {bookingData.endDate ? new Date(bookingData.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Add Date'}
+                                    <p className="font-bold text-lg text-gray-900">
+                                        {dateSelection[0].endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                                     </p>
                                 </div>
                             </div>
@@ -404,28 +383,47 @@ const FarmDetails = () => {
                             <AnimatePresence>
                                 {isCalendarOpen && (
                                     <>
-                                        {/* Backdrop */}
-                                        <div
-                                            className="fixed inset-0 z-40"
-                                            onClick={() => setIsCalendarOpen(false)}
-                                        />
-
-                                        {/* Calendar Dropdown */}
-                                        <motion.div
-                                            initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                                            exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                                            transition={{ duration: 0.2 }}
-                                            className="absolute top-full left-0 right-0 mt-2 z-50 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden p-2"
-                                        >
-                                            <Calendar
-                                                selectRange={true}
-                                                onChange={handleDateChange}
-                                                tileDisabled={isDateDisabled}
-                                                minDate={new Date()}
-                                                className="w-full border-none"
+                                        {/* Modal Wrapper */}
+                                        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/40 backdrop-blur-sm">
+                                            {/* Backdrop Click Area */}
+                                            <div 
+                                                className="absolute inset-0"
+                                                onClick={() => setIsCalendarOpen(false)}
                                             />
+                                            
+                                            {/* Calendar Modal */}
+                                            <motion.div
+                                                initial={{ opacity: 0, scale: 0.95 }}
+                                                animate={{ opacity: 1, scale: 1 }}
+                                                exit={{ opacity: 0, scale: 0.95 }}
+                                                transition={{ duration: 0.2 }}
+                                                className="relative z-10 bg-white rounded-3xl shadow-2xl p-4 md:p-6 w-full max-w-[min(100%,400px)] border border-gray-100 flex flex-col items-center"
+                                            >
+                                            <div className="w-full overflow-x-auto overflow-y-hidden no-scrollbar flex justify-center">
+                                                <DateRange
+                                                    ranges={dateSelection}
+                                                    onChange={handleDateChange}
+                                                    minDate={new Date()}
+                                                    rangeColors={['#16a34a']}
+                                                    disabledDay={isDateDisabled}
+                                                    className="border-none rounded-2xl font-inter"
+                                                    months={1}
+                                                />
+                                            </div>
+                                            <div className="mt-3 pt-4 border-t border-gray-100 flex justify-center w-full">
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        setIsCalendarOpen(false);
+                                                    }}
+                                                    className="px-6 py-2.5 bg-primary text-white font-bold rounded-xl hover:bg-green-600 transition-all shadow-md active:scale-95 w-full sm:w-auto"
+                                                >
+                                                    Apply Dates
+                                                </button>
+                                            </div>
                                         </motion.div>
+                                        </div>
                                     </>
                                 )}
                             </AnimatePresence>
@@ -489,7 +487,6 @@ const FarmDetails = () => {
                 {/* Title and Meta Info */}
                 <div className="border-b border-gray-200 pb-6 mb-8">
                     <div className="flex items-start justify-between mb-4">
-                        <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 leading-tight">{farm.title}</h1>
                         <FavoriteButton farmId={farm._id} size={28} />
                     </div>
                     <div className="flex flex-wrap items-center gap-4 md:gap-6 text-gray-600 mb-4">
@@ -737,3 +734,4 @@ const FarmDetails = () => {
 };
 
 export default FarmDetails;
+// Triggering Vite re-bundle after dependency installation

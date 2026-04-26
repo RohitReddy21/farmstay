@@ -120,13 +120,45 @@ router.get('/bookings', verifyAdmin, async (req, res) => {
     try {
         const bookings = await Booking.find({})
             .populate('user', 'name email')
-            .populate('farm', 'title');
+            .populate('property', 'title location');
         res.json(bookings);
     } catch (error) {
         res.status(500).json({ message: 'Server Error' });
     }
 });
 
+
+// @route   PUT /api/admin/bookings/:id/status
+// @desc    Update booking status (accept, reject with reason)
+router.put('/bookings/:id/status', verifyAdmin, async (req, res) => {
+    try {
+        const { status, rejectionReason } = req.body;
+        
+        if (!['Confirmed', 'Rejected', 'Completed'].includes(status)) {
+            return res.status(400).json({ message: 'Invalid status' });
+        }
+
+        const updateData = { status };
+        if (status === 'Rejected') {
+            updateData.rejectionReason = rejectionReason;
+        }
+
+        const booking = await Booking.findByIdAndUpdate(
+            req.params.id,
+            updateData,
+            { new: true }
+        );
+
+        if (!booking) {
+            return res.status(404).json({ message: 'Booking not found' });
+        }
+
+        res.json(booking);
+    } catch (error) {
+        console.error('Error updating booking status:', error);
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+});
 
 // @route   PUT /api/admin/users/:id/role
 // @desc    Update user role

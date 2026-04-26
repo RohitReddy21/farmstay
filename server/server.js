@@ -3,6 +3,9 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const compression = require('compression');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const { v2: cloudinary } = require('cloudinary');
 
 dotenv.config();
 if (!process.env.JWT_SECRET) {
@@ -12,7 +15,14 @@ if (!process.env.JWT_SECRET) {
 
 const app = express();
 app.use(compression());
-const PORT = process.env.PORT || 5001;
+app.use(helmet());
+
+// Cloudinary Configuration
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
 
 // Middleware
 const allowedOrigins = [
@@ -25,11 +35,9 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or local development headers)
     if (!origin) return callback(null, true);
 
     const isAllowed = allowedOrigins.some(allowedOrigin => {
-      // Direct match or origin starts with the allowed origin (handling potential trailing slashes)
       return origin === allowedOrigin || origin.startsWith(allowedOrigin);
     });
 
@@ -45,6 +53,17 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 app.use(express.json());
+
+// Rate Limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 500, // Limit each IP to 500 requests per windowMs (dev friendly)
+  message: 'Too many requests from this IP, please try again later.'
+});
+app.use('/api/', limiter);
+const PORT = process.env.PORT || 5001;
+
+
 
 // Database Connection
 const connectDB = async () => {
@@ -110,4 +129,4 @@ app.listen(PORT, () => {
 });
 
 
-// Force restart
+// Force restart to load Razorpay Keys

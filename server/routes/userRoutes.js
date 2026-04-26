@@ -101,7 +101,7 @@ router.put('/password', verifyToken, async (req, res) => {
 router.get('/bookings', verifyToken, async (req, res) => {
     try {
         const bookings = await Booking.find({ user: req.user._id })
-            .populate('farm', 'title location price images')
+            .populate('property', 'title location price images')
             .sort({ createdAt: -1 });
 
         res.json(bookings);

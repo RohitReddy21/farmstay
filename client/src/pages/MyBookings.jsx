@@ -35,25 +35,7 @@ const MyBookings = () => {
         }
     };
 
-    const handleCancelBooking = async (bookingId) => {
-        if (!window.confirm('Are you sure you want to cancel this booking?')) return;
 
-        try {
-            const token = localStorage.getItem('token');
-            await axios.delete(`${API_URL}/api/users/bookings/${bookingId}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-
-            // Update local state
-            setBookings(bookings.map(b =>
-                b._id === bookingId ? { ...b, status: 'cancelled' } : b
-            ));
-
-            alert('Booking cancelled successfully');
-        } catch (error) {
-            alert(error.response?.data?.message || 'Failed to cancel booking');
-        }
-    };
 
     const getFilteredBookings = () => {
         const now = new Date();
@@ -130,8 +112,8 @@ const MyBookings = () => {
                                 {/* Farm Image */}
                                 <div className="w-full md:w-48 h-40 md:h-32 flex-shrink-0">
                                     <img
-                                        src={booking.farm?.images?.[0] || 'https://via.placeholder.com/300'}
-                                        alt={booking.farm?.title}
+                                        src={booking.property?.images?.[0] || booking.farm?.images?.[0] || 'https://via.placeholder.com/300'}
+                                        alt={booking.property?.title || booking.farm?.title}
                                         className="w-full h-full object-cover rounded-lg md:rounded-xl"
                                     />
                                 </div>
@@ -141,11 +123,11 @@ const MyBookings = () => {
                                     <div className="flex flex-col sm:flex-row justify-between items-start mb-3 gap-2">
                                         <div>
                                             <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-1">
-                                                {booking.farm?.title}
+                                                {booking.property?.title || booking.farm?.title}
                                             </h3>
                                             <p className="text-gray-600 flex items-center gap-1 text-xs md:text-sm">
                                                 <MapPin size={14} className="md:w-4 md:h-4" />
-                                                {booking.farm?.location}
+                                                {booking.property?.location || booking.farm?.location}
                                             </p>
                                         </div>
                                         {getStatusBadge(booking.status)}
@@ -179,24 +161,19 @@ const MyBookings = () => {
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                                    <div className="flex items-center gap-2 text-xs text-gray-500 mb-2">
                                         <Clock size={12} className="md:w-3.5 md:h-3.5" />
                                         Booked on {new Date(booking.createdAt).toLocaleDateString()}
                                     </div>
+
+                                    {booking.status === 'Rejected' && booking.rejectionReason && (
+                                        <div className="mt-3 p-3 bg-red-50 border border-red-100 rounded-lg text-sm text-red-700">
+                                            <strong>Reason for Rejection:</strong> {booking.rejectionReason}
+                                        </div>
+                                    )}
                                 </div>
 
-                                {/* Actions */}
-                                {booking.status !== 'cancelled' && booking.status !== 'completed' && new Date(booking.startDate) > new Date() && (
-                                    <div className="flex items-center mt-3 md:mt-0">
-                                        <button
-                                            onClick={() => handleCancelBooking(booking._id)}
-                                            className="w-full md:w-auto px-4 py-2 md:py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-all flex items-center justify-center gap-2 font-medium text-sm"
-                                        >
-                                            <X size={16} />
-                                            Cancel
-                                        </button>
-                                    </div>
-                                )}
+
                             </div>
                         </div>
                     ))}

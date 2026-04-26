@@ -1,179 +1,170 @@
 const express = require('express');
 const router = express.Router();
+const crypto = require('crypto');
+const Razorpay = require('razorpay');
 const Booking = require('../models/Booking');
 const Farm = require('../models/Farm');
-const User = require('../models/User');
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const Payment = require('../models/Payment');
+const { verifyToken } = require('../middleware/authMiddleware');
 const { sendBookingNotification } = require('../utils/notifications');
 
+// Initialize Razorpay
+const razorpay = new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID || 'rzp_test_placeholder',
+    key_secret: process.env.RAZORPAY_KEY_SECRET || 'secret_placeholder'
+});
+
 // Helper function to check for date overlaps
-async function hasOverlap(farmId, startDate, endDate) {
+async function hasOverlap(propertyId, roomId, startDate, endDate) {
     const overlap = await Booking.findOne({
-        farm: farmId,
-        status: { $in: ['confirmed', 'pending'] },
+        property: propertyId,
+        ...(roomId && { room: roomId }),
+        status: { $in: ['Confirmed', 'Pending', 'Approved'] },
         $or: [
-            // New booking starts during existing booking
             { startDate: { $lte: startDate }, endDate: { $gte: startDate } },
-            // New booking ends during existing booking
             { startDate: { $lte: endDate }, endDate: { $gte: endDate } },
-            // New booking completely contains existing booking
             { startDate: { $gte: startDate }, endDate: { $lte: endDate } }
         ]
     });
     return !!overlap;
 }
 
-
-const { verifyToken } = require('../middleware/authMiddleware');
-
-// @route   POST /api/bookings
-// @desc    Create a booking and get Stripe Session
+// @route   POST /api/bookings/create-order
+// @desc    Create a Razorpay order and save a pending booking
 // @access  Private
-router.post('/', verifyToken, async (req, res) => {
-    const { farmId, startDate, endDate, guests, userId, guestName, guestPhone } = req.body;
+router.post('/create-order', verifyToken, async (req, res) => {
+    const { propertyId, roomId, startDate, endDate, guests, guestDetails, totalPrice, tax } = req.body;
 
     try {
-        const farm = await Farm.findById(farmId);
-        if (!farm) return res.status(404).json({ message: 'Farm not found' });
+        const property = await Farm.findById(propertyId);
+        if (!property) return res.status(404).json({ message: 'Property not found in DB' });
 
-        // Calculate total price
         const start = new Date(startDate);
         const end = new Date(endDate);
-        const nights = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
-        const totalPrice = nights * farm.price;
-
-        // Check for date overlaps
-        const overlap = await hasOverlap(farmId, start, end);
+        
+        // Check availability
+        const overlap = await hasOverlap(propertyId, roomId, start, end);
         if (overlap) {
-            return res.status(409).json({
-                message: 'Selected dates are not available. Please choose different dates.'
+            return res.status(409).json({ message: 'Selected dates are not available.' });
+        }
+
+        const amountInPaise = Math.round((totalPrice + tax) * 100);
+
+        // Create Razorpay Order
+        const options = {
+            amount: amountInPaise,
+            currency: 'INR',
+            receipt: `receipt_order_${Date.now()}`
+        };
+
+        let order;
+        try {
+            order = await razorpay.orders.create(options);
+        } catch (rzpError) {
+            console.error('Razorpay Error:', rzpError);
+            return res.status(500).json({ 
+                success: false, 
+                message: 'Razorpay Secret Key is missing or invalid. Please check the backend .env configuration.' 
             });
         }
 
-
-        // Check if using placeholder keys or dev mode - Mock Payment
-        const isDevOrInvalidKey = !process.env.STRIPE_SECRET_KEY ||
-            process.env.STRIPE_SECRET_KEY.includes('your_stripe_secret_key') ||
-            process.env.STRIPE_SECRET_KEY.startsWith('sk_test_');
-
-        console.log('Payment Check:', { isDevOrInvalidKey, key: process.env.STRIPE_SECRET_KEY ? 'Present' : 'Missing' });
-
-        if (isDevOrInvalidKey) {
-            console.log('Using Mock Payment Flow');
-
-            const booking = await Booking.create({
-                user: userId,
-                farm: farmId,
-                startDate,
-                endDate,
-                guests,
-                totalPrice,
-                guestName,
-                guestPhone,
-                status: 'confirmed',
-                paymentId: 'mock_payment_' + Date.now()
-            });
-
-            // Send Notifications (Mock)
-            try {
-                await sendBookingNotification(booking);
-            } catch (err) {
-                console.log('Notification failed (expected without keys):', err.message);
-            }
-
-            return res.json({ success: true, bookingId: booking._id });
-        }
-
-        // Real Stripe Session
-        const session = await stripe.checkout.sessions.create({
-            payment_method_types: ['card'],
-            line_items: [{
-                price_data: {
-                    currency: 'inr',
-                    product_data: {
-                        name: farm.title,
-                        description: `Booking for ${nights} nights`,
-                    },
-                    unit_amount: farm.price * 100, // Stripe expects paise
-                },
-                quantity: nights,
-            }],
-            mode: 'payment',
-            success_url: `${process.env.CLIENT_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
-            cancel_url: `${process.env.CLIENT_URL}/farm/${farmId}`,
-            metadata: {
-                farmId,
-                userId,
-                startDate,
-                endDate,
-                guests,
-                totalPrice,
-                guestName,
-                guestPhone
-            }
+        // Create a 'Pending' Booking
+        const booking = await Booking.create({
+            user: req.user.id,
+            property: propertyId,
+            room: roomId,
+            startDate: start,
+            endDate: end,
+            guests,
+            guestDetails,
+            totalPrice,
+            tax,
+            status: 'Pending',
+            paymentId: order.id,
+            paymentStatus: 'Pending'
         });
 
-        res.json({ id: session.id });
+        // Create Payment Record
+        await Payment.create({
+            booking: booking._id,
+            user: req.user.id,
+            razorpayOrderId: order.id,
+            amount: amountInPaise / 100
+        });
+
+        res.json({
+            success: true,
+            orderId: order.id,
+            amount: order.amount,
+            bookingId: booking._id
+        });
 
     } catch (error) {
-        console.error('Booking Error:', error);
+        console.error('Create Order Error:', error);
         res.status(500).json({ message: 'Server Error: ' + error.message });
     }
 });
 
-// @route   POST /api/bookings/webhook
-// @desc    Stripe Webhook to confirm booking
+// @route   GET /api/bookings/razorpay-key
+// @desc    Get Razorpay Public Key
 // @access  Public
-router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
-    const sig = req.headers['stripe-signature'];
-    let event;
-
-    try {
-        event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
-    } catch (err) {
-        return res.status(400).send(`Webhook Error: ${err.message}`);
-    }
-
-    if (event.type === 'checkout.session.completed') {
-        const session = event.data.object;
-        const { farmId, userId, startDate, endDate, guests, totalPrice, guestName, guestPhone } = session.metadata;
-
-        try {
-            // Create Booking in DB
-            const booking = await Booking.create({
-                user: userId,
-                farm: farmId,
-                startDate,
-                endDate,
-                guests,
-                totalPrice,
-                guestName,
-                guestPhone,
-                status: 'confirmed',
-                paymentId: session.payment_intent
-            });
-
-            // Send Notifications
-            await sendBookingNotification(booking);
-
-            console.log('Booking confirmed:', booking._id);
-        } catch (error) {
-            console.error('Error creating booking from webhook:', error);
-        }
-    }
-
-    res.json({ received: true });
+router.get('/razorpay-key', (req, res) => {
+    res.json({ key: process.env.RAZORPAY_KEY_ID || 'rzp_test_placeholder' });
 });
 
-// @route   GET /api/bookings/farm/:id/availability
-// @desc    Get unavailable dates for a farm
+// @route   POST /api/bookings/verify-payment
+// @desc    Verify Razorpay payment signature
+// @access  Private
+router.post('/verify-payment', verifyToken, async (req, res) => {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, bookingId } = req.body;
+
+    try {
+        const sign = razorpay_order_id + '|' + razorpay_payment_id;
+        const expectedSign = crypto
+            .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET || 'secret_placeholder')
+            .update(sign.toString())
+            .digest('hex');
+
+        if (razorpay_signature === expectedSign) {
+            // Payment is verified
+            await Booking.findByIdAndUpdate(bookingId, {
+                paymentStatus: 'Authorized',
+                status: 'Pending' // Explicitly remains pending for admin approval
+            });
+
+            await Payment.findOneAndUpdate(
+                { razorpayOrderId: razorpay_order_id },
+                { 
+                    razorpayPaymentId: razorpay_payment_id,
+                    razorpaySignature: razorpay_signature,
+                    status: 'Authorized'
+                }
+            );
+
+            // Notify Admin
+            // sendAdminNotification(bookingId);
+
+            return res.json({ success: true, message: 'Payment verified. Booking pending admin approval.' });
+        } else {
+            // Invalid signature
+            await Booking.findByIdAndUpdate(bookingId, { paymentStatus: 'Failed', status: 'Cancelled' });
+            return res.status(400).json({ success: false, message: 'Invalid payment signature' });
+        }
+    } catch (error) {
+        console.error('Verify Payment Error:', error);
+        res.status(500).json({ message: 'Server Error' });
+    }
+});
+
+// @route   GET /api/bookings/property/:id/availability
+// @desc    Get unavailable dates for a property
 // @access  Public
-router.get('/farm/:id/availability', async (req, res) => {
+router.get('/property/:id/availability', async (req, res) => {
     try {
         const bookings = await Booking.find({
-            farm: req.params.id,
-            status: { $in: ['confirmed', 'pending'] }
-        }).select('startDate endDate');
+            property: req.params.id,
+            status: { $in: ['Confirmed', 'Pending', 'Approved'] }
+        }).select('startDate endDate room');
         res.json(bookings);
     } catch (error) {
         console.error('Error fetching availability:', error);

@@ -66,21 +66,27 @@ const Login = () => {
                 </div>
 
                 <div className="mt-6 flex justify-center">
-                    <GoogleLogin
-                        onSuccess={async (credentialResponse) => {
-                            try {
-                                await googleLogin(credentialResponse.credential);
-                                navigate('/');
-                            } catch (err) {
+                    {import.meta.env.VITE_GOOGLE_CLIENT_ID && import.meta.env.VITE_GOOGLE_CLIENT_ID !== "YOUR_GOOGLE_CLIENT_ID_HERE" ? (
+                        <GoogleLogin
+                            onSuccess={async (credentialResponse) => {
+                                try {
+                                    await googleLogin(credentialResponse.credential);
+                                    navigate('/');
+                                } catch (err) {
+                                    setError('Google Login Failed');
+                                }
+                            }}
+                            onError={() => {
                                 setError('Google Login Failed');
-                            }
-                        }}
-                        onError={() => {
-                            setError('Google Login Failed');
-                        }}
-                        theme="filled_blue"
-                        shape="pill"
-                    />
+                            }}
+                            theme="filled_blue"
+                            shape="pill"
+                        />
+                    ) : (
+                        <div className="text-xs text-gray-400 text-center italic">
+                            Google Login is currently disabled.
+                        </div>
+                    )}
                 </div>
             </div>
             <p className="mt-6 text-center text-gray-600 dark:text-gray-400">
