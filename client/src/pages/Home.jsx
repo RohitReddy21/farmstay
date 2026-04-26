@@ -11,37 +11,37 @@ const Home = () => {
                     initial={{ scale: 1.1 }}
                     animate={{ scale: 1 }}
                     transition={{ duration: 10, repeat: Infinity, repeatType: "reverse" }}
-                    src="https://images.unsplash.com/photo-1500382017468-9049fed747ef?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80"
-                    alt="Farm Landscape"
+                    src="/images/home-hero.JPG"
+                    alt="Brown Cows Organic Dairy farm stay courtyard"
                     className="absolute inset-0 w-full h-full object-cover"
                 />
-                <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/40 to-transparent flex items-center">
+                <div className="absolute inset-0 bg-gradient-to-r from-[#132018]/85 via-[#2f3b25]/55 to-[#132018]/10 flex items-center">
                     <div className="container mx-auto">
                         <motion.div
                             initial={{ opacity: 0, x: -50 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ duration: 0.8, ease: "easeOut" }}
-                            className="max-w-2xl text-white"
+                            className="max-w-2xl text-[#fff8ea]"
                         >
                             <motion.div
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 0.2 }}
-                                className="inline-block bg-primary/20 backdrop-blur-sm border border-primary/30 rounded-full px-3 py-1 md:px-4 md:py-1 mb-4 md:mb-6 text-primary-100 font-medium text-sm md:text-base"
+                                className="inline-block bg-[#f5ead5]/90 backdrop-blur-sm border border-[#d6a23d]/40 rounded-full px-3 py-1 md:px-4 md:py-1 mb-4 md:mb-6 text-[#17351f] shadow-lg font-semibold text-sm md:text-base"
                             >
-                                🌿 Experience Rural Luxury
+                                Experience Rural Luxury
                             </motion.div>
-                            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold mb-4 md:mb-6 leading-tight drop-shadow-lg">
-                                Escape to <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-green-300">Nature's</span> Embrace
+                            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold mb-4 md:mb-6 leading-tight drop-shadow-2xl  text-[#f7f1df]">
+                                Escape to <span className="text-[#f2c76b]">Nature's</span> Embrace
                             </h1>
-                            <p className="text-base md:text-xl mb-6 md:mb-8 text-gray-200 leading-relaxed max-w-lg">
+                            <p className="text-base md:text-xl mb-6 md:mb-8 text-[#f7f1df] leading-relaxed max-w-lg drop-shadow-lg">
                                 Discover unique farm stays, connect with local hosts, and experience the tranquility of rural life.
                             </p>
                             <div className="flex flex-col sm:flex-row gap-3 md:gap-4">
-                                <Link to="/farms" className="inline-flex items-center justify-center bg-primary hover:bg-green-600 text-white px-6 md:px-8 py-3 md:py-4 rounded-full text-base md:text-lg font-semibold transition-all transform hover:scale-105 shadow-lg hover:shadow-primary/50">
+                                <Link to="/farms" className="inline-flex items-center justify-center bg-[#8b5e34] hover:bg-[#704721] text-[#fff8ea] px-6 md:px-8 py-3 md:py-4 rounded-full text-base md:text-lg font-semibold transition-all transform hover:scale-105 shadow-lg hover:shadow-[#1b2517]/30">
                                     Explore Farms <ArrowRight className="ml-2" size={20} />
                                 </Link>
-                                <Link to="/register" className="inline-flex items-center justify-center bg-white/10 backdrop-blur-md hover:bg-white/20 text-white px-6 md:px-8 py-3 md:py-4 rounded-full text-base md:text-lg font-semibold transition-all border border-white/30">
+                                <Link to="/register" className="inline-flex items-center justify-center bg-[#fff8ea]/15 backdrop-blur-md hover:bg-[#fff8ea]/25 text-[#fff8ea] px-6 md:px-8 py-3 md:py-4 rounded-full text-base md:text-lg font-semibold transition-all border border-[#fff8ea]/45">
                                     Join Us
                                 </Link>
                             </div>
@@ -59,9 +59,9 @@ const Home = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
                     {[
-                        { title: "Authentic Experience", desc: "Live like a local and enjoy farm-to-table meals.", img: "https://images.unsplash.com/photo-1464226184884-fa280b87c399?auto=format&fit=crop&w=800&q=80", icon: <Star className="text-yellow-400" /> },
-                        { title: "Peaceful Getaways", desc: "Disconnect from the city and recharge in nature.", img: "https://images.unsplash.com/photo-1444858291040-58f756a3bdd6?auto=format&fit=crop&w=800&q=80", icon: <MapPin className="text-red-400" /> },
-                        { title: "Family Friendly", desc: "Perfect for kids to learn about animals and farming.", img: "https://images.unsplash.com/photo-1516467508483-a7212febe31a?auto=format&fit=crop&w=800&q=80", icon: <Users className="text-blue-400" /> }
+                        { title: "Authentic Experience", desc: "Live like a local and enjoy farm-to-table meals.", img: "/images/home-features/authentic-experience.JPG", icon: <Star className="text-yellow-400" /> },
+                        { title: "Peaceful Getaways", desc: "Disconnect from the city and recharge in nature.", img: "/images/home-features/peaceful-getaways.JPG", icon: <MapPin className="text-red-400" /> },
+                        { title: "Family Friendly", desc: "Perfect for kids to learn about animals and farming.", img: "/images/home-features/family-friendly.jpg", icon: <Users className="text-blue-400" /> }
                     ].map((feature, index) => (
                         <motion.div
                             key={index}

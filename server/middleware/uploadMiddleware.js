@@ -1,6 +1,5 @@
 const multer = require('multer');
 const { v2: cloudinary } = require('cloudinary');
-const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const path = require('path');
 const fs = require('fs');
 
@@ -11,18 +10,39 @@ const hasCloudinaryConfig =
 
 let storage;
 if (hasCloudinaryConfig) {
-    storage = new CloudinaryStorage({
-        cloudinary: cloudinary,
-        params: async (req, file) => {
+    storage = {
+        _handleFile: async (req, file, cb) => {
             const isVideo = file.mimetype.startsWith('video');
-            return {
+            const uploadOptions = {
                 folder: 'farmstays',
-                resource_type: 'auto', // 'auto' allows images, videos, and raw files
+                resource_type: 'auto',
                 allowed_formats: isVideo ? ['mp4', 'mov', 'avi', 'webm'] : ['jpg', 'png', 'jpeg', 'webp'],
-                transformation: isVideo ? [] : [{ width: 1000, height: 750, crop: 'limit' }]
+                transformation: isVideo ? undefined : [{ width: 1000, height: 750, crop: 'limit' }]
             };
+
+            const uploadStream = cloudinary.uploader.upload_stream(uploadOptions, (error, result) => {
+                if (error) return cb(error);
+
+                cb(null, {
+                    path: result.secure_url,
+                    filename: result.public_id,
+                    size: result.bytes,
+                    mimetype: file.mimetype,
+                    originalname: file.originalname,
+                    cloudinary: result
+                });
+            });
+
+            file.stream.pipe(uploadStream);
         },
-    });
+
+        _removeFile: (req, file, cb) => {
+            if (!file.filename) return cb(null);
+
+            const resourceType = file.cloudinary?.resource_type || 'image';
+            cloudinary.uploader.destroy(file.filename, { resource_type: resourceType }, (error) => cb(error));
+        }
+    };
 } else {
     const uploadDir = path.join(__dirname, '..', 'uploads');
     fs.mkdirSync(uploadDir, { recursive: true });

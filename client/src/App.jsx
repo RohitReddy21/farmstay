@@ -67,7 +67,7 @@ function App() {
                 </Suspense>
               </main>
               <footer className="bg-white dark:bg-gray-800 py-6 text-center text-gray-500 dark:text-gray-400 transition-colors duration-200">
-                <p>&copy; 2024 FarmStay. All rights reserved.</p>
+                <p>&copy; 2024 Brown Cows Organic Dairy. All rights reserved.</p>
               </footer>
             </div>
           </Router>

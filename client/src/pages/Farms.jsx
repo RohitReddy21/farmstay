@@ -8,6 +8,8 @@ import FavoriteButton from '../components/FavoriteButton';
 import FarmCard from '../components/FarmCard';
 import FarmCardSkeleton from '../components/FarmCardSkeleton';
 
+const PRICE_FILTER_MAX = 25000;
+
 const Farms = () => {
     const [farms, setFarms] = useState([]);
     const [filteredFarms, setFilteredFarms] = useState([]);
@@ -17,7 +19,7 @@ const Farms = () => {
     const [filters, setFilters] = useState({
         location: '',
         minPrice: 0,
-        maxPrice: 10000,
+        maxPrice: PRICE_FILTER_MAX,
         capacity: '',
         amenities: [],
         subCategory: '',
@@ -111,7 +113,7 @@ const Farms = () => {
         setFilters({
             location: '',
             minPrice: 0,
-            maxPrice: 10000,
+            maxPrice: PRICE_FILTER_MAX,
             capacity: '',
             amenities: [],
             subCategory: '',
@@ -190,7 +192,7 @@ const Farms = () => {
                                         <input
                                             type="range"
                                             min="0"
-                                            max="10000"
+                                            max={PRICE_FILTER_MAX}
                                             step="100"
                                             value={filters.minPrice}
                                             onChange={(e) => setFilters({ ...filters, minPrice: parseInt(e.target.value) })}
@@ -199,7 +201,7 @@ const Farms = () => {
                                         <input
                                             type="range"
                                             min="0"
-                                            max="10000"
+                                            max={PRICE_FILTER_MAX}
                                             step="100"
                                             value={filters.maxPrice}
                                             onChange={(e) => setFilters({ ...filters, maxPrice: parseInt(e.target.value) })}

@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { Menu, X, Tractor, Moon, Sun } from 'lucide-react';
+import { Menu, X, Moon, Sun } from 'lucide-react';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -14,9 +14,12 @@ const Navbar = () => {
         <nav className="bg-white dark:bg-gray-800 shadow-md sticky top-0 z-50 transition-colors duration-200">
             <div className="container mx-auto">
                 <div className="flex justify-between items-center h-16">
-                    <Link to="/" className="flex items-center space-x-2 text-primary font-bold text-xl lg:text-2xl">
-                        <Tractor size={28} className="lg:w-8 lg:h-8" />
-                        <span>FarmStay</span>
+                    <Link to="/" className="flex items-center">
+                        <img
+                            src="/logo.png"
+                            alt="Brown Cows Organic Dairy"
+                            className="h-12 w-auto md:h-14"
+                        />
                     </Link>
 
                     {/* Desktop Menu */}
