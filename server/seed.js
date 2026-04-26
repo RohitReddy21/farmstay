@@ -15,10 +15,10 @@ const seedData = async () => {
         });
         console.log('Admin user reset/created');
 
-        // Seed Farms
-        const farmCount = await Farm.countDocuments();
-        if (farmCount > 0) return;
-
+        // Clear existing farms to ensure update
+        await Farm.deleteMany({});
+        console.log('Cleared existing farms');
+        
         console.log('Seeding data...');
 
         const farms = [
