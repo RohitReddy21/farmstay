@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const User = require('../models/User');
 const OtpVerification = require('../models/OtpVerification');
 const jwt = require('jsonwebtoken');
@@ -7,21 +8,22 @@ const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const { verifyToken } = require('../middleware/authMiddleware');
 const { OAuth2Client } = require('google-auth-library');
-const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
-// Health check to verify auth routes are loaded
-router.get('/health', (req, res) => {
-    console.log('🏥 Auth routes health check called');
-    res.json({ 
-        message: 'Auth routes are working',
-        timestamp: new Date().toISOString(),
-        environment: process.env.NODE_ENV
-    });
-});
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const normalizeEmail = (email = '') => email.toLowerCase().trim();
 const normalizePhone = (phone = '') => phone.replace(/[^\d+]/g, '').trim();
 const hashOtp = (otp) => crypto.createHash('sha256').update(String(otp)).digest('hex');
+const isDatabaseConnected = () => mongoose.connection.readyState === 1;
+const getEnv = (...keys) => {
+    for (const key of keys) {
+        const value = process.env[key];
+        if (typeof value === 'string' && value.trim()) {
+            return value.trim();
+        }
+    }
+    return undefined;
+};
 
 const createToken = (user) => jwt.sign({ _id: user._id }, process.env.JWT_SECRET, {
     expiresIn: '30d'
@@ -37,73 +39,63 @@ const authPayload = (user, token) => ({
     token
 });
 
-const getEmailTransporter = () => {
-    console.log('🔧 Creating email transporter...');
-    console.log('🔧 Checking email configuration options...');
-    
-    if (process.env.SENDGRID_API_KEY) {
-        console.log('📧 Using SendGrid configuration');
+const createEmailTransporter = () => {
+    const sendgridApiKey = getEnv('SENDGRID_API_KEY', 'SENDGRID_KEY');
+    const smtpHost = getEnv('SMTP_HOST');
+    const smtpUser = getEnv('SMTP_USER');
+    const smtpPass = getEnv('SMTP_PASS');
+    const emailUser = getEnv('EMAIL_USER', 'EMAIL_ID', 'Email_id', 'email_id');
+    const emailPass = getEnv('EMAIL_PASS', 'EMAIL_PASSWORD', 'Email_pass', 'email_pass');
+
+    const effectiveSendgridKey = sendgridApiKey || (emailPass?.startsWith('SG.') ? emailPass : undefined);
+
+    if (effectiveSendgridKey) {
         return nodemailer.createTransport({
             service: 'SendGrid',
             auth: {
                 user: 'apikey',
-                pass: process.env.SENDGRID_API_KEY
+                pass: effectiveSendgridKey
             }
         });
     }
 
-    if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
-        console.log('📧 Using custom SMTP configuration');
-        console.log('🔧 SMTP Host:', process.env.SMTP_HOST);
-        console.log('🔧 SMTP Port:', process.env.SMTP_PORT || 587);
+    if (smtpHost && smtpUser && smtpPass) {
         return nodemailer.createTransport({
-            host: process.env.SMTP_HOST,
+            host: smtpHost,
             port: Number(process.env.SMTP_PORT || 587),
             secure: process.env.SMTP_SECURE === 'true',
             auth: {
-                user: process.env.SMTP_USER,
-                pass: process.env.SMTP_PASS
+                user: smtpUser,
+                pass: smtpPass
             }
         });
     }
 
-    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-        console.log('📧 Using Gmail SMTP configuration');
-        console.log('🔧 EMAIL_USER:', process.env.EMAIL_USER);
-        console.log('🔧 EMAIL_PASS length:', process.env.EMAIL_PASS.length);
-        
-        const transporter = nodemailer.createTransport({
-            service: 'gmail',
+    if (emailUser && emailPass) {
+        return nodemailer.createTransport({
+            host: 'smtp.gmail.com',
+            port: 465,
+            secure: true,
             auth: {
-                user: process.env.EMAIL_USER,
-                pass: process.env.EMAIL_PASS
+                user: emailUser,
+                pass: emailPass
             }
         });
-        
-        console.log('✅ Gmail transporter created successfully');
-        return transporter;
     }
 
-    console.log('❌ No email configuration found');
     return null;
 };
 
 const sendEmailOtp = async (email, otp) => {
-    console.log('📧 sendEmailOtp function called');
-    console.log('📧 Email to:', email);
-    console.log('📧 OTP:', otp);
-    
-    const transporter = getEmailTransporter();
+    const transporter = createEmailTransporter();
 
     if (!transporter) {
-        console.log('❌ No transporter created');
         throw new Error('Email OTP is not configured. Add SENDGRID_API_KEY, SMTP settings, or EMAIL_USER/EMAIL_PASS on the server.');
     }
 
-    console.log('✅ Transporter created, preparing email...');
-    
-    const mailOptions = {
-        from: process.env.EMAIL_FROM || process.env.EMAIL_USER || process.env.SMTP_USER,
+    await transporter.verify();
+    await transporter.sendMail({
+        from: getEnv('EMAIL_FROM', 'SMTP_FROM', 'EMAIL_USER', 'EMAIL_ID', 'Email_id', 'email_id', 'SMTP_USER'),
         to: email,
         subject: 'Your Brown Cows Dairy signup OTP',
         html: `
@@ -114,70 +106,50 @@ const sendEmailOtp = async (email, otp) => {
                 <p>This code expires in 10 minutes.</p>
             </div>
         `
-    };
-    
-    console.log('📧 Mail options:', {
-        from: mailOptions.from,
-        to: mailOptions.to,
-        subject: mailOptions.subject
     });
-
-    try {
-        console.log('� Verifying transporter connection...');
-        await transporter.verify();
-        console.log('✅ Transporter connection verified');
-        
-        console.log('�📧 Sending email...');
-        const result = await transporter.sendMail(mailOptions);
-        console.log('✅ Email sent successfully!');
-        console.log('📧 SendMail result:', result);
-        return { sent: true, result };
-    } catch (error) {
-        console.error('❌ Email sending failed:', error);
-        console.error('❌ Error code:', error.code);
-        console.error('❌ Error message:', error.message);
-        console.error('❌ Full error:', error);
-        
-        // Add specific Gmail error handling
-        if (error.code === 'EAUTH') {
-            console.error('🔧 Gmail authentication failed - check EMAIL_USER and EMAIL_PASS');
-            console.error('🔧 Make sure EMAIL_PASS is a Gmail App Password, not regular password');
-        } else if (error.code === 'ECONNECTION') {
-            console.error('🔧 Gmail connection failed - check network and Gmail settings');
-        }
-        
-        throw error;
-    }
 };
+
+// @route   GET /api/auth/health
+// @desc    Verify auth routes are mounted
+router.get('/health', (req, res) => {
+    res.json({
+        message: 'Auth routes are working',
+        timestamp: new Date().toISOString()
+    });
+});
 
 // @route   POST /api/auth/google
 // @desc    Google Login/Register
 router.post('/google', async (req, res) => {
     try {
+        if (!process.env.GOOGLE_CLIENT_ID) {
+            return res.status(500).json({ message: 'Google OAuth is not configured' });
+        }
+
         const { token } = req.body;
-        const ticket = await client.verifyIdToken({
+        const ticket = await googleClient.verifyIdToken({
             idToken: token,
             audience: process.env.GOOGLE_CLIENT_ID
         });
-        const { name, email, picture } = ticket.getPayload();
+        const { name, email } = ticket.getPayload();
 
-        let user = await User.findOne({ email });
+        let user = await User.findOne({ email: normalizeEmail(email) });
 
         if (!user) {
-            // Create new user
-            // Generate a random password since they use Google
             const randomPassword = crypto.randomBytes(16).toString('hex');
             user = await User.create({
                 name,
-                email,
+                email: normalizeEmail(email),
                 password: randomPassword,
                 isEmailVerified: true,
                 role: 'user'
             });
+        } else if (!user.isEmailVerified) {
+            user.isEmailVerified = true;
+            await user.save();
         }
 
         const jwtToken = createToken(user);
-
         res.json(authPayload(user, jwtToken));
     } catch (error) {
         console.error('Google Auth Error:', error);
@@ -199,24 +171,67 @@ router.get('/me', verifyToken, async (req, res) => {
 // @route   POST /api/auth/send-otp
 // @desc    Send email OTP before signup
 router.post('/send-otp', async (req, res) => {
-    console.log('📧 Send OTP route called');
-    console.log('📤 Request body:', req.body);
-    
-    // Debug environment variables
-    console.log('🔧 EMAIL_USER:', process.env.EMAIL_USER);
-    console.log('🔧 EMAIL_PASS exists:', !!process.env.EMAIL_PASS);
-    console.log('🔧 EMAIL_PASS length:', process.env.EMAIL_PASS ? process.env.EMAIL_PASS.length : 0);
-    console.log('🔧 NODE_ENV:', process.env.NODE_ENV);
-    
     try {
-        const { name, email, phone } = req.body;
+        if (!isDatabaseConnected()) {
+            return res.status(503).json({ message: 'Database is still connecting. Please try again in a few seconds.' });
+        }
+
+        const normalizedEmail = normalizeEmail(req.body.email);
+
+        if (!normalizedEmail) {
+            return res.status(400).json({ message: 'Email is required.' });
+        }
+
+        const userExists = await User.findOne({ email: normalizedEmail });
+        if (userExists) {
+            return res.status(400).json({ message: 'User already exists' });
+        }
+
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        await OtpVerification.deleteMany({ email: normalizedEmail });
+
+        await OtpVerification.create({
+            email: normalizedEmail,
+            otpHash: hashOtp(otp),
+            expiresAt: new Date(Date.now() + 10 * 60 * 1000)
+        });
+
+        try {
+            await sendEmailOtp(normalizedEmail, otp);
+        } catch (emailError) {
+            await OtpVerification.deleteMany({ email: normalizedEmail });
+            throw emailError;
+        }
+
+        res.json({ message: 'OTP sent to your email address.' });
+    } catch (error) {
+        console.error('Send OTP Error:', error);
+        if (error.name?.includes('Mongo') || error.message?.includes('buffering timed out')) {
+            return res.status(503).json({ message: 'Database is not connected. Please restart the server or check MONGO_URI.' });
+        }
+
+        res.status(500).json({
+            message: 'Unable to send OTP. Please check the email sender configuration.',
+            error: process.env.NODE_ENV === 'production' ? undefined : error.message,
+            code: process.env.NODE_ENV === 'production' ? undefined : error.code
+        });
+    }
+});
+
+// @route   POST /api/auth/register
+// @desc    Register user after email OTP verification
+router.post('/register', async (req, res) => {
+    try {
+        if (!isDatabaseConnected()) {
+            return res.status(503).json({ message: 'Database is still connecting. Please try again in a few seconds.' });
+        }
+
+        const { name, email, phone, password, otp } = req.body;
         const normalizedEmail = normalizeEmail(email);
         const normalizedPhone = normalizePhone(phone);
-        
-        console.log('📧 Normalized data:', { name, normalizedEmail, normalizedPhone });
 
-        if (!name?.trim() || !normalizedEmail || !normalizedPhone) {
-            return res.status(400).json({ message: 'Name, email, and mobile number are required.' });
+        if (!name?.trim() || !normalizedEmail || !normalizedPhone || !password || !otp) {
+            return res.status(400).json({ message: 'Name, email, mobile number, password, and OTP are required.' });
         }
 
         const userExists = await User.findOne({
@@ -225,83 +240,37 @@ router.post('/send-otp', async (req, res) => {
                 { phone: normalizedPhone }
             ]
         });
-
         if (userExists) {
             return res.status(400).json({ message: 'An account already exists with this email or mobile number.' });
         }
 
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        console.log('🔢 OTP generated:', otp);
-        
-        await OtpVerification.deleteMany({ email: normalizedEmail });
-        console.log('🗑️ Old OTPs deleted for:', normalizedEmail);
-
-        await OtpVerification.create({
-            email: normalizedEmail,
-            otpHash: hashOtp(otp),
-            expiresAt: new Date(Date.now() + 10 * 60 * 1000)
-        });
-        console.log('💾 New OTP saved to database');
-
-        try {
-            console.log('📧 Starting email send process...');
-            const emailResult = await sendEmailOtp(normalizedEmail, otp);
-            console.log('✅ Email sent successfully:', emailResult);
-            const response = {
-                message: 'OTP sent to your email address.'
-            };
-            res.json(response);
-        } catch (emailError) {
-            console.error('Email sending failed:', emailError.message);
-            // Still return success but with a different message for development
-            if (process.env.NODE_ENV === 'development') {
-                res.status(500).json({ 
-                    message: 'Email configuration error: ' + emailError.message,
-                    debug: {
-                        email_user_set: !!process.env.EMAIL_USER,
-                        email_pass_set: !!process.env.EMAIL_PASS,
-                        smtp_user_set: !!process.env.SMTP_USER,
-                        smtp_pass_set: !!process.env.SMTP_PASS,
-                        sendgrid_set: !!process.env.SENDGRID_API_KEY
-                    }
-                });
-            } else {
-                // In production, don't expose configuration details
-                res.status(500).json({ 
-                    message: 'Unable to send OTP. Please contact support.'
-                });
-            }
-        }
-    } catch (error) {
-        console.error('Send OTP Error:', error);
-        res.status(500).json({ message: error.message });
-    }
-});
-
-// @route   POST /api/auth/register
-// @desc    Register user
-router.post('/register', async (req, res) => {
-    try {
-        const { name, email, password } = req.body;
-        const normalizedEmail = normalizeEmail(email);
-
-        if (!name?.trim() || !normalizedEmail || !password) {
-            return res.status(400).json({ message: 'Name, email, and password are required.' });
+        const otpRecord = await OtpVerification.findOne({ email: normalizedEmail }).sort({ createdAt: -1 });
+        if (!otpRecord || otpRecord.expiresAt < new Date()) {
+            return res.status(400).json({ message: 'OTP is invalid or expired. Please request a new OTP.' });
         }
 
-        const userExists = await User.findOne({ email: normalizedEmail });
-        if (userExists) {
-            return res.status(400).json({ message: 'User already exists' });
+        if (otpRecord.attempts >= 5) {
+            await OtpVerification.deleteOne({ _id: otpRecord._id });
+            return res.status(429).json({ message: 'Too many invalid OTP attempts. Please request a new OTP.' });
+        }
+
+        if (hashOtp(otp) !== otpRecord.otpHash) {
+            otpRecord.attempts += 1;
+            await otpRecord.save();
+            return res.status(400).json({ message: 'Invalid OTP. Please check the code and try again.' });
         }
 
         const user = await User.create({
             name: name.trim(),
             email: normalizedEmail,
-            password
+            phone: normalizedPhone,
+            password,
+            isEmailVerified: true
         });
 
-        const token = createToken(user);
+        await OtpVerification.deleteMany({ email: normalizedEmail });
 
+        const token = createToken(user);
         res.status(201).json(authPayload(user, token));
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -314,29 +283,22 @@ router.post('/login', async (req, res) => {
     try {
         const { email, password } = req.body;
         const normalizedEmail = normalizeEmail(email);
-        console.log('Login attempt:', normalizedEmail);
 
         const user = await User.findOne({ email: normalizedEmail });
         if (!user) {
-            console.log('User not found:', normalizedEmail);
             return res.status(401).json({ message: 'Invalid email or password' });
         }
 
-        console.log('User found, comparing password...');
         const isMatch = await user.comparePassword(password);
         if (!isMatch) {
-            console.log('Password mismatch for:', normalizedEmail);
             return res.status(401).json({ message: 'Invalid email or password' });
         }
 
-        console.log('Password match, signing token...');
-        if (!process.env.JWT_SECRET) {
-            throw new Error('JWT_SECRET is not defined in environment');
+        if (user.isEmailVerified === false) {
+            return res.status(403).json({ message: 'Please verify your email before logging in.' });
         }
 
         const token = createToken(user);
-
-        console.log('Login successful:', normalizedEmail);
         res.json(authPayload(user, token));
     } catch (error) {
         console.error('Login Error:', error);
@@ -349,24 +311,21 @@ router.post('/login', async (req, res) => {
 router.post('/forgot-password', async (req, res) => {
     try {
         const { email } = req.body;
+        const normalizedEmail = normalizeEmail(email);
 
-        const user = await User.findOne({ email });
+        const user = await User.findOne({ email: normalizedEmail });
         if (!user) {
             return res.status(404).json({ message: 'No account found with that email' });
         }
 
-        // Generate reset token
         const resetToken = crypto.randomBytes(32).toString('hex');
         const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
 
         user.resetPasswordToken = resetTokenHash;
-        user.resetPasswordExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
+        user.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
         await user.save();
 
-        // In production, send email with reset link
-        // For now, return the token (for development)
         const resetUrl = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
-
         console.log('Password Reset URL:', resetUrl);
 
         res.json({
@@ -402,154 +361,6 @@ router.post('/reset-password/:token', async (req, res) => {
         res.json({ message: 'Password reset successful' });
     } catch (error) {
         res.status(500).json({ message: error.message });
-    }
-});
-
-// Debug routes for troubleshooting 404 error
-router.get('/test-route', (req, res) => {
-    console.log('🧪 Test route called successfully');
-    res.json({ 
-        message: 'Auth routes are working!',
-        timestamp: new Date().toISOString(),
-        environment: process.env.NODE_ENV,
-        email_configured: !!(process.env.EMAIL_USER && process.env.EMAIL_PASS)
-    });
-});
-
-router.post('/test-post', (req, res) => {
-    console.log('🧪 Test POST route called');
-    console.log('📤 Request body:', req.body);
-    res.json({ 
-        message: 'POST routes are working!',
-        received: req.body,
-        timestamp: new Date().toISOString()
-    });
-});
-
-router.get('/test-env', (req, res) => {
-    console.log('🔍 Environment check called');
-    res.json({
-        email_user_set: !!process.env.EMAIL_USER,
-        email_pass_set: !!process.env.EMAIL_PASS,
-        client_url: process.env.CLIENT_URL,
-        node_env: process.env.NODE_ENV,
-        all_env_keys: Object.keys(process.env).filter(key => 
-            key.includes('EMAIL') || key.includes('CLIENT') || key.includes('NODE')
-        )
-    });
-});
-
-// Test email configuration endpoint
-router.post('/test-email-config', async (req, res) => {
-    console.log('🧪 Test email configuration endpoint called');
-    
-    // Log all environment variables
-    console.log('🔧 EMAIL_USER:', process.env.EMAIL_USER);
-    console.log('🔧 EMAIL_PASS exists:', !!process.env.EMAIL_PASS);
-    console.log('🔧 EMAIL_PASS length:', process.env.EMAIL_PASS ? process.env.EMAIL_PASS.length : 0);
-    console.log('🔧 NODE_ENV:', process.env.NODE_ENV);
-    console.log('🔧 All email-related env vars:', Object.keys(process.env).filter(k => k.includes('EMAIL')));
-    
-    try {
-        // Test transporter creation
-        console.log('🔧 Creating email transporter...');
-        const transporter = require('nodemailer').createTransport({
-            service: 'gmail',
-            auth: {
-                user: process.env.EMAIL_USER,
-                pass: process.env.EMAIL_PASS
-            }
-        });
-        
-        console.log('✅ Transporter created');
-        
-        // Test connection
-        console.log('🔧 Verifying connection...');
-        await transporter.verify();
-        console.log('✅ Connection verified');
-        
-        res.json({
-            success: true,
-            message: 'Email configuration is working',
-            email_user: process.env.EMAIL_USER,
-            email_pass_set: !!process.env.EMAIL_PASS,
-            email_pass_length: process.env.EMAIL_PASS ? process.env.EMAIL_PASS.length : 0
-        });
-        
-    } catch (error) {
-        console.error('❌ Email configuration test failed:', error);
-        console.error('❌ Error code:', error.code);
-        console.error('❌ Error message:', error.message);
-        
-        res.json({
-            success: false,
-            message: 'Email configuration failed',
-            error: error.message,
-            error_code: error.code,
-            email_user: process.env.EMAIL_USER,
-            email_pass_set: !!process.env.EMAIL_PASS,
-            email_pass_length: process.env.EMAIL_PASS ? process.env.EMAIL_PASS.length : 0
-        });
-    }
-});
-
-// Fallback OTP route for testing (bypasses database)
-router.post('/send-otp-simple', async (req, res) => {
-    console.log('📧 Simple OTP route called');
-    console.log('📤 Request body:', req.body);
-    
-    try {
-        const { name, email, phone } = req.body;
-        const normalizedEmail = email.toLowerCase().trim();
-        
-        console.log('📧 Simple OTP data:', { name, normalizedEmail, phone });
-        
-        // Generate OTP
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        console.log('🔢 Simple OTP generated:', otp);
-        
-        // Send email directly without database operations
-        console.log('📧 Sending email without database...');
-        const emailResult = await sendEmailOtp(normalizedEmail, otp);
-        console.log('✅ Simple email sent:', emailResult);
-        
-        res.json({ 
-            message: 'OTP sent to your email address (simple mode)',
-            otp: otp, // Only for testing - remove in production
-            debug: 'simple_mode'
-        });
-        
-    } catch (error) {
-        console.error('❌ Simple OTP Error:', error);
-        res.status(500).json({ 
-            message: 'Simple OTP failed: ' + error.message,
-            error: error.message,
-            error_code: error.code
-        });
-    }
-});
-
-// Database initialization endpoint
-router.post('/init-database', async (req, res) => {
-    console.log('🔧 Database initialization endpoint called');
-    
-    try {
-        const { initializeDatabase } = require('../init-database');
-        await initializeDatabase();
-        
-        res.json({
-            success: true,
-            message: 'Database initialized successfully',
-            collections: ['users', 'otpverifications']
-        });
-        
-    } catch (error) {
-        console.error('❌ Database initialization failed:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Database initialization failed',
-            error: error.message
-        });
     }
 });
 

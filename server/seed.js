@@ -80,11 +80,13 @@ const vineyardContent = {
 const seedData = async () => {
     try {
         await User.deleteOne({ email: 'admin@farmstay.com' });
+        await User.deleteOne({ email: 'browncowsdairy@gmail.com' });
         await User.create({
             name: 'Admin',
-            email: 'admin@farmstay.com',
+            email: 'browncowsdairy@gmail.com',
             password: 'admin123',
-            role: 'admin'
+            role: 'admin',
+            isEmailVerified: true
         });
         console.log('Admin user reset/created');
 

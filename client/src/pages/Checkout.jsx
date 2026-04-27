@@ -15,6 +15,7 @@ const Checkout = () => {
     const [paymentMethod, setPaymentMethod] = useState('razorpay');
     const [confirmationMessage, setConfirmationMessage] = useState('');
     const [isCheckoutComplete, setIsCheckoutComplete] = useState(false);
+    const [completedBooking, setCompletedBooking] = useState(null);
 
     React.useEffect(() => {
         if (isCheckoutComplete) {
@@ -28,14 +29,19 @@ const Checkout = () => {
         }
     }, [cartItem, user, navigate, isCheckoutComplete]);
 
-    if (!cartItem || !user) {
+    if (!user || (!cartItem && !isCheckoutComplete)) {
         return null;
     }
 
-    const propertyTitle = cartItem.property?.title || 'Brown Cows Dairy Stay';
+    const propertyTitle = cartItem?.property?.title || completedBooking?.propertyTitle || 'Brown Cows Dairy Stay';
     const token = localStorage.getItem('token');
 
     const finishCheckout = (message) => {
+        setCompletedBooking({
+            propertyTitle,
+            total: cartItem?.pricing?.grandTotal,
+            paymentMethod
+        });
         setIsCheckoutComplete(true);
         setConfirmationMessage(message);
         clearCart();
@@ -158,6 +164,64 @@ const Checkout = () => {
 
         handlePayment();
     };
+
+    if (isCheckoutComplete) {
+        return (
+            <div className="mx-auto max-w-2xl px-4 py-12">
+                <div className="rounded-3xl border border-[#cfe4c8] bg-[#fffaf1] p-8 text-center shadow-2xl">
+                    <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-[#edf7e9] text-[#3f6b3f]">
+                        <ShieldCheck size={34} />
+                    </div>
+                    <p className="mb-2 text-xs font-bold uppercase tracking-[0.28em] text-[#8a642d]">Booking Received</p>
+                    <h1 className="text-3xl font-bold text-[#211b14]">Your booking is pending approval</h1>
+                    <p className="mx-auto mt-3 max-w-lg text-[#645747]">
+                        {confirmationMessage || 'Your booking has been received and is waiting for admin approval.'}
+                    </p>
+
+                    <div className="mt-8 rounded-2xl border border-[#ead7b8] bg-[#f8efdf] p-5 text-left">
+                        <div className="flex items-center justify-between gap-4">
+                            <span className="text-sm text-[#645747]">Stay</span>
+                            <span className="text-right font-bold text-[#211b14]">{completedBooking?.propertyTitle || propertyTitle}</span>
+                        </div>
+                        {completedBooking?.total ? (
+                            <div className="mt-3 flex items-center justify-between gap-4">
+                                <span className="text-sm text-[#645747]">Amount</span>
+                                <span className="font-bold text-primary">Rs {completedBooking.total}</span>
+                            </div>
+                        ) : null}
+                        <div className="mt-3 flex items-center justify-between gap-4">
+                            <span className="text-sm text-[#645747]">Payment</span>
+                            <span className="font-semibold text-[#211b14]">
+                                {completedBooking?.paymentMethod === 'cod' ? 'COD / Pay at Farm' : 'Razorpay Online'}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
+                        <button
+                            type="button"
+                            onClick={() => navigate('/bookings', {
+                                state: {
+                                    bookingSuccess: true,
+                                    message: confirmationMessage
+                                }
+                            })}
+                            className="rounded-xl bg-primary px-6 py-3 font-bold text-white shadow-lg transition hover:bg-primary-800"
+                        >
+                            View My Bookings
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => navigate('/farms')}
+                            className="rounded-xl border border-[#7a5527] px-6 py-3 font-bold text-[#7a5527] transition hover:bg-[#7a5527] hover:text-white"
+                        >
+                            Explore More Stays
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="mx-auto max-w-3xl px-4 py-8">

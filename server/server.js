@@ -8,7 +8,7 @@ const rateLimit = require('express-rate-limit');
 const { v2: cloudinary } = require('cloudinary');
 const path = require('path');
 
-dotenv.config();
+dotenv.config({ path: path.join(__dirname, '.env') });
 if (!process.env.JWT_SECRET) {
   console.warn('JWT_SECRET not found in environment variables. Using default for development.');
   process.env.JWT_SECRET = 'dev_secret_key_123';
@@ -73,33 +73,46 @@ const PORT = process.env.PORT || 5001;
 
 
 // Database Connection
+const seedInitialData = async () => {
+  const seedData = require('./seed');
+  await seedData();
+};
+
+const createMemoryMongoUri = async () => {
+  const { MongoMemoryServer } = require('mongodb-memory-server');
+  const mongod = await MongoMemoryServer.create();
+  const uri = mongod.getUri();
+  console.log('Using In-Memory MongoDB:', uri);
+  return uri;
+};
+
 const connectDB = async () => {
   try {
-    let mongoUri = process.env.MONGO_URI;
+    let mongoUri = process.env.MONGO_URI?.trim();
 
-    // If local connection fails or for dev convenience, use Memory Server
-    // Note: In a real app, you'd want to fail if production DB is missing
     if (!mongoUri && process.env.NODE_ENV !== 'production') {
-      try {
-        const { MongoMemoryServer } = require('mongodb-memory-server');
-        const mongod = await MongoMemoryServer.create();
-        mongoUri = mongod.getUri();
-        console.log('Using In-Memory MongoDB:', mongoUri);
-      } catch (err) {
-        console.log('MongoMemoryServer not available, trying local URI');
-      }
+      mongoUri = await createMemoryMongoUri();
     }
 
     await mongoose.connect(mongoUri);
     console.log('MongoDB Connected');
-
-    // Seed Data
-    const seedData = require('./seed');
-    await seedData();
-
+    await seedInitialData();
   } catch (err) {
     console.error('MongoDB Connection Error:', err);
-    // In production, we want to fail fast if DB is missing
+
+    if (process.env.NODE_ENV !== 'production') {
+      try {
+        console.log('Trying in-memory MongoDB fallback for local development...');
+        const memoryUri = await createMemoryMongoUri();
+        await mongoose.connect(memoryUri);
+        console.log('MongoDB Connected using in-memory fallback');
+        await seedInitialData();
+        return;
+      } catch (fallbackErr) {
+        console.error('In-memory MongoDB fallback failed:', fallbackErr);
+      }
+    }
+
     if (process.env.NODE_ENV === 'production') {
       console.error('Exiting due to DB connection failure');
       process.exit(1);

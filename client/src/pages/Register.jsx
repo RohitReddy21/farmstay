@@ -1,24 +1,57 @@
 import { useState } from 'react';
+import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
+import API_URL from '../config';
 
 const Register = () => {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
+    const [phone, setPhone] = useState('');
     const [password, setPassword] = useState('');
+    const [otp, setOtp] = useState('');
+    const [otpSent, setOtpSent] = useState(false);
+    const [notice, setNotice] = useState('');
     const [error, setError] = useState('');
+    const [isSendingOtp, setIsSendingOtp] = useState(false);
     const [isRegistering, setIsRegistering] = useState(false);
     const { register, googleLogin } = useAuth();
     const navigate = useNavigate();
+
+    const handleSendOtp = async () => {
+        setError('');
+        setNotice('');
+
+        if (!email.trim()) {
+            setError('Please enter your email before requesting OTP.');
+            return;
+        }
+
+        setIsSendingOtp(true);
+        try {
+            const { data } = await axios.post(`${API_URL}/api/auth/send-otp`, { email });
+            setOtpSent(true);
+            setNotice(data.message || 'OTP sent to your email address.');
+        } catch (err) {
+            setError(err.response?.data?.message || 'Could not send OTP. Please try again.');
+        } finally {
+            setIsSendingOtp(false);
+        }
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
 
+        if (!otpSent) {
+            setError('Please send and enter the email OTP before signing up.');
+            return;
+        }
+
         setIsRegistering(true);
         try {
-            await register(name, email, password);
+            await register(name, email, phone, password, otp);
             navigate('/');
         } catch (err) {
             setError(err.response?.data?.message || 'Registration failed');
@@ -36,6 +69,7 @@ const Register = () => {
             </div>
 
             {error && <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+            {notice && <div className="mb-4 rounded-xl border border-[#d9c18e] bg-[#fff4d7] p-3 text-sm text-[#6d4d1f]">{notice}</div>}
 
             <form onSubmit={handleSubmit} className="space-y-5">
                 <div>
@@ -55,8 +89,24 @@ const Register = () => {
                         type="email"
                         className="w-full rounded-xl border border-[#e3cfac] bg-white p-3 text-[#211b14] outline-none transition focus:border-[#7a5527] focus:ring-2 focus:ring-[#d6a23d]/30"
                         value={email}
-                        onChange={(e) => setEmail(e.target.value)}
+                        onChange={(e) => {
+                            setEmail(e.target.value);
+                            setOtp('');
+                            setOtpSent(false);
+                            setNotice('');
+                        }}
                         autoComplete="email"
+                        required
+                    />
+                </div>
+                <div>
+                    <label className="mb-1 block text-sm font-semibold text-[#3a2b1e]">Mobile Number</label>
+                    <input
+                        type="tel"
+                        className="w-full rounded-xl border border-[#e3cfac] bg-white p-3 text-[#211b14] outline-none transition focus:border-[#7a5527] focus:ring-2 focus:ring-[#d6a23d]/30"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        autoComplete="tel"
                         required
                     />
                 </div>
@@ -71,13 +121,40 @@ const Register = () => {
                         required
                     />
                 </div>
+                <div className="rounded-2xl border border-[#ead7b8] bg-white/70 p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                        <div className="flex-1">
+                            <label className="mb-1 block text-sm font-semibold text-[#3a2b1e]">Email OTP</label>
+                            <input
+                                type="text"
+                                inputMode="numeric"
+                                maxLength="6"
+                                className="w-full rounded-xl border border-[#e3cfac] bg-white p-3 text-[#211b14] outline-none transition focus:border-[#7a5527] focus:ring-2 focus:ring-[#d6a23d]/30"
+                                value={otp}
+                                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                placeholder={otpSent ? 'Enter 6-digit OTP' : 'Send OTP first'}
+                                autoComplete="one-time-code"
+                                required
+                            />
+                        </div>
+                        <button
+                            type="button"
+                            onClick={handleSendOtp}
+                            disabled={isSendingOtp || !email.trim()}
+                            className="rounded-xl border border-[#7a5527] px-5 py-3 font-bold text-[#7a5527] transition hover:bg-[#7a5527] hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            {isSendingOtp ? 'Sending...' : otpSent ? 'Resend OTP' : 'Send OTP'}
+                        </button>
+                    </div>
+                    <p className="mt-2 text-xs text-[#8b7a66]">We will send a 6-digit verification code to your email.</p>
+                </div>
 
                 <button
                     type="submit"
-                    disabled={isRegistering}
+                    disabled={isRegistering || !otpSent}
                     className="w-full rounded-xl bg-primary py-3 font-bold text-white shadow-lg transition hover:bg-primary-800 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                    {isRegistering ? 'Creating Account...' : 'Sign Up'}
+                    {isRegistering ? 'Verifying...' : 'Verify & Sign Up'}
                 </button>
             </form>
 
