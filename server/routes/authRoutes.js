@@ -522,4 +522,40 @@ router.post('/test-email-config', async (req, res) => {
     }
 });
 
+// Fallback OTP route for testing (bypasses database)
+router.post('/send-otp-simple', async (req, res) => {
+    console.log('📧 Simple OTP route called');
+    console.log('📤 Request body:', req.body);
+    
+    try {
+        const { name, email, phone } = req.body;
+        const normalizedEmail = email.toLowerCase().trim();
+        
+        console.log('📧 Simple OTP data:', { name, normalizedEmail, phone });
+        
+        // Generate OTP
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        console.log('🔢 Simple OTP generated:', otp);
+        
+        // Send email directly without database operations
+        console.log('📧 Sending email without database...');
+        const emailResult = await sendEmailOtp(normalizedEmail, otp);
+        console.log('✅ Simple email sent:', emailResult);
+        
+        res.json({ 
+            message: 'OTP sent to your email address (simple mode)',
+            otp: otp, // Only for testing - remove in production
+            debug: 'simple_mode'
+        });
+        
+    } catch (error) {
+        console.error('❌ Simple OTP Error:', error);
+        res.status(500).json({ 
+            message: 'Simple OTP failed: ' + error.message,
+            error: error.message,
+            error_code: error.code
+        });
+    }
+});
+
 module.exports = router;
