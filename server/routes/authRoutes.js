@@ -38,7 +38,11 @@ const authPayload = (user, token) => ({
 });
 
 const getEmailTransporter = () => {
+    console.log('🔧 Creating email transporter...');
+    console.log('🔧 Checking email configuration options...');
+    
     if (process.env.SENDGRID_API_KEY) {
+        console.log('📧 Using SendGrid configuration');
         return nodemailer.createTransport({
             service: 'SendGrid',
             auth: {
@@ -49,6 +53,9 @@ const getEmailTransporter = () => {
     }
 
     if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+        console.log('📧 Using custom SMTP configuration');
+        console.log('🔧 SMTP Host:', process.env.SMTP_HOST);
+        console.log('🔧 SMTP Port:', process.env.SMTP_PORT || 587);
         return nodemailer.createTransport({
             host: process.env.SMTP_HOST,
             port: Number(process.env.SMTP_PORT || 587),
@@ -61,26 +68,41 @@ const getEmailTransporter = () => {
     }
 
     if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-        return nodemailer.createTransport({
+        console.log('📧 Using Gmail SMTP configuration');
+        console.log('🔧 EMAIL_USER:', process.env.EMAIL_USER);
+        console.log('🔧 EMAIL_PASS length:', process.env.EMAIL_PASS.length);
+        
+        const transporter = nodemailer.createTransport({
             service: 'gmail',
             auth: {
                 user: process.env.EMAIL_USER,
                 pass: process.env.EMAIL_PASS
             }
         });
+        
+        console.log('✅ Gmail transporter created successfully');
+        return transporter;
     }
 
+    console.log('❌ No email configuration found');
     return null;
 };
 
 const sendEmailOtp = async (email, otp) => {
+    console.log('📧 sendEmailOtp function called');
+    console.log('📧 Email to:', email);
+    console.log('📧 OTP:', otp);
+    
     const transporter = getEmailTransporter();
 
     if (!transporter) {
+        console.log('❌ No transporter created');
         throw new Error('Email OTP is not configured. Add SENDGRID_API_KEY, SMTP settings, or EMAIL_USER/EMAIL_PASS on the server.');
     }
 
-    await transporter.sendMail({
+    console.log('✅ Transporter created, preparing email...');
+    
+    const mailOptions = {
         from: process.env.EMAIL_FROM || process.env.EMAIL_USER || process.env.SMTP_USER,
         to: email,
         subject: 'Your Brown Cows Dairy signup OTP',
@@ -92,9 +114,40 @@ const sendEmailOtp = async (email, otp) => {
                 <p>This code expires in 10 minutes.</p>
             </div>
         `
+    };
+    
+    console.log('📧 Mail options:', {
+        from: mailOptions.from,
+        to: mailOptions.to,
+        subject: mailOptions.subject
     });
 
-    return { sent: true };
+    try {
+        console.log('� Verifying transporter connection...');
+        await transporter.verify();
+        console.log('✅ Transporter connection verified');
+        
+        console.log('�📧 Sending email...');
+        const result = await transporter.sendMail(mailOptions);
+        console.log('✅ Email sent successfully!');
+        console.log('📧 SendMail result:', result);
+        return { sent: true, result };
+    } catch (error) {
+        console.error('❌ Email sending failed:', error);
+        console.error('❌ Error code:', error.code);
+        console.error('❌ Error message:', error.message);
+        console.error('❌ Full error:', error);
+        
+        // Add specific Gmail error handling
+        if (error.code === 'EAUTH') {
+            console.error('🔧 Gmail authentication failed - check EMAIL_USER and EMAIL_PASS');
+            console.error('🔧 Make sure EMAIL_PASS is a Gmail App Password, not regular password');
+        } else if (error.code === 'ECONNECTION') {
+            console.error('🔧 Gmail connection failed - check network and Gmail settings');
+        }
+        
+        throw error;
+    }
 };
 
 // @route   POST /api/auth/google
@@ -149,6 +202,12 @@ router.post('/send-otp', async (req, res) => {
     console.log('📧 Send OTP route called');
     console.log('📤 Request body:', req.body);
     
+    // Debug environment variables
+    console.log('🔧 EMAIL_USER:', process.env.EMAIL_USER);
+    console.log('🔧 EMAIL_PASS exists:', !!process.env.EMAIL_PASS);
+    console.log('🔧 EMAIL_PASS length:', process.env.EMAIL_PASS ? process.env.EMAIL_PASS.length : 0);
+    console.log('🔧 NODE_ENV:', process.env.NODE_ENV);
+    
     try {
         const { name, email, phone } = req.body;
         const normalizedEmail = normalizeEmail(email);
@@ -172,16 +231,22 @@ router.post('/send-otp', async (req, res) => {
         }
 
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        console.log('🔢 OTP generated:', otp);
+        
         await OtpVerification.deleteMany({ email: normalizedEmail });
+        console.log('🗑️ Old OTPs deleted for:', normalizedEmail);
 
         await OtpVerification.create({
             email: normalizedEmail,
             otpHash: hashOtp(otp),
             expiresAt: new Date(Date.now() + 10 * 60 * 1000)
         });
+        console.log('💾 New OTP saved to database');
 
         try {
+            console.log('📧 Starting email send process...');
             const emailResult = await sendEmailOtp(normalizedEmail, otp);
+            console.log('✅ Email sent successfully:', emailResult);
             const response = {
                 message: 'OTP sent to your email address.'
             };
