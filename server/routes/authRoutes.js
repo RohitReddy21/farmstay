@@ -558,4 +558,28 @@ router.post('/send-otp-simple', async (req, res) => {
     }
 });
 
+// Database initialization endpoint
+router.post('/init-database', async (req, res) => {
+    console.log('🔧 Database initialization endpoint called');
+    
+    try {
+        const { initializeDatabase } = require('../init-database');
+        await initializeDatabase();
+        
+        res.json({
+            success: true,
+            message: 'Database initialized successfully',
+            collections: ['users', 'otpverifications']
+        });
+        
+    } catch (error) {
+        console.error('❌ Database initialization failed:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Database initialization failed',
+            error: error.message
+        });
+    }
+});
+
 module.exports = router;
