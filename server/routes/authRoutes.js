@@ -1,11 +1,91 @@
 const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
+const OtpVerification = require('../models/OtpVerification');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const nodemailer = require('nodemailer');
 const { verifyToken } = require('../middleware/authMiddleware');
 const { OAuth2Client } = require('google-auth-library');
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+const normalizeEmail = (email = '') => email.toLowerCase().trim();
+const normalizePhone = (phone = '') => phone.replace(/[^\d+]/g, '').trim();
+const hashOtp = (otp) => crypto.createHash('sha256').update(String(otp)).digest('hex');
+
+const createToken = (user) => jwt.sign({ _id: user._id }, process.env.JWT_SECRET, {
+    expiresIn: '30d'
+});
+
+const authPayload = (user, token) => ({
+    _id: user._id,
+    name: user.name,
+    email: user.email,
+    phone: user.phone,
+    isEmailVerified: user.isEmailVerified,
+    role: user.role,
+    token
+});
+
+const getEmailTransporter = () => {
+    if (process.env.SENDGRID_API_KEY) {
+        return nodemailer.createTransport({
+            service: 'SendGrid',
+            auth: {
+                user: 'apikey',
+                pass: process.env.SENDGRID_API_KEY
+            }
+        });
+    }
+
+    if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+        return nodemailer.createTransport({
+            host: process.env.SMTP_HOST,
+            port: Number(process.env.SMTP_PORT || 587),
+            secure: process.env.SMTP_SECURE === 'true',
+            auth: {
+                user: process.env.SMTP_USER,
+                pass: process.env.SMTP_PASS
+            }
+        });
+    }
+
+    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+        return nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS
+            }
+        });
+    }
+
+    return null;
+};
+
+const sendEmailOtp = async (email, otp) => {
+    const transporter = getEmailTransporter();
+
+    if (!transporter) {
+        throw new Error('Email OTP is not configured. Add SENDGRID_API_KEY, SMTP settings, or EMAIL_USER/EMAIL_PASS on the server.');
+    }
+
+    await transporter.sendMail({
+        from: process.env.EMAIL_FROM || process.env.EMAIL_USER || process.env.SMTP_USER,
+        to: email,
+        subject: 'Your Brown Cows Dairy signup OTP',
+        html: `
+            <div style="font-family:Arial,sans-serif;color:#211b14;line-height:1.6">
+                <h2>Brown Cows Dairy email verification</h2>
+                <p>Your signup OTP is:</p>
+                <p style="font-size:28px;font-weight:700;letter-spacing:6px;color:#7a5527">${otp}</p>
+                <p>This code expires in 10 minutes.</p>
+            </div>
+        `
+    });
+
+    return { sent: true };
+};
 
 // @route   POST /api/auth/google
 // @desc    Google Login/Register
@@ -28,21 +108,14 @@ router.post('/google', async (req, res) => {
                 name,
                 email,
                 password: randomPassword,
+                isEmailVerified: true,
                 role: 'user'
             });
         }
 
-        const jwtToken = jwt.sign({ _id: user._id }, process.env.JWT_SECRET, {
-            expiresIn: '30d'
-        });
+        const jwtToken = createToken(user);
 
-        res.json({
-            _id: user._id,
-            name: user.name,
-            email: user.email,
-            role: user.role,
-            token: jwtToken
-        });
+        res.json(authPayload(user, jwtToken));
     } catch (error) {
         console.error('Google Auth Error:', error);
         res.status(401).json({ message: 'Google Authentication Failed' });
@@ -60,30 +133,104 @@ router.get('/me', verifyToken, async (req, res) => {
     }
 });
 
+// @route   POST /api/auth/send-otp
+// @desc    Send email OTP before signup
+router.post('/send-otp', async (req, res) => {
+    try {
+        const { name, email, phone } = req.body;
+        const normalizedEmail = normalizeEmail(email);
+        const normalizedPhone = normalizePhone(phone);
+
+        if (!name?.trim() || !normalizedEmail || !normalizedPhone) {
+            return res.status(400).json({ message: 'Name, email, and mobile number are required.' });
+        }
+
+        const userExists = await User.findOne({
+            $or: [
+                { email: normalizedEmail },
+                { phone: normalizedPhone }
+            ]
+        });
+
+        if (userExists) {
+            return res.status(400).json({ message: 'An account already exists with this email or mobile number.' });
+        }
+
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        await OtpVerification.deleteMany({ email: normalizedEmail });
+
+        await OtpVerification.create({
+            email: normalizedEmail,
+            otpHash: hashOtp(otp),
+            expiresAt: new Date(Date.now() + 10 * 60 * 1000)
+        });
+
+        const emailResult = await sendEmailOtp(normalizedEmail, otp);
+        const response = {
+            message: 'OTP sent to your email address.'
+        };
+
+        res.json(response);
+    } catch (error) {
+        console.error('Send OTP Error:', error);
+        res.status(500).json({ message: error.message });
+    }
+});
+
 // @route   POST /api/auth/register
 // @desc    Register user
 router.post('/register', async (req, res) => {
     try {
-        const { name, email, password } = req.body;
+        const { name, email, phone, password, otp } = req.body;
+        const normalizedEmail = normalizeEmail(email);
+        const normalizedPhone = normalizePhone(phone);
 
-        const userExists = await User.findOne({ email });
-        if (userExists) {
-            return res.status(400).json({ message: 'User already exists' });
+        if (!name?.trim() || !normalizedEmail || !normalizedPhone || !password || !otp) {
+            return res.status(400).json({ message: 'Name, email, mobile number, password, and OTP are required.' });
         }
 
-        const user = await User.create({ name, email, password });
+        const userExists = await User.findOne({
+            $or: [
+                { email: normalizedEmail },
+                { phone: normalizedPhone }
+            ]
+        });
+        if (userExists) {
+            return res.status(400).json({ message: 'An account already exists with this email or mobile number.' });
+        }
 
-        const token = jwt.sign({ _id: user._id }, process.env.JWT_SECRET, {
-            expiresIn: '30d'
+        const otpRecord = await OtpVerification.findOne({
+            email: normalizedEmail
+        }).sort({ createdAt: -1 });
+
+        if (!otpRecord || otpRecord.expiresAt < new Date()) {
+            return res.status(400).json({ message: 'OTP is invalid or expired. Please request a new OTP.' });
+        }
+
+        if (otpRecord.attempts >= 5) {
+            await OtpVerification.deleteOne({ _id: otpRecord._id });
+            return res.status(429).json({ message: 'Too many invalid OTP attempts. Please request a new OTP.' });
+        }
+
+        if (hashOtp(otp) !== otpRecord.otpHash) {
+            otpRecord.attempts += 1;
+            await otpRecord.save();
+            return res.status(400).json({ message: 'Invalid OTP. Please check the code and try again.' });
+        }
+
+        const user = await User.create({
+            name: name.trim(),
+            email: normalizedEmail,
+            phone: normalizedPhone,
+            password,
+            isEmailVerified: true
         });
 
-        res.status(201).json({
-            _id: user._id,
-            name: user.name,
-            email: user.email,
-            role: user.role,
-            token
-        });
+        await OtpVerification.deleteMany({ email: normalizedEmail });
+
+        const token = createToken(user);
+
+        res.status(201).json(authPayload(user, token));
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -94,18 +241,19 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
     try {
         const { email, password } = req.body;
-        console.log('Login attempt:', email);
+        const normalizedEmail = normalizeEmail(email);
+        console.log('Login attempt:', normalizedEmail);
 
-        const user = await User.findOne({ email });
+        const user = await User.findOne({ email: normalizedEmail });
         if (!user) {
-            console.log('User not found:', email);
+            console.log('User not found:', normalizedEmail);
             return res.status(401).json({ message: 'Invalid email or password' });
         }
 
         console.log('User found, comparing password...');
         const isMatch = await user.comparePassword(password);
         if (!isMatch) {
-            console.log('Password mismatch for:', email);
+            console.log('Password mismatch for:', normalizedEmail);
             return res.status(401).json({ message: 'Invalid email or password' });
         }
 
@@ -114,18 +262,10 @@ router.post('/login', async (req, res) => {
             throw new Error('JWT_SECRET is not defined in environment');
         }
 
-        const token = jwt.sign({ _id: user._id }, process.env.JWT_SECRET, {
-            expiresIn: '30d'
-        });
+        const token = createToken(user);
 
-        console.log('Login successful:', email);
-        res.json({
-            _id: user._id,
-            name: user.name,
-            email: user.email,
-            role: user.role,
-            token
-        });
+        console.log('Login successful:', normalizedEmail);
+        res.json(authPayload(user, token));
     } catch (error) {
         console.error('Login Error:', error);
         res.status(500).json({ message: error.message });
@@ -191,6 +331,40 @@ router.post('/reset-password/:token', async (req, res) => {
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
+});
+
+// Debug routes for troubleshooting 404 error
+router.get('/test-route', (req, res) => {
+    console.log('🧪 Test route called successfully');
+    res.json({ 
+        message: 'Auth routes are working!',
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV,
+        email_configured: !!(process.env.EMAIL_USER && process.env.EMAIL_PASS)
+    });
+});
+
+router.post('/test-post', (req, res) => {
+    console.log('🧪 Test POST route called');
+    console.log('📤 Request body:', req.body);
+    res.json({ 
+        message: 'POST routes are working!',
+        received: req.body,
+        timestamp: new Date().toISOString()
+    });
+});
+
+router.get('/test-env', (req, res) => {
+    console.log('🔍 Environment check called');
+    res.json({
+        email_user_set: !!process.env.EMAIL_USER,
+        email_pass_set: !!process.env.EMAIL_PASS,
+        client_url: process.env.CLIENT_URL,
+        node_env: process.env.NODE_ENV,
+        all_env_keys: Object.keys(process.env).filter(key => 
+            key.includes('EMAIL') || key.includes('CLIENT') || key.includes('NODE')
+        )
+    });
 });
 
 module.exports = router;
