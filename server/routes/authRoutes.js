@@ -9,6 +9,16 @@ const { verifyToken } = require('../middleware/authMiddleware');
 const { OAuth2Client } = require('google-auth-library');
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
+// Health check to verify auth routes are loaded
+router.get('/health', (req, res) => {
+    console.log('🏥 Auth routes health check called');
+    res.json({ 
+        message: 'Auth routes are working',
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV
+    });
+});
+
 const normalizeEmail = (email = '') => email.toLowerCase().trim();
 const normalizePhone = (phone = '') => phone.replace(/[^\d+]/g, '').trim();
 const hashOtp = (otp) => crypto.createHash('sha256').update(String(otp)).digest('hex');
@@ -136,10 +146,15 @@ router.get('/me', verifyToken, async (req, res) => {
 // @route   POST /api/auth/send-otp
 // @desc    Send email OTP before signup
 router.post('/send-otp', async (req, res) => {
+    console.log('📧 Send OTP route called');
+    console.log('📤 Request body:', req.body);
+    
     try {
         const { name, email, phone } = req.body;
         const normalizedEmail = normalizeEmail(email);
         const normalizedPhone = normalizePhone(phone);
+        
+        console.log('📧 Normalized data:', { name, normalizedEmail, normalizedPhone });
 
         if (!name?.trim() || !normalizedEmail || !normalizedPhone) {
             return res.status(400).json({ message: 'Name, email, and mobile number are required.' });
@@ -165,12 +180,33 @@ router.post('/send-otp', async (req, res) => {
             expiresAt: new Date(Date.now() + 10 * 60 * 1000)
         });
 
-        const emailResult = await sendEmailOtp(normalizedEmail, otp);
-        const response = {
-            message: 'OTP sent to your email address.'
-        };
-
-        res.json(response);
+        try {
+            const emailResult = await sendEmailOtp(normalizedEmail, otp);
+            const response = {
+                message: 'OTP sent to your email address.'
+            };
+            res.json(response);
+        } catch (emailError) {
+            console.error('Email sending failed:', emailError.message);
+            // Still return success but with a different message for development
+            if (process.env.NODE_ENV === 'development') {
+                res.status(500).json({ 
+                    message: 'Email configuration error: ' + emailError.message,
+                    debug: {
+                        email_user_set: !!process.env.EMAIL_USER,
+                        email_pass_set: !!process.env.EMAIL_PASS,
+                        smtp_user_set: !!process.env.SMTP_USER,
+                        smtp_pass_set: !!process.env.SMTP_PASS,
+                        sendgrid_set: !!process.env.SENDGRID_API_KEY
+                    }
+                });
+            } else {
+                // In production, don't expose configuration details
+                res.status(500).json({ 
+                    message: 'Unable to send OTP. Please contact support.'
+                });
+            }
+        }
     } catch (error) {
         console.error('Send OTP Error:', error);
         res.status(500).json({ message: error.message });
