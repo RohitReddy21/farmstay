@@ -12,7 +12,6 @@ const Register = () => {
     const [password, setPassword] = useState('');
     const [otp, setOtp] = useState('');
     const [otpSent, setOtpSent] = useState(false);
-    const [devOtp, setDevOtp] = useState('');
     const [notice, setNotice] = useState('');
     const [error, setError] = useState('');
     const [isSendingOtp, setIsSendingOtp] = useState(false);
@@ -23,7 +22,6 @@ const Register = () => {
     const handleSendOtp = async () => {
         setError('');
         setNotice('');
-        setDevOtp('');
         setIsSendingOtp(true);
 
         try {
@@ -34,9 +32,6 @@ const Register = () => {
             });
             setOtpSent(true);
             setNotice(data.message || 'OTP sent to your email address.');
-            if (data.devOtp) {
-                setDevOtp(data.devOtp);
-            }
         } catch (err) {
             setError(err.response?.data?.message || 'Could not send OTP. Please try again.');
         } finally {
@@ -75,57 +70,59 @@ const Register = () => {
 
             {error && <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
             {notice && <div className="mb-4 rounded-xl border border-[#cfe4c8] bg-[#f1f8ec] p-3 text-sm text-[#3f6b3f]">{notice}</div>}
-            {devOtp && (
-                <div className="mb-4 rounded-xl border border-[#ead7b8] bg-[#f8efdf] p-3 text-sm text-[#7a5527]">
-                    Development OTP: <span className="font-bold tracking-[0.22em]">{devOtp}</span>
-                </div>
-            )}
 
             <form onSubmit={handleSubmit} className="space-y-5">
-                <div>
-                    <label className="mb-1 block text-sm font-semibold text-[#3a2b1e]">Name</label>
-                    <input
-                        type="text"
-                        className="w-full rounded-xl border border-[#e3cfac] bg-white p-3 text-[#211b14] outline-none transition focus:border-[#7a5527] focus:ring-2 focus:ring-[#d6a23d]/30"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        autoComplete="name"
-                        required
-                    />
+                {/* First Row: Name and Email */}
+                <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                        <label className="mb-1 block text-sm font-semibold text-[#3a2b1e]">Name</label>
+                        <input
+                            type="text"
+                            className="w-full rounded-xl border border-[#e3cfac] bg-white p-3 text-[#211b14] outline-none transition focus:border-[#7a5527] focus:ring-2 focus:ring-[#d6a23d]/30"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            autoComplete="name"
+                            required
+                        />
+                    </div>
+                    <div>
+                        <label className="mb-1 block text-sm font-semibold text-[#3a2b1e]">Email</label>
+                        <input
+                            type="email"
+                            className="w-full rounded-xl border border-[#e3cfac] bg-white p-3 text-[#211b14] outline-none transition focus:border-[#7a5527] focus:ring-2 focus:ring-[#d6a23d]/30"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            autoComplete="email"
+                            required
+                        />
+                    </div>
                 </div>
-                <div>
-                    <label className="mb-1 block text-sm font-semibold text-[#3a2b1e]">Email</label>
-                    <input
-                        type="email"
-                        className="w-full rounded-xl border border-[#e3cfac] bg-white p-3 text-[#211b14] outline-none transition focus:border-[#7a5527] focus:ring-2 focus:ring-[#d6a23d]/30"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        autoComplete="email"
-                        required
-                    />
-                </div>
-                <div>
-                    <label className="mb-1 block text-sm font-semibold text-[#3a2b1e]">Mobile Number</label>
-                    <input
-                        type="tel"
-                        className="w-full rounded-xl border border-[#e3cfac] bg-white p-3 text-[#211b14] outline-none transition focus:border-[#7a5527] focus:ring-2 focus:ring-[#d6a23d]/30"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        placeholder="+91XXXXXXXXXX"
-                        autoComplete="tel"
-                        required
-                    />
-                </div>
-                <div>
-                    <label className="mb-1 block text-sm font-semibold text-[#3a2b1e]">Password</label>
-                    <input
-                        type="password"
-                        className="w-full rounded-xl border border-[#e3cfac] bg-white p-3 text-[#211b14] outline-none transition focus:border-[#7a5527] focus:ring-2 focus:ring-[#d6a23d]/30"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        autoComplete="new-password"
-                        required
-                    />
+
+                {/* Second Row: Mobile and Password */}
+                <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                        <label className="mb-1 block text-sm font-semibold text-[#3a2b1e]">Mobile Number</label>
+                        <input
+                            type="tel"
+                            className="w-full rounded-xl border border-[#e3cfac] bg-white p-3 text-[#211b14] outline-none transition focus:border-[#7a5527] focus:ring-2 focus:ring-[#d6a23d]/30"
+                            value={phone}
+                            onChange={(e) => setPhone(e.target.value)}
+                            placeholder="+91XXXXXXXXXX"
+                            autoComplete="tel"
+                            required
+                        />
+                    </div>
+                    <div>
+                        <label className="mb-1 block text-sm font-semibold text-[#3a2b1e]">Password</label>
+                        <input
+                            type="password"
+                            className="w-full rounded-xl border border-[#e3cfac] bg-white p-3 text-[#211b14] outline-none transition focus:border-[#7a5527] focus:ring-2 focus:ring-[#d6a23d]/30"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            autoComplete="new-password"
+                            required
+                        />
+                    </div>
                 </div>
 
                 <button
@@ -172,22 +169,28 @@ const Register = () => {
                 </div>
 
                 <div className="mt-6 flex justify-center">
-                    <GoogleLogin
-                        onSuccess={async (credentialResponse) => {
-                            try {
-                                await googleLogin(credentialResponse.credential);
-                                navigate('/');
-                            } catch (err) {
+                    {import.meta.env.VITE_GOOGLE_CLIENT_ID && import.meta.env.VITE_GOOGLE_CLIENT_ID !== "YOUR_GOOGLE_CLIENT_ID_HERE" ? (
+                        <GoogleLogin
+                            onSuccess={async (credentialResponse) => {
+                                try {
+                                    await googleLogin(credentialResponse.credential);
+                                    navigate('/');
+                                } catch (err) {
+                                    setError('Google Sign-Up Failed');
+                                }
+                            }}
+                            onError={() => {
                                 setError('Google Sign-Up Failed');
-                            }
-                        }}
-                        onError={() => {
-                            setError('Google Sign-Up Failed');
-                        }}
-                        theme="filled_blue"
-                        shape="pill"
-                        text="signup_with"
-                    />
+                            }}
+                            theme="filled_blue"
+                            shape="pill"
+                            text="signup_with"
+                        />
+                    ) : (
+                        <div className="text-center text-xs italic text-[#8b7a66]">
+                            Google signup needs a real VITE_GOOGLE_CLIENT_ID in production.
+                        </div>
+                    )}
                 </div>
             </div>
 

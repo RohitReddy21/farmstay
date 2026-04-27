@@ -22,7 +22,7 @@ if (!rootElement) {
   root.render(
     <StrictMode>
       <GlobalErrorBoundary>
-        <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID || "placeholder_id"}>
+        <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID || "disabled"}>
           <App />
         </GoogleOAuthProvider>
       </GlobalErrorBoundary>
@@ -30,4 +30,3 @@ if (!rootElement) {
   );
   console.log('App mounted.');
 }
-
