@@ -5,6 +5,15 @@ import { useNavigate, Link } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import API_URL from '../config';
 
+// Debug script for Vercel troubleshooting
+console.log('🔍 Vercel Debug Information');
+console.log('📡 VITE_API_URL:', import.meta.env.VITE_API_URL);
+console.log('🌐 Current Origin:', window.location.origin);
+console.log('📧 Environment Variables:', {
+    VITE_API_URL: import.meta.env.VITE_API_URL,
+    NODE_ENV: import.meta.env.NODE_ENV
+});
+
 const Register = () => {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
@@ -25,14 +34,29 @@ const Register = () => {
         setIsSendingOtp(true);
 
         try {
+            console.log('\n📤 Testing API Call...');
+            console.log('📡 Full URL:', `${API_URL}/api/auth/send-otp`);
+            console.log('📤 Request Body:', { name, email, phone });
+            
             const { data } = await axios.post(`${API_URL}/api/auth/send-otp`, {
                 name,
                 email,
                 phone
             });
+            
+            console.log('✅ Response Status:', data);
+            console.log('✅ Response Data:', data);
+            
             setOtpSent(true);
             setNotice(data.message || 'OTP sent to your email address.');
         } catch (err) {
+            console.error('❌ Error Details:');
+            console.error('Status:', err.response?.status);
+            console.error('Status Text:', err.response?.statusText);
+            console.error('Response Data:', err.response?.data);
+            console.error('Request URL:', err.config?.url);
+            console.error('Full Error:', err.message);
+            
             setError(err.response?.data?.message || 'Could not send OTP. Please try again.');
         } finally {
             setIsSendingOtp(false);
