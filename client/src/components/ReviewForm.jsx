@@ -53,7 +53,7 @@ const ReviewForm = ({ farmId, bookingId, onReviewAdded, onCancel }) => {
                 <button
                     type="submit"
                     disabled={loading}
-                    className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-green-600 transition font-semibold disabled:bg-gray-300"
+                    className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary-800 transition font-semibold disabled:bg-gray-300"
                 >
                     {loading ? 'Submitting...' : 'Submit Review'}
                 </button>

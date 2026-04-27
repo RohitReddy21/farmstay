@@ -39,6 +39,7 @@ const AnimatedRoutes = () => {
         <Route path="/forgot-password" element={<PageTransition><ForgotPassword /></PageTransition>} />
         <Route path="/farms" element={<PageTransition><Farms /></PageTransition>} />
         <Route path="/farm/:id" element={<PageTransition><FarmDetails /></PageTransition>} />
+        <Route path="/2-day-learning-retreat" element={<PageTransition><LearningRetreat /></PageTransition>} />
         <Route path="/learning-retreat" element={<PageTransition><LearningRetreat /></PageTransition>} />
         <Route path="/admin" element={<PageTransition><Admin /></PageTransition>} />
         <Route path="/database" element={<PageTransition><Database /></PageTransition>} />
@@ -61,14 +62,14 @@ function App() {
         <CartProvider>
           <Router>
             <ScrollToTop />
-            <div className="min-h-screen bg-background dark:bg-gray-900 flex flex-col transition-colors duration-200">
+            <div className="min-h-screen bg-background text-text-primary dark:bg-[#111611] dark:text-[#f7f0e4] flex flex-col transition-colors duration-200">
               <Navbar />
               <main className="flex-grow container mx-auto px-4 py-8">
                 <Suspense fallback={<LoadingSpinner />}>
                   <AnimatedRoutes />
                 </Suspense>
               </main>
-              <footer className="bg-white dark:bg-gray-800 py-6 text-center text-gray-500 dark:text-gray-400 transition-colors duration-200">
+              <footer className="border-t border-[#ead7b8] bg-[#fffaf1] py-6 text-center text-[#645747] transition-colors duration-200 dark:border-[#31392f] dark:bg-[#151b15] dark:text-[#cfc2b2]">
                 <p>&copy; 2024 Brown Cows Organic Dairy. All rights reserved.</p>
               </footer>
             </div>

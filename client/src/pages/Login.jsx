@@ -38,7 +38,7 @@ const Login = () => {
                 <div>
                     <div className="flex justify-between items-center mb-1">
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Password</label>
-                        <Link to="/forgot-password" className="text-sm text-primary hover:text-green-600">
+                        <Link to="/forgot-password" className="text-sm text-primary hover:text-primary-800">
                             Forgot Password?
                         </Link>
                     </div>
@@ -50,7 +50,7 @@ const Login = () => {
                         required
                     />
                 </div>
-                <button type="submit" className="w-full bg-primary text-white py-3 rounded-lg font-semibold hover:bg-green-600 transition">
+                <button type="submit" className="w-full bg-primary text-white py-3 rounded-lg font-semibold hover:bg-primary-800 transition">
                     Login
                 </button>
             </form>

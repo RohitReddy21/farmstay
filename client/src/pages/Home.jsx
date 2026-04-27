@@ -89,7 +89,7 @@ const Home = () => {
             </section>
 
             {/* How It Works Section */}
-            <section className="bg-gradient-to-br from-primary/5 to-green-50 py-12 md:py-16 lg:py-20">
+            <section className="bg-gradient-to-br from-[#fffaf1] to-[#f4ead8] py-12 md:py-16 lg:py-20">
                 <div className="container mx-auto">
                     <div className="text-center mb-12 md:mb-16">
                         <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-3 md:mb-4">How It Works</h2>
@@ -170,7 +170,7 @@ const Home = () => {
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
-                    className="bg-gradient-to-r from-primary to-green-600 rounded-2xl md:rounded-3xl p-8 md:p-12 lg:p-16 text-center text-white shadow-2xl"
+                    className="bg-gradient-to-r from-primary to-primary-800 rounded-2xl md:rounded-3xl p-8 md:p-12 lg:p-16 text-center text-white shadow-2xl"
                 >
                     <Award className="w-12 h-12 md:w-16 md:h-16 mx-auto mb-4 md:mb-6" />
                     <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-3 md:mb-4">Ready for Your Farm Adventure?</h2>

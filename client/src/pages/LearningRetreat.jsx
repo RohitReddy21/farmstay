@@ -1,510 +1,606 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-    ArrowRight,
-    BookOpen,
-    CalendarDays,
-    CheckCircle2,
-    ChevronDown,
-    ChevronLeft,
-    ChevronRight,
-    Download,
-    MapPin,
-    Minus,
-    Phone,
-    Plus,
-    Sprout,
-    Users,
-    X
-} from 'lucide-react';
+import { CheckCircle2, CreditCard, MessageCircle, ShoppingBag, X } from 'lucide-react';
+import API_URL from '../config';
+import { useCart } from '../context/CartContext';
 
-const heroVideo = 'https://cdn.shopify.com/videos/c/o/v/7ca795366d7e412bbdf5ccb664d9e691.mp4';
+// Import components
+import HeroSection from '../components/learning-retreat/HeroSection';
+import RetreatHeader from '../components/learning-retreat/RetreatHeader';
+import PropertyImageGallery from '../components/learning-retreat/PropertyImageGallery';
+import BookingPanel from '../components/learning-retreat/BookingPanel';
+import CalendarModal from '../components/learning-retreat/CalendarModal';
+import AudienceSection from '../components/learning-retreat/AudienceSection';
+import StayOptionsSection from '../components/learning-retreat/StayOptionsSection';
+import GallerySection from '../components/learning-retreat/GallerySection';
+import ScheduleSection from '../components/learning-retreat/ScheduleSection';
+import FAQSection from '../components/learning-retreat/FAQSection';
+import ContactSection from '../components/learning-retreat/ContactSection';
+import Lightbox from '../components/learning-retreat/Lightbox';
+import retreatContent from '../components/learning-retreat/RetreatContent';
 
-const galleryImages = [
-    'https://browncowsdairy.com/cdn/shop/files/DSC00436_a7daa3fb-164d-4d28-96ca-e58bd814a73c.jpg?v=1774962189&width=1200',
-    'https://browncowsdairy.com/cdn/shop/files/DSC08718.jpg?v=1776069148&width=1200',
-    'https://browncowsdairy.com/cdn/shop/files/IMG_20260326_233235.jpg?v=1776069148&width=1200',
-    'https://browncowsdairy.com/cdn/shop/files/DSC08697.jpg?v=1776069148&width=1200'
-];
+// Utility functions
+const formatMoney = (value) => `Rs ${Math.round(value).toLocaleString('en-IN')}`;
 
-const audienceCards = [
-    {
-        title: 'Urban Professionals',
-        text: 'Escape the city and reconnect with nature through hands-on farm activities.',
-        image: 'https://browncowsdairy.com/cdn/shop/files/give-me-other-image.png?v=1775656183&width=600'
-    },
-    {
-        title: 'Families',
-        text: 'Create lasting memories while teaching children about sustainable farming and animal care.',
-        image: 'https://browncowsdairy.com/cdn/shop/files/families-in-farms.png?v=1775656252&width=600'
-    },
-    {
-        title: 'Students',
-        text: 'Learn about agriculture, sustainability, and organic practices in a real-world setting.',
-        image: 'https://browncowsdairy.com/cdn/shop/files/students-in-farms.png?v=1775656385&width=600'
-    },
-    {
-        title: 'Nature Lovers',
-        text: 'Immerse yourself in rural life and discover the beauty of farm-to-table living.',
-        image: 'https://browncowsdairy.com/cdn/shop/files/nature-lovers-in-farms.png?v=1775656472&width=600'
-    }
-];
+const toDateValue = (date) => {
+    const year = date.getFullYear();
+    const month = `${date.getMonth() + 1}`.padStart(2, '0');
+    const day = `${date.getDate()}`.padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
 
-const dayOneSchedule = [
-    ['9:00 AM', 'Arrival and Farm Breakfast', 'Farm-grown wholesome breakfast, meet and greet, farm philosophy intro, and audiovisual of the farm journey from 2012.'],
-    ['10:00 AM', 'SPNF Classroom Session', "Subhash Palekar's Zero Budget Farming, soil microbiology, why fertilizers damage soil biology, and four pillars of SPNF."],
-    ['11:30 AM', 'Hands-On Workshop', 'Making Jeevamrutha, Neem Wash organic pest repellents, microbial multiplication, and soil nutrition cycle.'],
-    ['1:00 PM', 'Farm Lunch - Vegetarian', 'Organic vegetable curries, millets and roti alternatives, fresh curds, buttermilk, paneer, and cheeses from Gir cows.'],
-    ['2:30 PM', 'Mulching and Soil Life', 'Straw mulching, live mulching, woodchips, earthworms, microbial activity, soil texture, and moisture retention.'],
-    ['3:30 PM', 'Dairy - Milk to Ghee', 'Goshala visit, A1 vs A2 milk, indigenous breeds, and traditional Bilona butter churning hands-on.'],
-    ['5:00 PM', 'Farm Walk and Evening Sightseeing', 'Sunset farm walk, Amangal lakefront guided tour, and campfire.'],
-    ['8:00 PM', 'Farm Dinner and Campfire', 'Organic farm meal and fireside talk on farm economics, indigenous breeds, and lessons for new farmers.']
-];
-
-const dayTwoSchedule = [
-    ['8:00 AM', 'Farm Breakfast', 'Farm-grown wholesome breakfast with reflections and notes from Day 1.'],
-    ['9:00 AM', 'Integrated Farming and Economics', 'Vermicompost, compost, mulching, cocopeat, rice husk, and waste-to-input cycles.'],
-    ['11:30 AM', 'Hands-On Workshops', 'Audio visual classroom session, Jeevamrutha making, organic inputs, and microbial multiplication.'],
-    ['1:00 PM', 'Farm Lunch - Vegetarian', 'Organic vegetable curries, millets, rice alternatives, and fresh A2 dairy.'],
-    ['2:30 PM', 'Biogas', 'Biogas production, waste-to-energy cycles, and benefits for the farm.'],
-    ['3:30 PM', 'Closing Circle', 'Share learnings, implementation plans, feedback session, and farm gift bags.']
-];
-
-const faqs = [
-    {
-        question: 'What is included in the farm experience?',
-        answer: 'Guided farm activities, hands-on learning sessions, cow interaction, milking demonstration, natural farming insights, freshly prepared farm meals, nature walks, and a peaceful rural environment. For 2-day retreats, accommodation and extended activities are included.'
-    },
-    {
-        question: 'How long is the retreat program?',
-        answer: 'The 1-day experience runs from morning to evening. The 2-day retreat includes an overnight stay with a more immersive schedule across both days.'
-    },
-    {
-        question: 'What should I bring with me?',
-        answer: 'Bring comfortable clothing, farm-friendly footwear, personal essentials, medications, sunscreen, a hat, and a reusable water bottle. For overnight stays, carry a change of clothes and basic toiletries.'
-    },
-    {
-        question: 'Is the experience suitable for children?',
-        answer: 'Yes. Children can learn about nature, animals, and sustainable farming in a safe and engaging environment. Children should be accompanied by adults at all times.'
-    },
-    {
-        question: 'What is your cancellation policy?',
-        answer: 'Confirmed bookings follow the farm cancellation policy. Depending on timing and availability, cancellations may be eligible for partial refunds or rescheduling.'
-    }
-];
+const addDays = (dateValue, days) => {
+    const date = new Date(`${dateValue}T00:00:00`);
+    date.setDate(date.getDate() + days);
+    return toDateValue(date);
+};
 
 const isSaturday = (dateValue) => {
     if (!dateValue) return false;
-    const date = new Date(`${dateValue}T00:00:00`);
-    return date.getDay() === 6;
+    return new Date(`${dateValue}T00:00:00`).getDay() === 6;
 };
 
+// Floating WhatsApp Component
+const FloatingWhatsApp = ({ phone }) => (
+    <a
+        href={`https://wa.me/${phone.replace(/\D/g, '')}?text=Hi! I'm interested in the Learning Retreat`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg transition-transform hover:scale-110 lg:bottom-8 lg:right-8"
+        aria-label="Contact on WhatsApp"
+    >
+        <MessageCircle size={24} />
+    </a>
+);
+
 const LearningRetreat = () => {
-    const [showBrochure, setShowBrochure] = useState(false);
-    const [brochureSubmitted, setBrochureSubmitted] = useState(false);
-    const [brochureForm, setBrochureForm] = useState({ name: '', email: '', phone: '', guests: 1 });
-    const [experienceType, setExperienceType] = useState('day');
-    const [guests, setGuests] = useState(1);
+    const navigate = useNavigate();
+    const { addToCart } = useCart();
+    const [farms, setFarms] = useState([]);
+    const [experience, setExperience] = useState('day');
     const [stayType, setStayType] = useState('Solo');
+    const [guests, setGuests] = useState(1);
     const [selectedDate, setSelectedDate] = useState('');
-    const [dateError, setDateError] = useState('');
-    const [openImage, setOpenImage] = useState(null);
-    const [openFaq, setOpenFaq] = useState(0);
+    const [selectedMonth, setSelectedMonth] = useState(() => new Date());
+    const [calendarError, setCalendarError] = useState('');
+    const [lightboxIndex, setLightboxIndex] = useState(null);
+    const [showBrochure, setShowBrochure] = useState(false);
+    const [leadStatus, setLeadStatus] = useState('');
+    const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+    const [leadForm, setLeadForm] = useState({ name: '', email: '', phone: '', guests: 1 });
+    const [guestDetails, setGuestDetails] = useState({ name: '', email: '', phone: '' });
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [bookingSuccess, setBookingSuccess] = useState(null);
 
-    const bookingSummary = useMemo(() => {
-        if (experienceType === 'day') {
-            return `1 Day Farm Experience for ${guests} guest${guests > 1 ? 's' : ''}`;
+    const selectedStay = useMemo(
+        () => retreatContent.packages.stays.find((item) => item.type === stayType) || retreatContent.packages.stays[0],
+        [stayType]
+    );
+
+    const activePackage = experience === 'day' ? retreatContent.packages.day : selectedStay;
+    const seasonalMultiplier = selectedDate ? (retreatContent.seasonalPricing[selectedDate] || 1) : 1;
+    const baseTotal = activePackage.basePrice * (experience === 'day' ? guests : 1) * seasonalMultiplier;
+    const tax = Math.round(baseTotal * activePackage.taxRate || baseTotal * 0.18);
+    const grandTotal = Math.round(baseTotal + tax);
+
+    // Generate calendar dates
+    const monthDates = useMemo(() => {
+        const year = selectedMonth.getFullYear();
+        const month = selectedMonth.getMonth();
+        const firstDay = new Date(year, month, 1);
+        const lastDay = new Date(year, month + 1, 0);
+        const startDate = new Date(firstDay);
+        startDate.setDate(startDate.getDate() - firstDay.getDay());
+        
+        const dates = [];
+        const current = new Date(startDate);
+        
+        while (current <= lastDay || current.getDay() !== 0) {
+            dates.push(new Date(current));
+            current.setDate(current.getDate() + 1);
         }
-        return `2-Day Farm Stay for ${stayType} booking, ${guests} guest${guests > 1 ? 's' : ''}`;
-    }, [experienceType, guests, stayType]);
+        
+        return dates;
+    }, [selectedMonth]);
 
-    const updateGuests = (delta) => {
-        setGuests((current) => Math.max(1, current + delta));
+    const monthLabel = selectedMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+    useEffect(() => {
+        document.title = `${retreatContent.retreatName} | Brown Cows Organic Dairy`;
+
+        const description = retreatContent.subtitle;
+        const ensureMeta = (selector, attr, value, content) => {
+            let tag = document.head.querySelector(selector);
+            if (!tag) {
+                tag = document.createElement('meta');
+                tag.setAttribute(attr, value);
+                document.head.appendChild(tag);
+            }
+            tag.setAttribute('content', content);
+        };
+
+        ensureMeta('meta[name="description"]', 'name', 'description', description);
+        ensureMeta('meta[property="og:title"]', 'property', 'og:title', retreatContent.retreatName);
+        ensureMeta('meta[property="og:description"]', 'property', 'og:description', description);
+        ensureMeta('meta[property="og:image"]', 'property', 'og:image', retreatContent.heroImage);
+
+        let canonical = document.head.querySelector('link[rel="canonical"]');
+        if (!canonical) {
+            canonical = document.createElement('link');
+            canonical.setAttribute('rel', 'canonical');
+            document.head.appendChild(canonical);
+        }
+        canonical.setAttribute('href', `${window.location.origin}/2-day-learning-retreat`);
+
+        const schema = document.createElement('script');
+        schema.type = 'application/ld+json';
+        schema.textContent = JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'TouristTrip',
+            name: retreatContent.retreatName,
+            description,
+            image: retreatContent.heroImage,
+            provider: { '@type': 'Organization', name: 'Brown Cows Organic Dairy' },
+            offers: { '@type': 'Offer', priceCurrency: 'INR', price: 3500 }
+        });
+        document.head.appendChild(schema);
+
+        return () => {
+            document.head.removeChild(schema);
+        };
+    }, []);
+
+    useEffect(() => {
+        axios.get(`${API_URL}/api/farms`)
+            .then(({ data }) => setFarms(Array.isArray(data) ? data : []))
+            .catch(() => setFarms([]));
+    }, []);
+
+    useEffect(() => {
+        if (experience === 'stay') {
+            setGuests((current) => Math.min(Math.max(current, 0), selectedStay.maxGuests));
+        }
+    }, [experience, selectedStay]);
+
+    const resolveFarmForBooking = () => {
+        const hint = activePackage.propertyTitleHint;
+        return farms.find((farm) => farm.title?.toLowerCase().includes(hint.toLowerCase())) || farms[0];
     };
 
-    const submitBrochure = (event) => {
-        event.preventDefault();
-        setBrochureSubmitted(true);
+    const handleBook = async (overrides = {}) => {
+        const bookingGuestDetails = overrides.guestDetails || guestDetails;
+        const bookingGuests = overrides.guests ?? guests;
+        const bookingBaseTotal = activePackage.basePrice * (experience === 'day' ? bookingGuests : 1) * seasonalMultiplier;
+        const bookingTax = Math.round(bookingBaseTotal * activePackage.taxRate || bookingBaseTotal * 0.18);
+        const bookingGrandTotal = Math.round(bookingBaseTotal + bookingTax);
 
-        const brochure = [
-            'Brown Cows Organic Dairy - Farm Learning Retreat',
-            '',
-            'Experience: 1-day farm visit or 2-day farm stay retreat',
-            'Includes: guided farm activities, natural farming learning, cow interaction, farm meals, nature walks, and hands-on workshops.',
-            'Location: 4-140, Gouripally Village, Amangal Mandal, Telangana 509321',
-            'Contact: 99898 54411 | browncowsdairy@gmail.com'
-        ].join('\n');
+        // Validation
+        const errors = {};
+        if (!bookingGuestDetails.name.trim()) errors.name = 'Name is required';
+        if (!bookingGuestDetails.email.trim()) errors.email = 'Email is required';
+        else if (!/\S+@\S+\.\S+/.test(bookingGuestDetails.email)) errors.email = 'Email is invalid';
+        if (!bookingGuestDetails.phone.trim()) errors.phone = 'Phone is required';
+        if (!selectedDate) errors.date = 'Please select a date';
 
-        const blob = new Blob([brochure], { type: 'text/plain;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const anchor = document.createElement('a');
-        anchor.href = url;
-        anchor.download = 'brown-cows-learning-retreat-brochure.txt';
-        anchor.click();
-        URL.revokeObjectURL(url);
-    };
-
-    const bookSlot = () => {
-        if (!isSaturday(selectedDate)) {
-            setDateError('Please select a Saturday. The retreat includes Saturday and Sunday.');
+        if (Object.keys(errors).length > 0) {
+            setCalendarError(errors.date || 'Please fill in all required fields');
             return;
         }
 
-        setDateError('');
-        const text = encodeURIComponent(`Hi, I want to book ${bookingSummary} on ${selectedDate}.`);
-        window.open(`https://wa.me/919989854411?text=${text}`, '_blank', 'noopener,noreferrer');
+        setIsSubmitting(true);
+        
+        try {
+            const dayOfWeek = new Date(`${selectedDate}T00:00:00`).getDay();
+            const isSat = dayOfWeek === 6;
+            const isSun = dayOfWeek === 0;
+            
+            if (experience === 'day' && !isSat) {
+                setCalendarError('Only Saturdays are available for day experiences.');
+                setIsSubmitting(false);
+                return;
+            }
+            
+            if (experience === 'stay' && !isSat && !isSun) {
+                setCalendarError('Only Saturdays and Sundays are available for 2-day retreats.');
+                setIsSubmitting(false);
+                return;
+            }
+            
+            if (retreatContent.blockedDates.includes(selectedDate)) {
+                setCalendarError('This date is blocked. Please choose another date.');
+                setIsSubmitting(false);
+                return;
+            }
+
+            const linkedFarm = resolveFarmForBooking();
+            if (!linkedFarm?._id) {
+                setCalendarError('Booking data is still loading. Please try again in a moment.');
+                setIsSubmitting(false);
+                return;
+            }
+
+            const endDate = experience === 'day' ? addDays(selectedDate, 1) : addDays(selectedDate, 2);
+            const packageLabel = experience === 'day' ? 'Day Experience' : `${stayType} 2-Day Farm Stay`;
+
+            // Match the farmstay flow: add selection to cart, then checkout creates the booking/payment order.
+            addToCart({
+                propertyId: linkedFarm._id,
+                property: {
+                    ...linkedFarm,
+                    title: `${retreatContent.retreatName} - ${packageLabel}`,
+                    location: retreatContent.location,
+                    images: [retreatContent.heroImage, ...(linkedFarm.images || [])]
+                },
+                startDate: selectedDate,
+                endDate,
+                guests: bookingGuests,
+                guestDetails: {
+                    name: bookingGuestDetails.name,
+                    email: bookingGuestDetails.email,
+                    phone: bookingGuestDetails.phone,
+                    specialRequests: `${packageLabel}; Pending approval after payment`
+                },
+                pricing: {
+                    basePrice: Math.round(bookingBaseTotal),
+                    nights: experience === 'day' ? 1 : 2,
+                    totalPrice: Math.round(bookingBaseTotal),
+                    tax: bookingTax,
+                    grandTotal: bookingGrandTotal,
+                    addOns: [],
+                    status: 'Pending Approval'
+                },
+                retreatMeta: {
+                    package: packageLabel,
+                    stayType: experience === 'day' ? null : stayType,
+                    seasonalMultiplier
+                }
+            });
+
+            setBookingSuccess({
+                packageLabel,
+                total: bookingGrandTotal
+            });
+
+            window.setTimeout(() => {
+                navigate('/cart');
+            }, 1500);
+        } catch (error) {
+            console.error('Booking error:', error);
+            setCalendarError(error.response?.data?.message || 'An error occurred while booking. Please try again.');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const submitLead = async (event) => {
+        event.preventDefault();
+        setLeadStatus('Saving your request...');
+
+        try {
+            await axios.post(`${API_URL}/api/leads`, {
+                ...leadForm,
+                source: '2-day-learning-retreat',
+                retreatName: retreatContent.retreatName
+            });
+            setLeadStatus('Thank you. Your brochure download has started.');
+        } catch (error) {
+            setLeadStatus('Your brochure download has started. We could not save the lead right now.');
+        }
+
+        // Simulate brochure download
+        const link = document.createElement('a');
+        link.href = 'data:text/plain;charset=utf-8,' + encodeURIComponent(`
+BROWN COWS DAIRY - 2-DAY LEARNING RETREAT
+
+${retreatContent.title}
+
+${retreatContent.subtitle}
+
+RETREAT HIGHLIGHTS:
+${retreatContent.highlights.map(h => `• ${h}`).join('\n')}
+
+PACKAGES:
+• Day Experience: ${formatMoney(retreatContent.packages.day.basePrice)} per person
+• Solo Stay: ${formatMoney(retreatContent.packages.stays[0].basePrice)} per person
+• Couple Stay: ${formatMoney(retreatContent.packages.stays[1].basePrice)} per couple
+• Group Stay: ${formatMoney(retreatContent.packages.stays[2].basePrice)} per group
+
+LOCATION:
+${retreatContent.location}
+
+CONTACT:
+📱 ${retreatContent.whatsapp}
+📧 ${retreatContent.email}
+
+For bookings and inquiries, visit: ${window.location.origin}
+        `);
+        link.download = retreatContent.brochureFileName;
+        link.click();
     };
 
     return (
-        <div className="space-y-12 md:space-y-16 text-gray-900 dark:text-white">
-            <section className="relative min-h-[620px] overflow-hidden rounded-2xl md:rounded-3xl bg-[#1f2b20] shadow-2xl">
-                <video
-                    className="absolute inset-0 h-full w-full object-cover"
-                    src={heroVideo}
-                    autoPlay
-                    muted
-                    loop
-                    playsInline
-                />
-                <div className="absolute inset-0 bg-gradient-to-r from-[#152018]/90 via-[#3f4a32]/65 to-[#152018]/20" />
-                <div className="relative z-10 flex min-h-[620px] items-center px-5 py-10 sm:px-8 lg:px-14">
-                    <motion.div
-                        initial={{ opacity: 0, y: 24 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.7 }}
-                        className="max-w-3xl text-[#fff8ea]"
-                    >
-                        <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#e5c16b]/40 bg-[#fff8ea]/15 px-4 py-2 text-sm font-semibold backdrop-blur">
-                            <Sprout size={18} />
-                            Farm Learning Retreat
-                        </div>
-                        <h1 className="text-4xl font-bold leading-tight sm:text-5xl lg:text-7xl">
-                            Fun, Learning and Memories in One Farm Experience
-                        </h1>
-                        <p className="mt-6 max-w-2xl text-base leading-relaxed text-[#f7f1df] sm:text-xl">
-                            A hands-on Brown Cows farm retreat for kids and adults with natural farming, fresh air, farm meals, cow interaction, and meaningful rural living.
-                        </p>
-                        <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                            <button
-                                onClick={() => document.getElementById('retreat-booking')?.scrollIntoView({ behavior: 'smooth' })}
-                                className="inline-flex items-center justify-center rounded-full bg-[#8b5e34] px-7 py-3.5 font-semibold text-[#fff8ea] shadow-lg transition hover:bg-[#704721]"
-                            >
-                                Book Your Spot <ArrowRight className="ml-2" size={20} />
-                            </button>
-                            <button
-                                onClick={() => setShowBrochure(true)}
-                                className="inline-flex items-center justify-center rounded-full border border-[#fff8ea]/50 bg-[#fff8ea]/15 px-7 py-3.5 font-semibold text-[#fff8ea] backdrop-blur transition hover:bg-[#fff8ea]/25"
-                            >
-                                <Download className="mr-2" size={20} />
-                                Download Brochure
-                            </button>
-                        </div>
-                    </motion.div>
-                </div>
-            </section>
+        <div className="-mx-4 -my-8 overflow-x-hidden bg-[#f5efe3] text-[#211b14] dark:bg-[#111611] dark:text-[#f7f0e4]">
+            <FloatingWhatsApp phone={retreatContent.whatsapp} />
 
-            <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-                <div>
-                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#8b5e34] dark:text-[#f2c76b]">Discover your farm journey</p>
-                    <h2 className="mt-3 text-3xl font-bold text-gray-900 dark:text-white md:text-5xl">Leave the city noise behind</h2>
-                    <p className="mt-5 text-lg leading-relaxed text-gray-600 dark:text-gray-300">
-                        Step into a world where time slows down. Learn traditional farming practices, reconnect with nature, and discover the simple joy of rural living through workshops, farm walks, and meals from the land.
-                    </p>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                    {[
-                        'Learn authentic farming techniques from experienced farmers',
-                        'Experience the calming rhythm of rural life',
-                        'Enjoy fresh organic meals straight from the farm',
-                        'Create lasting memories in a peaceful natural setting'
-                    ].map((item) => (
-                        <div key={item} className="rounded-xl border border-[#e8ddc7] bg-[#fffaf0] p-4 text-sm font-medium text-[#31402a] shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">
-                            <CheckCircle2 className="mb-3 text-[#8b5e34]" size={22} />
-                            {item}
-                        </div>
-                    ))}
-                </div>
-            </section>
+            <HeroSection
+                retreatContent={retreatContent}
+                setShowBrochure={setShowBrochure}
+                onBookNow={() => {
+                    document.getElementById('booking')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    window.setTimeout(() => setIsCalendarOpen(true), 450);
+                }}
+            />
 
-            <section>
-                <div className="mb-8 flex flex-col justify-between gap-3 md:flex-row md:items-end">
-                    <div>
-                        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#8b5e34] dark:text-[#f2c76b]">Who should join?</p>
-                        <h2 className="mt-2 text-3xl font-bold md:text-4xl">Built for curious learners</h2>
-                    </div>
-                    <p className="max-w-2xl text-gray-600 dark:text-gray-300">
-                        The retreat welcomes everyone curious about sustainable living and authentic farm life.
-                    </p>
-                </div>
-                <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-                    {audienceCards.map((card) => (
-                        <article key={card.title} className="overflow-hidden rounded-2xl bg-white shadow-lg ring-1 ring-gray-100 dark:bg-gray-800 dark:ring-gray-700">
-                            <img src={card.image} alt={card.title} className="h-44 w-full object-cover" loading="lazy" />
-                            <div className="p-5">
-                                <h3 className="text-xl font-bold">{card.title}</h3>
-                                <p className="mt-2 text-sm leading-relaxed text-gray-600 dark:text-gray-300">{card.text}</p>
-                            </div>
-                        </article>
-                    ))}
-                </div>
-            </section>
-
-            <section id="retreat-booking" className="grid gap-8 rounded-2xl bg-[#f7f1df] p-5 shadow-xl dark:bg-gray-800 md:p-8 lg:grid-cols-[0.85fr_1.15fr]">
-                <div>
-                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#8b5e34] dark:text-[#f2c76b]">Schedule your experience</p>
-                    <h2 className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">Choose your retreat</h2>
-                    <div className="mt-6 grid grid-cols-2 rounded-full bg-white p-1 shadow-inner dark:bg-gray-900">
-                        {[
-                            ['day', 'Day Experience'],
-                            ['stay', '2-Day Farm Stay']
-                        ].map(([value, label]) => (
-                            <button
-                                key={value}
-                                onClick={() => setExperienceType(value)}
-                                className={`rounded-full px-4 py-2.5 text-sm font-semibold transition ${experienceType === value ? 'bg-[#8b5e34] text-white shadow' : 'text-gray-600 dark:text-gray-300'}`}
-                            >
-                                {label}
-                            </button>
-                        ))}
-                    </div>
-                    <div className="mt-6 rounded-2xl bg-white p-5 shadow-sm dark:bg-gray-900">
-                        <div className="flex items-start justify-between gap-4">
-                            <div>
-                                <h3 className="text-xl font-bold">
-                                    {experienceType === 'day' ? 'Farm Day Experience' : '2-Day Farm Stay'}
-                                </h3>
-                                <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
-                                    {experienceType === 'day' ? '1 day learning program' : 'Saturday and Sunday immersive farm stay'}
-                                </p>
-                            </div>
-                            <div className="rounded-full bg-[#e8f5dc] px-3 py-1 text-sm font-bold text-[#31551e]">
-                                {experienceType === 'day' ? 'Rs 3,500 + taxes' : 'Weekend stay'}
-                            </div>
-                        </div>
-
-                        <div className="mt-5 space-y-5">
-                            <div>
-                                <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Number of guests</label>
-                                <div className="mt-2 flex w-fit items-center rounded-full border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-gray-800">
-                                    <button onClick={() => updateGuests(-1)} className="rounded-full p-2 hover:bg-white dark:hover:bg-gray-700" aria-label="Decrease guests">
-                                        <Minus size={18} />
-                                    </button>
-                                    <span className="min-w-12 text-center font-bold">{guests}</span>
-                                    <button onClick={() => updateGuests(1)} className="rounded-full p-2 hover:bg-white dark:hover:bg-gray-700" aria-label="Increase guests">
-                                        <Plus size={18} />
-                                    </button>
-                                </div>
-                            </div>
-
-                            {experienceType === 'stay' && (
-                                <div>
-                                    <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Choose your stay type</label>
-                                    <div className="mt-2 grid grid-cols-3 gap-2">
-                                        {['Solo', 'Couple', 'Group'].map((type) => (
-                                            <button
-                                                key={type}
-                                                onClick={() => setStayType(type)}
-                                                className={`rounded-xl border px-3 py-2 text-sm font-semibold transition ${stayType === type ? 'border-[#8b5e34] bg-[#8b5e34] text-white' : 'border-gray-200 bg-white text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200'}`}
-                                            >
-                                                {type}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            <div>
-                                <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Select date</label>
-                                <div className="mt-2 flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-800">
-                                    <CalendarDays size={20} className="text-[#8b5e34]" />
-                                    <input
-                                        type="date"
-                                        value={selectedDate}
-                                        onChange={(event) => {
-                                            setSelectedDate(event.target.value);
-                                            setDateError('');
-                                        }}
-                                        className="w-full bg-transparent text-gray-900 outline-none dark:text-white"
-                                    />
-                                </div>
-                                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">Please select a Saturday. Weekend stays include Saturday and Sunday.</p>
-                                {dateError && <p className="mt-2 text-sm font-semibold text-red-600">{dateError}</p>}
-                            </div>
-
-                            <button
-                                onClick={bookSlot}
-                                className="inline-flex w-full items-center justify-center rounded-xl bg-[#0f7f67] px-5 py-3 font-bold text-white shadow-lg transition hover:bg-[#0b6552]"
-                            >
-                                {experienceType === 'day' ? 'Book Day Experience' : 'Book Your Slot'}
-                                <ArrowRight className="ml-2" size={20} />
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="space-y-5">
-                    <ScheduleBlock title="Day 1" items={dayOneSchedule} />
-                    {experienceType === 'stay' && <ScheduleBlock title="Day 2" items={dayTwoSchedule} />}
-                </div>
-            </section>
-
-            <section>
-                <div className="mb-8">
-                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#8b5e34] dark:text-[#f2c76b]">Experience farm life</p>
-                    <h2 className="mt-2 text-3xl font-bold md:text-4xl">Moments from the farm</h2>
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    {galleryImages.map((image, index) => (
-                        <button
-                            key={image}
-                            onClick={() => setOpenImage(index)}
-                            className="group overflow-hidden rounded-2xl bg-gray-100 shadow-lg"
+            <main className="w-full space-y-16 py-14 sm:space-y-24 sm:py-20 lg:space-y-32 lg:py-24">
+                <div className="mx-auto w-full max-w-[1480px] px-4 sm:px-6 lg:px-10">
+                <section id="booking" className="grid gap-8 lg:grid-cols-[minmax(0,1.45fr)_minmax(360px,0.9fr)] lg:items-start lg:gap-12">
+                    <div className="space-y-8">
+                        <RetreatHeader retreatContent={retreatContent} />
+                        
+                        <motion.div
+                            initial={{ opacity: 0, y: 30 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.6, delay: 0.2 }}
                         >
-                            <img src={image} alt={`Farm retreat moment ${index + 1}`} className="h-56 w-full object-cover transition duration-700 group-hover:scale-110" loading="lazy" />
-                        </button>
-                    ))}
-                </div>
-            </section>
-
-            <section className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
-                <div className="rounded-2xl bg-[#3f4f5f] p-6 text-white shadow-xl md:p-8">
-                    <h2 className="text-3xl font-bold">Visit our farm</h2>
-                    <div className="mt-6 space-y-4 text-[#f7f1df]">
-                        <p className="flex gap-3"><MapPin className="mt-1 shrink-0" />4-140, Gouripally Village, Amangal Mandal, Telangana 509321</p>
-                        <p className="flex gap-3"><Phone className="mt-1 shrink-0" />99898 54411</p>
-                        <p className="flex gap-3"><BookOpen className="mt-1 shrink-0" />browncowsdairy@gmail.com</p>
+                            <PropertyImageGallery 
+                                experience={experience}
+                                stayType={stayType}
+                                stayOptions={retreatContent.stayOptions}
+                                linkedFarm={resolveFarmForBooking()}
+                                retreatHeroImage={retreatContent.heroImage}
+                            />
+                        </motion.div>
                     </div>
-                    <a
-                        href="https://wa.me/919989854411?text=Hi%2C%20I%20want%20to%20know%20more%20about%20the%20Brown%20Cows%20learning%20retreat."
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-7 inline-flex items-center rounded-full bg-[#8b5e34] px-6 py-3 font-semibold text-white transition hover:bg-[#704721]"
-                    >
-                        Chat on WhatsApp <ArrowRight className="ml-2" size={18} />
-                    </a>
-                </div>
-                <div className="space-y-3">
-                    <h2 className="text-3xl font-bold">Frequently asked questions</h2>
-                    {faqs.map((faq, index) => (
-                        <div key={faq.question} className="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
-                            <button
-                                onClick={() => setOpenFaq(openFaq === index ? null : index)}
-                                className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left font-semibold"
-                            >
-                                {faq.question}
-                                <ChevronDown className={`shrink-0 transition ${openFaq === index ? 'rotate-180' : ''}`} size={20} />
-                            </button>
-                            <AnimatePresence initial={false}>
-                                {openFaq === index && (
-                                    <motion.div
-                                        initial={{ height: 0, opacity: 0 }}
-                                        animate={{ height: 'auto', opacity: 1 }}
-                                        exit={{ height: 0, opacity: 0 }}
-                                        className="overflow-hidden"
-                                    >
-                                        <p className="px-5 pb-5 leading-relaxed text-gray-600 dark:text-gray-300">{faq.answer}</p>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        </div>
-                    ))}
-                </div>
-            </section>
 
+                    <div className="lg:sticky lg:top-8">
+                        <BookingPanel
+                            experience={experience}
+                            setExperience={setExperience}
+                            stayType={stayType}
+                            setStayType={setStayType}
+                            guests={guests}
+                            setGuests={setGuests}
+                            selectedStay={selectedStay}
+                            selectedDate={selectedDate}
+                            setSelectedDate={setSelectedDate}
+                            selectedMonth={selectedMonth}
+                            setSelectedMonth={setSelectedMonth}
+                            monthDates={monthDates}
+                            monthLabel={monthLabel}
+                            blockedDates={retreatContent.blockedDates}
+                            seasonalPricing={retreatContent.seasonalPricing}
+                            calendarError={calendarError}
+                            setCalendarError={setCalendarError}
+                            baseTotal={baseTotal}
+                            tax={tax}
+                            grandTotal={grandTotal}
+                            handleBook={handleBook}
+                            isCalendarOpen={isCalendarOpen}
+                            setIsCalendarOpen={setIsCalendarOpen}
+                            activePackage={activePackage}
+                            seasonalMultiplier={seasonalMultiplier}
+                            retreatContent={retreatContent}
+                            guestDetails={guestDetails}
+                            setGuestDetails={setGuestDetails}
+                            isSubmitting={isSubmitting}
+                        />
+                    </div>
+                </section>
+
+                <div className="h-4 sm:h-8 lg:h-12"></div>
+
+                <AudienceSection audience={retreatContent.audience} />
+                
+                <StayOptionsSection stayOptions={retreatContent.stayOptions} />
+                
+                <div className="h-4 sm:h-8"></div>
+                
+                <ScheduleSection schedule={retreatContent.schedule} />
+                
+                <div className="h-4 sm:h-8"></div>
+                
+                <GallerySection 
+                    gallery={retreatContent.gallery} 
+                    lightboxIndex={lightboxIndex}
+                    setLightboxIndex={setLightboxIndex}
+                />
+                
+                <div className="h-4 sm:h-8"></div>
+                
+                <FAQSection faqs={retreatContent.faqs} />
+                
+                <div className="h-4 sm:h-8"></div>
+                
+                <ContactSection retreatContent={retreatContent} />
+
+                <Lightbox
+                    index={lightboxIndex}
+                    images={retreatContent.gallery}
+                    onClose={() => setLightboxIndex(null)}
+                    onPrev={() => setLightboxIndex((lightboxIndex + retreatContent.gallery.length - 1) % retreatContent.gallery.length)}
+                    onNext={() => setLightboxIndex((lightboxIndex + 1) % retreatContent.gallery.length)}
+                />
+                </div>
+            </main>
+
+            {/* Booking Success Redirect */}
+            <AnimatePresence>
+                {bookingSuccess && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[99999] flex items-center justify-center bg-[#21170d]/65 p-4 backdrop-blur-md"
+                    >
+                        <motion.div
+                            initial={{ opacity: 0, y: 18, scale: 0.96 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 18, scale: 0.96 }}
+                            transition={{ duration: 0.25 }}
+                            className="w-full max-w-md rounded-[2rem] border border-[#e4c58f] bg-[#fffaf1] p-6 text-center shadow-[0_24px_80px_rgba(52,34,16,0.35)] dark:border-[#31392f] dark:bg-[#151b15] sm:p-8"
+                        >
+                            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#527b52] text-white shadow-xl">
+                                <CheckCircle2 size={34} />
+                            </div>
+                            <p className="mt-5 text-xs font-bold uppercase tracking-[0.24em] text-[#8b5f25] dark:text-[#e7c678]">
+                                Booking details confirmed
+                            </p>
+                            <h3 className="mt-3 text-2xl font-bold text-[#211b14] dark:text-[#fff8ea]">
+                                Added to your cart
+                            </h3>
+                            <p className="mt-3 text-sm leading-relaxed text-[#645747] dark:text-[#d5c9b7]">
+                                {bookingSuccess.packageLabel} is ready. Taking you to the cart review page now.
+                            </p>
+                            <div className="mt-6 grid grid-cols-2 gap-3 text-left">
+                                <div className="rounded-2xl bg-[#f4ead8] p-4 dark:bg-[#232823]">
+                                    <ShoppingBag className="mb-2 text-[#7a5527] dark:text-[#e7c678]" size={20} />
+                                    <p className="text-xs text-[#645747] dark:text-[#d5c9b7]">Cart total</p>
+                                    <p className="font-bold text-[#211b14] dark:text-[#fff8ea]">{formatMoney(bookingSuccess.total)}</p>
+                                </div>
+                                <div className="rounded-2xl bg-[#f4ead8] p-4 dark:bg-[#232823]">
+                                    <CreditCard className="mb-2 text-[#7a5527] dark:text-[#e7c678]" size={20} />
+                                    <p className="text-xs text-[#645747] dark:text-[#d5c9b7]">Next step</p>
+                                    <p className="font-bold text-[#211b14] dark:text-[#fff8ea]">Review cart</p>
+                                </div>
+                            </div>
+                            <div className="mx-auto mt-6 h-1.5 w-28 overflow-hidden rounded-full bg-[#ead7b8] dark:bg-[#31392f]">
+                                <motion.div
+                                    className="h-full rounded-full bg-[#7a5527]"
+                                    initial={{ width: '0%' }}
+                                    animate={{ width: '100%' }}
+                                    transition={{ duration: 1.5, ease: 'linear' }}
+                                />
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Calendar Modal */}
+            <AnimatePresence>
+                {isCalendarOpen && (
+                    <>
+                        <div 
+                            className="fixed inset-0 z-50 bg-[#21170d]/55 backdrop-blur-md"
+                            onClick={() => setIsCalendarOpen(false)}
+                        />
+                        
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none"
+                        >
+                            <div className="pointer-events-auto w-full max-w-[380px]">
+                                <CalendarModal
+                                    experience={experience}
+                                    selectedDate={selectedDate}
+                                    setSelectedDate={setSelectedDate}
+                                    selectedMonth={selectedMonth}
+                                    setSelectedMonth={setSelectedMonth}
+                                    monthDates={monthDates}
+                                    monthLabel={monthLabel}
+                                    blockedDates={retreatContent.blockedDates}
+                                    setCalendarError={setCalendarError}
+                                    onClose={() => setIsCalendarOpen(false)}
+                                />
+                            </div>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
+
+            {/* Brochure Modal */}
             <AnimatePresence>
                 {showBrochure && (
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+                        onClick={() => setShowBrochure(false)}
                     >
                         <motion.div
-                            initial={{ scale: 0.95, y: 20 }}
-                            animate={{ scale: 1, y: 0 }}
-                            exit={{ scale: 0.95, y: 20 }}
-                            className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl dark:bg-gray-900"
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                            className="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl dark:bg-[#1c211c] sm:p-8"
+                            onClick={(e) => e.stopPropagation()}
                         >
-                            <div className="flex items-start justify-between gap-4">
+                            <button
+                                onClick={() => setShowBrochure(false)}
+                                className="absolute right-4 top-4 rounded-full bg-gray-100 p-2 text-gray-600 transition hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400"
+                            >
+                                <X size={20} />
+                            </button>
+                            
+                            <h3 className="text-2xl font-bold mb-4 text-[#211b14] dark:text-[#fff8ea]">
+                                Download Retreat Brochure
+                            </h3>
+                            
+                            <form onSubmit={submitLead} className="space-y-4">
                                 <div>
-                                    <h2 className="text-2xl font-bold">Get Our Brochure</h2>
-                                    <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">Fill in your details and the download starts instantly.</p>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                        Name
+                                    </label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={leadForm.name}
+                                        onChange={(e) => setLeadForm({ ...leadForm, name: e.target.value })}
+                                        className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-[#7a5527] focus:outline-none focus:ring-2 focus:ring-[#7a5527]/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                                    />
                                 </div>
-                                <button onClick={() => setShowBrochure(false)} className="rounded-full p-2 hover:bg-gray-100 dark:hover:bg-gray-800" aria-label="Close brochure form">
-                                    <X size={22} />
+                                
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                        Email
+                                    </label>
+                                    <input
+                                        type="email"
+                                        required
+                                        value={leadForm.email}
+                                        onChange={(e) => setLeadForm({ ...leadForm, email: e.target.value })}
+                                        className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-[#7a5527] focus:outline-none focus:ring-2 focus:ring-[#7a5527]/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                                    />
+                                </div>
+                                
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                        Phone
+                                    </label>
+                                    <input
+                                        type="tel"
+                                        required
+                                        value={leadForm.phone}
+                                        onChange={(e) => setLeadForm({ ...leadForm, phone: e.target.value })}
+                                        className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-[#7a5527] focus:outline-none focus:ring-2 focus:ring-[#7a5527]/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                                    />
+                                </div>
+                                
+                                <button
+                                    type="submit"
+                                    disabled={leadStatus === 'Saving your request...'}
+                                    className="w-full rounded-full bg-[#7a5527] px-6 py-3 font-semibold text-white transition hover:bg-[#5d3d19] disabled:opacity-50"
+                                >
+                                    {leadStatus === 'Saving your request...' ? 'Saving...' : 'Download Brochure'}
                                 </button>
-                            </div>
-                            <form onSubmit={submitBrochure} className="mt-6 space-y-4">
-                                <Input label="Full Name" value={brochureForm.name} onChange={(value) => setBrochureForm({ ...brochureForm, name: value })} required />
-                                <Input label="Email Address" type="email" value={brochureForm.email} onChange={(value) => setBrochureForm({ ...brochureForm, email: value })} required />
-                                <Input label="Phone Number" type="tel" value={brochureForm.phone} onChange={(value) => setBrochureForm({ ...brochureForm, phone: value })} required />
-                                <Input label="Number of Guests" type="number" min="1" value={brochureForm.guests} onChange={(value) => setBrochureForm({ ...brochureForm, guests: value })} />
-                                <button type="submit" className="inline-flex w-full items-center justify-center rounded-xl bg-[#0f7f67] px-5 py-3 font-bold text-white hover:bg-[#0b6552]">
-                                    Get Brochure <ArrowRight className="ml-2" size={18} />
-                                </button>
-                                {brochureSubmitted && <p className="text-sm font-semibold text-[#0f7f67]">Thank you. Your brochure download has started.</p>}
+                                
+                                {leadStatus && (
+                                    <p className="text-sm text-center text-gray-600 dark:text-gray-400">
+                                        {leadStatus}
+                                    </p>
+                                )}
                             </form>
                         </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
-            <AnimatePresence>
-                {openImage !== null && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-[70] flex items-center justify-center bg-black/85 p-4"
-                    >
-                        <button onClick={() => setOpenImage(null)} className="absolute right-4 top-4 rounded-full bg-white/10 p-3 text-white hover:bg-white/20" aria-label="Close image">
-                            <X />
-                        </button>
-                        <button onClick={() => setOpenImage((openImage + galleryImages.length - 1) % galleryImages.length)} className="absolute left-4 rounded-full bg-white/10 p-3 text-white hover:bg-white/20" aria-label="Previous image">
-                            <ChevronLeft />
-                        </button>
-                        <img src={galleryImages[openImage]} alt="Farm retreat gallery preview" className="max-h-[84vh] max-w-[88vw] rounded-2xl object-contain" />
-                        <button onClick={() => setOpenImage((openImage + 1) % galleryImages.length)} className="absolute right-4 rounded-full bg-white/10 p-3 text-white hover:bg-white/20" aria-label="Next image">
-                            <ChevronRight />
-                        </button>
                     </motion.div>
                 )}
             </AnimatePresence>
         </div>
     );
 };
-
-const ScheduleBlock = ({ title, items }) => (
-    <div className="rounded-2xl bg-white p-5 shadow-sm dark:bg-gray-900">
-        <h3 className="mb-4 flex items-center gap-2 text-2xl font-bold">
-            <CalendarDays className="text-[#8b5e34]" />
-            {title}
-        </h3>
-        <div className="space-y-4">
-            {items.map(([time, heading, detail]) => (
-                <div key={`${time}-${heading}`} className="grid gap-2 border-l-2 border-[#d6a23d] pl-4 sm:grid-cols-[90px_1fr]">
-                    <div className="text-sm font-bold text-[#8b5e34] dark:text-[#f2c76b]">{time}</div>
-                    <div>
-                        <h4 className="font-bold">{heading}</h4>
-                        <p className="mt-1 text-sm leading-relaxed text-gray-600 dark:text-gray-300">{detail}</p>
-                    </div>
-                </div>
-            ))}
-        </div>
-    </div>
-);
-
-const Input = ({ label, value, onChange, type = 'text', ...props }) => (
-    <label className="block">
-        <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">{label}</span>
-        <input
-            type={type}
-            value={value}
-            onChange={(event) => onChange(event.target.value)}
-            className="mt-1 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 outline-none transition focus:border-[#8b5e34] focus:ring-2 focus:ring-[#8b5e34]/20 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
-            {...props}
-        />
-    </label>
-);
 
 export default LearningRetreat;

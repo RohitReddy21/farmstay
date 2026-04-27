@@ -12,39 +12,39 @@ export default {
                 mono: ['JetBrains Mono', 'monospace'],
             },
             colors: {
-                // Professional color palette
+                // Brown Cows retreat palette
                 primary: {
-                    DEFAULT: '#047857', // Forest Green 700
-                    50: '#ecfdf5',
-                    100: '#d1fae5',
-                    200: '#a7f3d0',
-                    300: '#6ee7b7',
-                    400: '#34d399',
-                    500: '#10b981',
-                    600: '#059669',
-                    700: '#047857',
-                    800: '#065f46',
-                    900: '#064e3b',
+                    DEFAULT: '#7a5527',
+                    50: '#fffaf1',
+                    100: '#f4ead8',
+                    200: '#ead7b8',
+                    300: '#dfbf88',
+                    400: '#d6a23d',
+                    500: '#a97833',
+                    600: '#8b5f25',
+                    700: '#7a5527',
+                    800: '#5d3d19',
+                    900: '#21170d',
                 },
                 secondary: {
-                    DEFAULT: '#0f766e', // Teal 700
-                    50: '#f0fdfa',
-                    100: '#ccfbf1',
-                    200: '#99f6e4',
-                    300: '#5eead4',
-                    400: '#2dd4bf',
-                    500: '#14b8a6',
-                    600: '#0d9488',
-                    700: '#0f766e',
-                    800: '#115e59',
-                    900: '#134e4a',
+                    DEFAULT: '#527b52',
+                    50: '#f3f8f1',
+                    100: '#e4efdf',
+                    200: '#cadfbd',
+                    300: '#a9ca98',
+                    400: '#80aa6e',
+                    500: '#63905a',
+                    600: '#527b52',
+                    700: '#3d5e3d',
+                    800: '#304a31',
+                    900: '#263d29',
                 },
-                accent: '#dc2626', // Red 600
-                background: '#f8fafc', // Slate 50
-                surface: '#ffffff',
+                accent: '#d6a23d',
+                background: '#f5efe3',
+                surface: '#fffaf1',
                 text: {
-                    primary: '#0f172a', // Slate 900
-                    secondary: '#64748b', // Slate 500
+                    primary: '#211b14',
+                    secondary: '#645747',
                 },
             },
             borderRadius: {

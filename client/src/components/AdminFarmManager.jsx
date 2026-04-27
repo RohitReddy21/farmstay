@@ -213,7 +213,7 @@ const AdminFarmManager = () => {
                     <button
                         type="button"
                         onClick={startCreate}
-                        className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-primary text-white hover:bg-green-600"
+                        className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-primary text-white hover:bg-primary-800"
                     >
                         <PlusCircle size={16} /> New Farm
                     </button>

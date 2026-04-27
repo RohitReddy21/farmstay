@@ -114,7 +114,7 @@ const Profile = () => {
 
             {message.text && (
                 <div className={`mb-6 p-4 rounded-lg ${message.type === 'success'
-                    ? 'bg-green-50 text-green-800 border border-green-200'
+                    ? 'bg-secondary-50 text-secondary-800 border border-secondary-200'
                     : 'bg-red-50 text-red-800 border border-red-200'
                     }`}>
                     {message.text}
@@ -180,7 +180,7 @@ const Profile = () => {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full bg-primary text-white py-2.5 md:py-3 rounded-lg font-semibold hover:bg-green-600 transition-all shadow-md flex items-center justify-center gap-2 disabled:bg-gray-300 disabled:cursor-not-allowed text-sm md:text-base"
+                            className="w-full bg-primary text-white py-2.5 md:py-3 rounded-lg font-semibold hover:bg-primary-800 transition-all shadow-md flex items-center justify-center gap-2 disabled:bg-gray-300 disabled:cursor-not-allowed text-sm md:text-base"
                         >
                             <Save size={18} className="md:w-5 md:h-5" />
                             {loading ? 'Saving...' : 'Save Changes'}
@@ -247,7 +247,7 @@ const Profile = () => {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full bg-primary text-white py-2.5 md:py-3 rounded-lg font-semibold hover:bg-green-600 transition-all shadow-md flex items-center justify-center gap-2 disabled:bg-gray-300 disabled:cursor-not-allowed text-sm md:text-base"
+                            className="w-full bg-primary text-white py-2.5 md:py-3 rounded-lg font-semibold hover:bg-primary-800 transition-all shadow-md flex items-center justify-center gap-2 disabled:bg-gray-300 disabled:cursor-not-allowed text-sm md:text-base"
                         >
                             <Lock size={18} className="md:w-5 md:h-5" />
                             {loading ? 'Changing...' : 'Change Password'}

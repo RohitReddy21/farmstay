@@ -67,7 +67,7 @@ const Favorites = () => {
                     <p className="text-gray-500 mb-6">Start exploring and save your favorite farms!</p>
                     <button
                         onClick={() => navigate('/farms')}
-                        className="px-6 py-3 bg-primary text-white rounded-lg hover:bg-green-600 transition-all shadow-md"
+                        className="px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary-800 transition-all shadow-md"
                     >
                         Explore Farms
                     </button>
@@ -137,7 +137,7 @@ const Favorites = () => {
                                                 e.stopPropagation();
                                                 navigate(`/farm/${farm._id}`);
                                             }}
-                                            className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-green-600 transition-all text-sm font-semibold"
+                                            className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-800 transition-all text-sm font-semibold"
                                         >
                                             View Details
                                         </button>

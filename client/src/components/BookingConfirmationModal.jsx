@@ -30,7 +30,7 @@ const BookingConfirmationModal = ({ isOpen, onClose, bookingDetails }) => {
                             onClick={(e) => e.stopPropagation()}
                         >
                             {/* Header with Success Icon */}
-                            <div className="bg-gradient-to-br from-green-500 to-green-600 p-5 text-center relative">
+                            <div className="bg-gradient-to-br from-primary to-primary-800 p-5 text-center relative">
                                 <button
                                     onClick={onClose}
                                     className="absolute top-3 right-3 text-white/80 hover:text-white transition-colors"
@@ -45,14 +45,14 @@ const BookingConfirmationModal = ({ isOpen, onClose, bookingDetails }) => {
                                     className="inline-block"
                                 >
                                     <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center mx-auto mb-2">
-                                        <CheckCircle size={32} className="text-green-500" />
+                                        <CheckCircle size={32} className="text-primary" />
                                     </div>
                                 </motion.div>
 
                                 <h2 className="text-xl font-bold text-white mb-1">
                                     Booking Confirmed!
                                 </h2>
-                                <p className="text-green-50 text-xs">
+                                <p className="text-primary-50 text-xs">
                                     Your reservation has been successfully confirmed
                                 </p>
                             </div>
@@ -116,14 +116,14 @@ const BookingConfirmationModal = ({ isOpen, onClose, bookingDetails }) => {
                                     </div>
 
                                     {/* Total Amount */}
-                                    <div className="flex items-center justify-between p-3 bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg border-2 border-green-200">
+                                    <div className="flex items-center justify-between p-3 bg-gradient-to-br from-primary-50 to-primary-100 rounded-lg border-2 border-primary-200">
                                         <div className="flex items-center gap-2">
-                                            <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                                            <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
                                                 <IndianRupee size={16} className="text-white" />
                                             </div>
                                             <div>
-                                                <p className="text-xs text-green-700 font-medium">Total Amount</p>
-                                                <p className="text-xl font-bold text-green-700">₹{totalPrice.toLocaleString()}</p>
+                                                <p className="text-xs text-primary-700 font-medium">Total Amount</p>
+                                                <p className="text-xl font-bold text-primary-700">₹{totalPrice.toLocaleString()}</p>
                                             </div>
                                         </div>
                                     </div>
@@ -139,7 +139,7 @@ const BookingConfirmationModal = ({ isOpen, onClose, bookingDetails }) => {
                                 {/* Action Button */}
                                 <button
                                     onClick={onClose}
-                                    className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-2.5 rounded-lg font-semibold hover:from-green-600 hover:to-green-700 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 text-sm"
+                                    className="w-full bg-gradient-to-r from-primary to-primary-800 text-white py-2.5 rounded-lg font-semibold hover:from-primary-800 hover:to-primary-900 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 text-sm"
                                 >
                                     View My Bookings
                                 </button>

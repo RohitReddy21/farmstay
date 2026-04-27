@@ -8,11 +8,11 @@ const Toast = ({ notification, onClose }) => {
 
     const styles = {
         success: {
-            bg: 'bg-gradient-to-r from-green-50 to-emerald-50',
-            border: 'border-green-200',
-            icon: 'text-green-600',
-            title: 'text-green-900',
-            message: 'text-green-700'
+            bg: 'bg-gradient-to-r from-secondary-50 to-primary-50',
+            border: 'border-secondary-200',
+            icon: 'text-secondary',
+            title: 'text-secondary-900',
+            message: 'text-secondary-700'
         },
         error: {
             bg: 'bg-gradient-to-r from-red-50 to-rose-50',

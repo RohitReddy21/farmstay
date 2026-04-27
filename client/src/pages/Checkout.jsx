@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
-import { ShieldCheck, ChevronLeft, Loader } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { ShieldCheck, ChevronLeft, Loader, CreditCard, Banknote } from 'lucide-react';
 import API_URL from '../config';
 
 const Checkout = () => {
@@ -13,6 +12,7 @@ const Checkout = () => {
     const navigate = useNavigate();
     const [isProcessing, setIsProcessing] = useState(false);
     const [error, setError] = useState(null);
+    const [paymentMethod, setPaymentMethod] = useState('razorpay');
 
     React.useEffect(() => {
         if (!cartItem) {
@@ -26,49 +26,60 @@ const Checkout = () => {
         return null;
     }
 
+    const propertyTitle = cartItem.property?.title || 'Brown Cows Dairy Stay';
+    const token = localStorage.getItem('token');
+
+    const buildBookingPayload = () => {
+        const adults = Number(cartItem.guests?.adults ?? cartItem.guests) || 1;
+        const children = Number(cartItem.guests?.children) || 0;
+
+        return {
+            propertyId: cartItem.propertyId,
+            roomId: cartItem.roomId,
+            startDate: cartItem.startDate,
+            endDate: cartItem.endDate,
+            guests: { adults, children },
+            totalPrice: cartItem.pricing.totalPrice,
+            tax: cartItem.pricing.tax,
+            guestDetails: cartItem.guestDetails
+        };
+    };
+
     const handlePayment = async () => {
         setIsProcessing(true);
         setError(null);
 
         try {
-            // 1. Create Razorpay Order on Backend
-            const { data: orderData } = await axios.post(`${API_URL}/api/bookings/create-order`, {
-                propertyId: cartItem.propertyId,
-                startDate: cartItem.startDate,
-                endDate: cartItem.endDate,
-                guests: { adults: cartItem.guests },
-                totalPrice: cartItem.pricing.totalPrice,
-                tax: cartItem.pricing.tax,
-                guestDetails: cartItem.guestDetails
-            }, {
-                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+            const { data: orderData } = await axios.post(`${API_URL}/api/bookings/create-order`, buildBookingPayload(), {
+                headers: { Authorization: `Bearer ${token}` }
             });
 
             if (!orderData.success) {
                 throw new Error('Failed to create order');
             }
 
-            // Fetch Razorpay Key
+            if (!window.Razorpay) {
+                throw new Error('Razorpay checkout is not loaded. Please refresh and try again.');
+            }
+
             const { data: keyData } = await axios.get(`${API_URL}/api/bookings/razorpay-key`);
 
-            // 2. Initialize Razorpay Checkout
             const options = {
                 key: keyData.key,
                 amount: orderData.amount,
-                currency: "INR",
-                name: "Brown Cows Dairy",
-                description: `Booking for ${cartItem.property.title}`,
+                currency: 'INR',
+                name: 'Brown Cows Dairy',
+                description: `Booking for ${propertyTitle}`,
                 order_id: orderData.orderId,
                 handler: async function (response) {
                     try {
-                        // 3. Verify Payment Signature
                         const verifyRes = await axios.post(`${API_URL}/api/bookings/verify-payment`, {
                             razorpay_order_id: response.razorpay_order_id,
                             razorpay_payment_id: response.razorpay_payment_id,
                             razorpay_signature: response.razorpay_signature,
                             bookingId: orderData.bookingId
-                        }, { 
-                            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } 
+                        }, {
+                            headers: { Authorization: `Bearer ${token}` }
                         });
 
                         if (verifyRes.data.success) {
@@ -85,9 +96,9 @@ const Checkout = () => {
                     contact: cartItem.guestDetails.phone,
                     email: user.email
                 },
-                theme: { color: "#16a34a" },
+                theme: { color: '#7a5527' },
                 modal: {
-                    ondismiss: function() {
+                    ondismiss: function () {
                         setIsProcessing(false);
                     }
                 }
@@ -99,92 +110,168 @@ const Checkout = () => {
                 setIsProcessing(false);
             });
             rzp.open();
-
         } catch (err) {
             console.error('Checkout error:', err);
-            setError(err.response?.data?.message || 'Something went wrong while initiating payment.');
+            setError(err.response?.data?.message || err.message || 'Something went wrong while initiating payment.');
             setIsProcessing(false);
         }
     };
 
+    const handleCodBooking = async () => {
+        setIsProcessing(true);
+        setError(null);
+
+        try {
+            const { data } = await axios.post(`${API_URL}/api/bookings/cod`, buildBookingPayload(), {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            if (!data.success) {
+                throw new Error('Failed to create COD booking');
+            }
+
+            clearCart();
+            navigate('/bookings', {
+                state: {
+                    bookingSuccess: true,
+                    message: 'COD booking placed. Your booking is pending admin approval.'
+                }
+            });
+        } catch (err) {
+            console.error('COD checkout error:', err);
+            setError(err.response?.data?.message || 'Could not place COD booking. Please try again.');
+            setIsProcessing(false);
+        }
+    };
+
+    const handleSubmitPayment = () => {
+        if (paymentMethod === 'cod') {
+            handleCodBooking();
+            return;
+        }
+
+        handlePayment();
+    };
+
     return (
-        <div className="max-w-3xl mx-auto py-8 px-4">
-            <button 
+        <div className="mx-auto max-w-3xl px-4 py-8">
+            <button
                 onClick={() => navigate('/cart')}
-                className="flex items-center text-gray-600 hover:text-primary mb-8 transition-colors"
+                className="mb-8 flex items-center text-[#645747] transition-colors hover:text-[#7a5527]"
             >
                 <ChevronLeft size={20} className="mr-1" />
                 Back to Cart
             </button>
 
-            <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden">
-                <div className="p-8 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+            <div className="overflow-hidden rounded-3xl border border-[#ead7b8] bg-[#fffaf1] shadow-2xl">
+                <div className="flex items-center justify-between border-b border-[#ead7b8] bg-[#f8efdf] p-8">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-900 mb-2">Secure Checkout</h1>
-                        <p className="text-gray-500 flex items-center gap-2">
-                            <ShieldCheck size={18} className="text-green-500" />
-                            Encrypted and secure payment via Razorpay
+                        <h1 className="mb-2 text-3xl font-bold text-[#211b14]">Secure Checkout</h1>
+                        <p className="flex items-center gap-2 text-[#645747]">
+                            <ShieldCheck size={18} className="text-[#527b52]" />
+                            Choose online payment or COD with pending admin approval.
                         </p>
                     </div>
                 </div>
 
                 <div className="p-8">
                     {error && (
-                        <div className="mb-6 p-4 bg-red-50 text-red-700 border border-red-200 rounded-xl">
+                        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
                             {error}
                         </div>
                     )}
 
-                    <div className="mb-8 p-6 bg-gradient-to-br from-primary/5 to-green-50 rounded-2xl border border-primary/10">
-                        <h3 className="text-lg font-bold text-gray-900 mb-4">Final Summary</h3>
-                        <div className="flex justify-between items-center mb-2">
-                            <span className="text-gray-600">{cartItem.property.title}</span>
-                            <span className="font-semibold text-gray-900">₹{cartItem.pricing.totalPrice}</span>
+                    <div className="mb-8 rounded-2xl border border-[#ead7b8] bg-gradient-to-br from-[#fffaf1] to-[#f4ead8] p-6">
+                        <h3 className="mb-4 text-lg font-bold text-[#211b14]">Final Summary</h3>
+                        <div className="mb-2 flex items-center justify-between">
+                            <span className="text-[#645747]">{propertyTitle}</span>
+                            <span className="font-semibold text-[#211b14]">Rs {cartItem.pricing.totalPrice}</span>
                         </div>
-                        <div className="flex justify-between items-center mb-4 pb-4 border-b border-primary/10">
-                            <span className="text-gray-600">Taxes (18%)</span>
-                            <span className="font-semibold text-gray-900">₹{cartItem.pricing.tax}</span>
+                        <div className="mb-4 flex items-center justify-between border-b border-[#ead7b8] pb-4">
+                            <span className="text-[#645747]">Taxes (18%)</span>
+                            <span className="font-semibold text-[#211b14]">Rs {cartItem.pricing.tax}</span>
                         </div>
-                        <div className="flex justify-between items-center text-xl">
-                            <span className="font-bold text-gray-900">Amount to Pay</span>
-                            <span className="font-bold text-primary">₹{cartItem.pricing.grandTotal}</span>
+                        <div className="flex items-center justify-between text-xl">
+                            <span className="font-bold text-[#211b14]">Amount to Pay</span>
+                            <span className="font-bold text-primary">Rs {cartItem.pricing.grandTotal}</span>
                         </div>
                     </div>
 
                     <div className="mb-8">
-                        <h3 className="text-xl font-bold text-gray-900 mb-2">Payment</h3>
-                        <p className="text-gray-500 text-sm mb-4">All transactions are secure and encrypted.</p>
-                        
-                        <div className="border-2 border-[#005cff] rounded-xl overflow-hidden bg-blue-50/10">
-                            <div className="p-4 flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#005cff]/20 gap-3">
-                                <span className="font-medium text-gray-900">Razorpay Secure (UPI, Cards, Int'l Cards, Wallets)</span>
-                                <div className="flex gap-1.5 items-center">
-                                    <div className="bg-white border border-gray-200 rounded px-2 py-0.5 text-xs font-bold text-green-700 flex items-center justify-center italic">UPI</div>
-                                    <div className="bg-white border border-gray-200 rounded px-2 py-0.5 text-xs font-bold text-blue-800 italic flex items-center justify-center">VISA</div>
-                                    <div className="bg-white border border-gray-200 rounded px-1.5 py-0.5 text-xs flex items-center justify-center">
-                                        <div className="w-2.5 h-2.5 rounded-full bg-[#eb001b] -mr-1 z-10"></div>
-                                        <div className="w-2.5 h-2.5 rounded-full bg-[#f79e1b]"></div>
-                                    </div>
-                                    <div className="bg-white border border-gray-200 rounded px-2 py-0.5 text-xs text-gray-500 flex items-center justify-center">+18</div>
+                        <h3 className="mb-2 text-xl font-bold text-[#211b14]">Payment</h3>
+                        <p className="mb-4 text-sm text-[#645747]">Choose how you want to place this pending approval booking.</p>
+
+                        <div className="mb-4 grid gap-3 sm:grid-cols-2">
+                            <button
+                                type="button"
+                                onClick={() => setPaymentMethod('razorpay')}
+                                className={`rounded-2xl border p-4 text-left transition ${
+                                    paymentMethod === 'razorpay'
+                                        ? 'border-[#7a5527] bg-[#f8efdf] shadow-md'
+                                        : 'border-[#ead7b8] bg-white hover:border-[#cfa86b]'
+                                }`}
+                            >
+                                <div className="mb-2 flex items-center gap-2 font-bold text-[#211b14]">
+                                    <CreditCard size={20} className="text-[#7a5527]" />
+                                    Razorpay Online
                                 </div>
-                            </div>
-                            <div className="p-8 bg-gray-50 text-center text-gray-600 text-sm flex flex-col items-center">
-                                <svg className="w-12 h-12 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                </svg>
-                                You'll be redirected to Razorpay Secure (UPI, Cards, Int'l Cards, Wallets) to complete your purchase.
-                            </div>
+                                <p className="text-sm text-[#645747]">Pay now with UPI, cards, wallets, or net banking.</p>
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => setPaymentMethod('cod')}
+                                className={`rounded-2xl border p-4 text-left transition ${
+                                    paymentMethod === 'cod'
+                                        ? 'border-[#7a5527] bg-[#f8efdf] shadow-md'
+                                        : 'border-[#ead7b8] bg-white hover:border-[#cfa86b]'
+                                }`}
+                            >
+                                <div className="mb-2 flex items-center gap-2 font-bold text-[#211b14]">
+                                    <Banknote size={20} className="text-[#527b52]" />
+                                    COD / Pay at Farm
+                                </div>
+                                <p className="text-sm text-[#645747]">Place the booking now and pay after admin approval.</p>
+                            </button>
+                        </div>
+
+                        <div className="overflow-hidden rounded-xl border-2 border-[#d6a23d]/60 bg-[#fffaf1]">
+                            {paymentMethod === 'razorpay' ? (
+                                <>
+                                    <div className="flex flex-col justify-between gap-3 border-b border-[#ead7b8] p-4 sm:flex-row sm:items-center">
+                                        <span className="font-medium text-[#211b14]">Razorpay Secure (UPI, Cards, Wallets)</span>
+                                        <div className="flex items-center gap-1.5">
+                                            <div className="rounded border border-[#e4d4bd] bg-white px-2 py-0.5 text-xs font-bold italic text-[#527b52]">UPI</div>
+                                            <div className="rounded border border-[#e4d4bd] bg-white px-2 py-0.5 text-xs font-bold italic text-[#7a5527]">VISA</div>
+                                            <div className="flex items-center rounded border border-[#e4d4bd] bg-white px-1.5 py-0.5">
+                                                <div className="z-10 -mr-1 h-2.5 w-2.5 rounded-full bg-[#8d3a24]"></div>
+                                                <div className="h-2.5 w-2.5 rounded-full bg-[#d6a23d]"></div>
+                                            </div>
+                                            <div className="rounded border border-[#e4d4bd] bg-white px-2 py-0.5 text-xs text-[#8b7a66]">+18</div>
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-col items-center bg-[#f8efdf] p-8 text-center text-sm text-[#645747]">
+                                        <ShieldCheck className="mb-4 h-12 w-12 text-[#c8a978]" strokeWidth={1.5} />
+                                        You will be redirected to Razorpay Secure to complete your payment. The booking remains pending until admin approval.
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="flex flex-col items-center bg-[#f8efdf] p-8 text-center text-sm text-[#645747]">
+                                    <Banknote className="mb-4 h-12 w-12 text-[#527b52]" strokeWidth={1.5} />
+                                    No online payment will be collected now. Your booking will be stored as COD and reviewed by the admin before confirmation.
+                                </div>
+                            )}
                         </div>
                     </div>
 
                     <div className="space-y-4">
-                        <button 
-                            onClick={handlePayment}
+                        <button
+                            onClick={handleSubmitPayment}
                             disabled={isProcessing}
-                            className={`w-full py-4 rounded-xl font-bold text-lg text-white shadow-lg transition-all flex justify-center items-center gap-3 ${
-                                isProcessing 
-                                ? 'bg-gray-400 cursor-not-allowed' 
-                                : 'bg-primary hover:bg-green-600 active:scale-[0.98]'
+                            className={`flex w-full items-center justify-center gap-3 rounded-xl py-4 text-lg font-bold text-white shadow-lg transition-all ${
+                                isProcessing
+                                    ? 'cursor-not-allowed bg-[#b7aa98]'
+                                    : 'bg-primary hover:bg-primary-800 active:scale-[0.98]'
                             }`}
                         >
                             {isProcessing ? (
@@ -192,14 +279,16 @@ const Checkout = () => {
                                     <Loader className="animate-spin" size={24} />
                                     Processing Securely...
                                 </>
+                            ) : paymentMethod === 'cod' ? (
+                                'Confirm COD Booking'
                             ) : (
-                                `Pay ₹${cartItem.pricing.grandTotal}`
+                                `Pay Rs ${cartItem.pricing.grandTotal}`
                             )}
                         </button>
-                        
-                        <p className="text-center text-xs text-gray-500 mt-4">
-                            By clicking "Pay", you agree to the terms and conditions and cancellation policy of Brown Cows Dairy.
-                            Your booking will be placed in "Pending Approval" state until confirmed by the host.
+
+                        <p className="mt-4 text-center text-xs text-[#8b7a66]">
+                            By continuing, you agree to the terms, conditions, and cancellation policy of Brown Cows Dairy.
+                            Your booking will stay in "Pending Approval" until confirmed by the host.
                         </p>
                     </div>
                 </div>
@@ -209,4 +298,3 @@ const Checkout = () => {
 };
 
 export default Checkout;
-// Vite re-bundle trigger

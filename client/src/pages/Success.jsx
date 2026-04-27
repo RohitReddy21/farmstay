@@ -18,7 +18,7 @@ const Success = () => {
             </motion.div>
             <h1 className="text-4xl font-bold text-gray-900 mb-4">Booking Confirmed!</h1>
             <p className="text-xl text-gray-600 mb-8">Thank you for your booking. You will receive a confirmation email shortly.</p>
-            <Link to="/" className="bg-primary text-white px-8 py-3 rounded-full font-semibold hover:bg-green-600 transition">
+            <Link to="/" className="bg-primary text-white px-8 py-3 rounded-full font-semibold hover:bg-primary-800 transition">
                 Return Home
             </Link>
         </div>

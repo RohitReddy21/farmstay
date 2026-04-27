@@ -28,7 +28,7 @@ const ForgotPassword = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 to-green-50 dark:from-gray-900 dark:to-gray-800 px-4">
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 to-primary-50 dark:from-gray-900 dark:to-gray-800 px-4">
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -43,7 +43,7 @@ const ForgotPassword = () => {
                 </div>
 
                 {message && (
-                    <div className="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200 px-4 py-3 rounded-lg mb-4">
+                    <div className="bg-secondary-50 dark:bg-secondary-900/30 border border-secondary-200 dark:border-secondary-800 text-secondary-800 dark:text-secondary-200 px-4 py-3 rounded-lg mb-4">
                         {message}
                     </div>
                 )}
@@ -72,14 +72,14 @@ const ForgotPassword = () => {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full bg-primary hover:bg-green-600 text-white py-3 rounded-lg font-semibold transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+                        className="w-full bg-primary hover:bg-primary-800 text-white py-3 rounded-lg font-semibold transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
                     >
                         {loading ? 'Sending...' : 'Send Reset Link'}
                     </button>
                 </form>
 
                 <div className="mt-6 text-center">
-                    <a href="/login" className="text-primary hover:text-green-600 font-medium">
+                    <a href="/login" className="text-primary hover:text-primary-800 font-medium">
                         ← Back to Login
                     </a>
                 </div>

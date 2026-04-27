@@ -103,7 +103,7 @@ const Chatbot = () => {
                             <button
                                 type="submit"
                                 disabled={!inputText.trim()}
-                                className="bg-primary text-white p-2 rounded-lg hover:bg-green-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="bg-primary text-white p-2 rounded-lg hover:bg-primary-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 <Send size={20} />
                             </button>
@@ -116,7 +116,7 @@ const Chatbot = () => {
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={() => setIsOpen(!isOpen)}
-                className="bg-primary text-white p-4 rounded-full shadow-lg hover:bg-green-600 transition-colors flex items-center justify-center"
+                className="bg-primary text-white p-4 rounded-full shadow-lg hover:bg-primary-800 transition-colors flex items-center justify-center"
             >
                 {isOpen ? <X size={24} /> : <MessageCircle size={24} />}
             </motion.button>

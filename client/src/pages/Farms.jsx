@@ -127,7 +127,7 @@ const Farms = () => {
                 <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-800 dark:text-white">Find Your Perfect Farm Stay</h1>
                 <button
                     onClick={() => setShowFilters(!showFilters)}
-                    className="md:hidden bg-primary text-white px-4 py-2.5 rounded-lg flex items-center gap-2 shadow-md hover:bg-green-600 transition-all"
+                    className="md:hidden bg-primary text-white px-4 py-2.5 rounded-lg flex items-center gap-2 shadow-md hover:bg-primary-800 transition-all"
                 >
                     <SlidersHorizontal size={18} />
                     Filters
@@ -157,7 +157,7 @@ const Farms = () => {
                                     <div className="flex items-center gap-2">
                                         <button
                                             onClick={clearFilters}
-                                            className="text-sm text-primary hover:text-green-600 font-medium"
+                                            className="text-sm text-primary hover:text-primary-800 font-medium"
                                         >
                                             Clear All
                                         </button>
@@ -294,7 +294,7 @@ const Farms = () => {
                             <p className="text-gray-600 dark:text-gray-400 text-lg mb-4">No farms match your filters</p>
                             <button
                                 onClick={clearFilters}
-                                className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-green-600"
+                                className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-primary-800"
                             >
                                 Clear Filters
                             </button>

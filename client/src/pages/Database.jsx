@@ -118,7 +118,7 @@ const Database = () => {
 
             <button
                 onClick={fetchDatabase}
-                className="bg-primary text-white px-6 py-3 rounded-lg hover:bg-green-600 transition"
+                className="bg-primary text-white px-6 py-3 rounded-lg hover:bg-primary-800 transition"
             >
                 🔄 Refresh Database
             </button>

@@ -524,7 +524,7 @@ const FarmDetails = () => {
                                                     ranges={dateSelection}
                                                     onChange={handleDateChange}
                                                     minDate={new Date()}
-                                                    rangeColors={['#16a34a']}
+                                                    rangeColors={['#7a5527']}
                                                     disabledDay={isDateDisabled}
                                                     className="border-none rounded-2xl font-inter"
                                                     months={1}
@@ -537,7 +537,7 @@ const FarmDetails = () => {
                                                         e.preventDefault();
                                                         setIsCalendarOpen(false);
                                                     }}
-                                                    className="px-6 py-2.5 bg-primary text-white font-bold rounded-xl hover:bg-green-600 transition-all shadow-md active:scale-95 w-full sm:w-auto"
+                                                    className="px-6 py-2.5 bg-primary text-white font-bold rounded-xl hover:bg-primary-800 transition-all shadow-md active:scale-95 w-full sm:w-auto"
                                                 >
                                                     Apply Dates
                                                 </button>
@@ -591,7 +591,7 @@ const FarmDetails = () => {
                                 disabled={dateConflict}
                                 className={`w-full py-3 md:py-4 rounded-xl font-bold text-base md:text-lg transition-all shadow-lg transform ${dateConflict
                                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                    : 'bg-primary text-white hover:bg-green-600 hover:-translate-y-0.5 active:translate-y-0'
+                                    : 'bg-primary text-white hover:bg-primary-800 hover:-translate-y-0.5 active:translate-y-0'
                                     }`}
                             >
                                 {dateConflict ? 'Dates Unavailable' : 'Book Now'}
@@ -651,7 +651,7 @@ const FarmDetails = () => {
                 {/* Description */}
                 <div className="mb-10">
                     <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-5 flex items-center gap-3">
-                        <div className="w-1.5 h-8 bg-gradient-to-b from-primary to-green-600 rounded-full"></div>
+                        <div className="w-1.5 h-8 bg-gradient-to-b from-primary to-primary-800 rounded-full"></div>
                         About this farm
                     </h2>
                     <p className="text-gray-700 leading-relaxed whitespace-pre-line text-xs md:text-base">
@@ -686,13 +686,13 @@ const FarmDetails = () => {
                 {/* Amenities */}
                 <div>
                     <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-5 flex items-center gap-3">
-                        <div className="w-1.5 h-8 bg-gradient-to-b from-primary to-green-600 rounded-full"></div>
+                        <div className="w-1.5 h-8 bg-gradient-to-b from-primary to-primary-800 rounded-full"></div>
                         What this place offers
                     </h2>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         {farm.amenities.map((amenity, index) => (
                             <div key={index} className="flex items-center gap-3 p-4 bg-gradient-to-br from-gray-50 to-white rounded-xl hover:shadow-md hover:scale-105 transition-all duration-200 border border-gray-100">
-                                <div className="w-10 h-10 bg-gradient-to-br from-primary to-green-600 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm">
+                                <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary-800 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm">
                                     <Check size={20} className="text-white" />
                                 </div>
                                 <span className="text-gray-800 font-medium text-base">{amenity}</span>
@@ -704,7 +704,7 @@ const FarmDetails = () => {
                 {/* Map Section */}
                 <div className="border-t border-gray-200 pt-10 mt-10">
                     <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-                        <div className="w-1.5 h-8 bg-gradient-to-b from-primary to-green-600 rounded-full"></div>
+                        <div className="w-1.5 h-8 bg-gradient-to-b from-primary to-primary-800 rounded-full"></div>
                         Where you'll be
                     </h2>
                     <p className="text-gray-600 mb-6 text-lg">{farm.location}</p>
@@ -728,14 +728,14 @@ const FarmDetails = () => {
             {/* Reviews Section */}
             <div className="bg-white rounded-2xl md:rounded-3xl shadow-lg border border-gray-100 p-6 md:p-8 lg:p-10">
                 <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-                    <div className="w-1.5 h-8 bg-gradient-to-b from-primary to-green-600 rounded-full"></div>
+                    <div className="w-1.5 h-8 bg-gradient-to-b from-primary to-primary-800 rounded-full"></div>
                     Guest Reviews
                 </h2>
                 <ReviewList reviews={reviews} />
                 {eligibleBookingId && !showReviewForm && (
                     <button
                         onClick={() => setShowReviewForm(true)}
-                        className="mt-6 bg-primary text-white px-6 py-3 rounded-lg hover:bg-green-600 transition-all font-medium"
+                        className="mt-6 bg-primary text-white px-6 py-3 rounded-lg hover:bg-primary-800 transition-all font-medium"
                     >
                         Write a Review
                     </button>
@@ -881,7 +881,7 @@ const FarmDetails = () => {
                     {dateConflict ? (
                         <p className="text-xs text-red-500 font-medium">Dates unavailable</p>
                     ) : (
-                        <p className="text-xs text-green-600 font-medium">Available now</p>
+                        <p className="text-xs text-secondary font-medium">Available now</p>
                     )}
                 </div>
                 <button
@@ -890,7 +890,7 @@ const FarmDetails = () => {
                         // Optional: Open calendar automatically if desired
                         setIsCalendarOpen(true);
                     }}
-                    className="bg-primary text-white px-6 py-3 rounded-xl font-bold hover:bg-green-600 transition-all shadow-lg active:scale-95"
+                    className="bg-primary text-white px-6 py-3 rounded-xl font-bold hover:bg-primary-800 transition-all shadow-lg active:scale-95"
                 >
                     Reserve
                 </button>

@@ -19,8 +19,7 @@
   background: none !important;
   font-size: 1.1rem !important;
   font-weight: 600 !important;
-  color: #1f2937 !important;
-  /* gray-800 */
+  color: #211b14 !important;
 }
 
 .react-calendar__month-view__weekdays {
@@ -28,16 +27,14 @@
   text-transform: uppercase;
   font-weight: 700;
   font-size: 0.75rem;
-  color: #9ca3af;
-  /* gray-400 */
+  color: #8b7a66;
   margin-bottom: 0.5rem;
 }
 
 .react-calendar__month-view__days__day {
   padding: 0.75rem !important;
   font-weight: 500 !important;
-  color: #374151 !important;
-  /* gray-700 */
+  color: #211b14 !important;
 }
 
 .react-calendar__tile {
@@ -48,44 +45,38 @@
 .react-calendar__tile:enabled:hover,
 .react-calendar__tile:enabled:focus {
   background-color: #f3f4f6 !important;
-  /* gray-100 */
-  color: #16a34a !important;
-  /* green-600 */
+  color: #7a5527 !important;
 }
 
 .react-calendar__tile--now {
-  background: #ecfdf5 !important;
-  /* green-50 */
-  color: #059669 !important;
-  /* green-600 */
+  background: #fffaf1 !important;
+  color: #7a5527 !important;
   font-weight: bold !important;
 }
 
 .react-calendar__tile--active {
-  background: #16a34a !important;
-  /* green-600 */
+  background: #7a5527 !important;
   color: white !important;
-  box-shadow: 0 4px 6px -1px rgba(22, 163, 74, 0.4);
+  box-shadow: 0 4px 6px -1px rgba(122, 85, 39, 0.4);
 }
 
 .react-calendar__tile--active:enabled:hover,
 .react-calendar__tile--active:enabled:focus {
-  background: #15803d !important;
-  /* green-700 */
+  background: #5d3d19 !important;
 }
 
 /* Range selection styling */
 .react-calendar__tile--rangeStart {
   border-top-right-radius: 0 !important;
   border-bottom-right-radius: 0 !important;
-  background: #16a34a !important;
+  background: #7a5527 !important;
   color: white !important;
 }
 
 .react-calendar__tile--rangeEnd {
   border-top-left-radius: 0 !important;
   border-bottom-left-radius: 0 !important;
-  background: #16a34a !important;
+  background: #7a5527 !important;
   color: white !important;
 }
 
@@ -108,7 +99,7 @@
 
 @layer base {
   body {
-    @apply bg-slate-50 text-slate-900 font-sans antialiased;
+    @apply bg-background text-text-primary font-sans antialiased;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     letter-spacing: -0.011em;
   }
@@ -119,7 +110,7 @@
   h4,
   h5,
   h6 {
-    @apply font-semibold text-slate-900;
+    @apply font-semibold text-text-primary;
     letter-spacing: -0.025em;
   }
 
@@ -166,16 +157,16 @@
   }
 
   ::-webkit-scrollbar-track {
-    background: #f1f1f1;
+    background: #f4ead8;
   }
 
   ::-webkit-scrollbar-thumb {
-    background: #888;
+    background: #b89462;
     border-radius: 4px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: #555;
+    background: #7a5527;
   }
 }
 

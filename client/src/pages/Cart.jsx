@@ -10,15 +10,15 @@ const Cart = () => {
 
     if (!cartItem) {
         return (
-            <div className="min-h-[60vh] flex flex-col items-center justify-center">
-                <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-6">
-                    <Calendar size={40} className="text-gray-400" />
+            <div className="flex min-h-[60vh] flex-col items-center justify-center">
+                <div className="mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-[#f4ead8]">
+                    <Calendar size={40} className="text-[#7a5527]" />
                 </div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">Your Cart is Empty</h2>
-                <p className="text-gray-500 mb-8">You haven't selected any dates for your stay yet.</p>
+                <h2 className="mb-2 text-2xl font-bold text-[#211b14]">Your Cart is Empty</h2>
+                <p className="mb-8 text-[#645747]">You haven't selected any dates for your stay yet.</p>
                 <button 
                     onClick={() => navigate('/farms')}
-                    className="bg-primary text-white px-8 py-3 rounded-xl font-bold hover:bg-green-600 transition-all shadow-lg active:scale-95"
+                    className="rounded-xl bg-primary px-8 py-3 font-bold text-white shadow-lg transition-all hover:bg-primary-800 active:scale-95"
                 >
                     Explore Properties
                 </button>
@@ -27,16 +27,16 @@ const Cart = () => {
     }
 
     return (
-        <div className="max-w-4xl mx-auto py-8 px-4">
+        <div className="mx-auto max-w-4xl px-4 py-8">
             <button 
                 onClick={() => navigate(-1)}
-                className="flex items-center text-gray-600 hover:text-primary mb-8 transition-colors"
+                className="mb-8 flex items-center text-[#645747] transition-colors hover:text-[#7a5527]"
             >
                 <ChevronLeft size={20} className="mr-1" />
                 Back to Property
             </button>
 
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-8">Review Booking Details</h1>
+            <h1 className="mb-8 text-3xl font-bold text-[#211b14] md:text-4xl">Review Booking Details</h1>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Left: Cart Details */}
@@ -44,17 +44,17 @@ const Cart = () => {
                     <motion.div 
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 md:p-8"
+                        className="rounded-2xl border border-[#ead7b8] bg-[#fffaf1] p-6 shadow-xl md:p-8"
                     >
-                        <div className="flex items-start gap-4 mb-6 pb-6 border-b border-gray-100">
+                        <div className="mb-6 flex items-start gap-4 border-b border-[#ead7b8] pb-6">
                             <img 
                                 src={cartItem.property.images[0]} 
                                 alt={cartItem.property.title} 
                                 className="w-24 h-24 md:w-32 md:h-32 object-cover rounded-xl"
                             />
                             <div>
-                                <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-2">{cartItem.property.title}</h2>
-                                <div className="flex items-center text-gray-500 text-sm md:text-base">
+                                <h2 className="mb-2 text-xl font-bold text-[#211b14] md:text-2xl">{cartItem.property.title}</h2>
+                                <div className="flex items-center text-sm text-[#645747] md:text-base">
                                     <MapPin size={16} className="mr-1" />
                                     {cartItem.property.location}
                                 </div>
@@ -62,25 +62,25 @@ const Cart = () => {
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
-                            <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
-                                <p className="text-xs text-gray-500 uppercase font-semibold mb-2">Check-in</p>
-                                <p className="font-bold text-gray-900 text-lg">
+                            <div className="rounded-xl border border-[#ead7b8] bg-[#f8efdf] p-4">
+                                <p className="mb-2 text-xs font-semibold uppercase text-[#8b7a66]">Check-in</p>
+                                <p className="text-lg font-bold text-[#211b14]">
                                     {new Date(cartItem.startDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                                 </p>
                             </div>
-                            <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
-                                <p className="text-xs text-gray-500 uppercase font-semibold mb-2">Check-out</p>
-                                <p className="font-bold text-gray-900 text-lg">
+                            <div className="rounded-xl border border-[#ead7b8] bg-[#f8efdf] p-4">
+                                <p className="mb-2 text-xs font-semibold uppercase text-[#8b7a66]">Check-out</p>
+                                <p className="text-lg font-bold text-[#211b14]">
                                     {new Date(cartItem.endDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                                 </p>
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-3 bg-primary/5 p-4 rounded-xl border border-primary/10">
+                        <div className="flex items-center gap-3 rounded-xl border border-[#ead7b8] bg-[#f4ead8] p-4">
                             <Users size={24} className="text-primary" />
                             <div>
-                                <p className="font-bold text-gray-900">{cartItem.guests} Guests</p>
-                                <p className="text-sm text-gray-600">Guest Name: {cartItem.guestDetails.name}</p>
+                                <p className="font-bold text-[#211b14]">{cartItem.guests} Guests</p>
+                                <p className="text-sm text-[#645747]">Guest Name: {cartItem.guestDetails.name}</p>
                             </div>
                         </div>
                     </motion.div>
@@ -92,29 +92,29 @@ const Cart = () => {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.1 }}
-                        className="bg-white p-6 rounded-2xl shadow-xl border border-gray-100 lg:sticky lg:top-24"
+                        className="rounded-2xl border border-[#ead7b8] bg-[#fffaf1] p-6 shadow-xl lg:sticky lg:top-24"
                     >
-                        <h3 className="text-xl font-bold text-gray-900 mb-6">Price Details</h3>
+                        <h3 className="mb-6 text-xl font-bold text-[#211b14]">Price Details</h3>
                         
-                        <div className="space-y-4 mb-6 pb-6 border-b border-gray-100">
-                            <div className="flex justify-between text-gray-600">
+                        <div className="mb-6 space-y-4 border-b border-[#ead7b8] pb-6">
+                            <div className="flex justify-between text-[#645747]">
                                 <span>₹{cartItem.pricing.basePrice} x {cartItem.pricing.nights} nights</span>
                                 <span>₹{cartItem.pricing.totalPrice}</span>
                             </div>
-                            <div className="flex justify-between text-gray-600">
+                            <div className="flex justify-between text-[#645747]">
                                 <span>Taxes & Fees (18% GST)</span>
                                 <span>₹{cartItem.pricing.tax}</span>
                             </div>
                         </div>
 
                         <div className="flex justify-between items-center mb-8">
-                            <span className="text-lg font-bold text-gray-900">Total (INR)</span>
+                            <span className="text-lg font-bold text-[#211b14]">Total (INR)</span>
                             <span className="text-2xl font-bold text-primary">₹{cartItem.pricing.grandTotal}</span>
                         </div>
 
                         <button 
                             onClick={() => navigate('/checkout')}
-                            className="w-full bg-primary text-white py-4 rounded-xl font-bold text-lg hover:bg-green-600 transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2"
+                            className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-4 text-lg font-bold text-white shadow-lg transition-all hover:bg-primary-800 active:scale-95"
                         >
                             Proceed to Checkout
                         </button>
@@ -124,7 +124,7 @@ const Cart = () => {
                                 removeFromCart();
                                 navigate(-1);
                             }}
-                            className="w-full mt-4 py-3 text-gray-500 font-medium hover:text-red-500 transition-colors"
+                            className="mt-4 w-full py-3 font-medium text-[#8b7a66] transition-colors hover:text-red-500"
                         >
                             Cancel Booking
                         </button>

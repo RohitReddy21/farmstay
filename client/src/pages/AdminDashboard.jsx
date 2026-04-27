@@ -65,7 +65,7 @@ const AdminDashboard = () => {
             {/* Stat Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 <StatCard
-                    icon={<DollarSign className="text-green-600" size={24} />}
+                    icon={<DollarSign className="text-secondary" size={24} />}
                     title="Total Revenue"
                     value={`₹${data.stats.totalRevenue.toLocaleString()}`}
                     trend="+12% vs last month"
@@ -205,7 +205,12 @@ const AdminDashboard = () => {
                                                 <span className="text-xs text-gray-500">to {new Date(booking.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
                                             </div>
                                         </td>
-                                        <td className="py-3 px-4 text-sm text-gray-900">{booking.guests}</td>
+                                        <td className="py-3 px-4 text-sm text-gray-900">
+    {typeof booking.guests === 'object' 
+        ? `${booking.guests.adults || 0}${booking.guests.children > 0 ? ` + ${booking.guests.children} children` : ''}`
+        : booking.guests
+    }
+</td>
                                         <td className="py-3 px-4 text-sm font-semibold text-gray-900">₹{booking.totalPrice?.toLocaleString()}</td>
                                         <td className="py-3 px-4">
                                             <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${booking.status === 'confirmed' ? 'bg-green-100 text-green-800' :
@@ -238,7 +243,7 @@ const AdminDashboard = () => {
 
 const StatCard = ({ icon, title, value, trend, color }) => {
     const colorClasses = {
-        green: 'bg-green-50 text-green-600',
+        green: 'bg-secondary-50 text-secondary',
         blue: 'bg-blue-50 text-blue-600',
         purple: 'bg-purple-50 text-purple-600',
         orange: 'bg-orange-50 text-orange-600'
@@ -263,8 +268,8 @@ const StatCard = ({ icon, title, value, trend, color }) => {
                 <span className="text-2xl font-bold text-gray-900">{value}</span>
             </div>
             <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
-                <TrendingUp size={12} className="text-green-500" />
-                <span className="text-green-500 font-medium">{trend}</span>
+                <TrendingUp size={12} className="text-secondary" />
+                <span className="text-secondary font-medium">{trend}</span>
             </p>
         </motion.div>
     );
