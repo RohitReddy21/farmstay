@@ -468,4 +468,58 @@ router.get('/test-env', (req, res) => {
     });
 });
 
+// Test email configuration endpoint
+router.post('/test-email-config', async (req, res) => {
+    console.log('🧪 Test email configuration endpoint called');
+    
+    // Log all environment variables
+    console.log('🔧 EMAIL_USER:', process.env.EMAIL_USER);
+    console.log('🔧 EMAIL_PASS exists:', !!process.env.EMAIL_PASS);
+    console.log('🔧 EMAIL_PASS length:', process.env.EMAIL_PASS ? process.env.EMAIL_PASS.length : 0);
+    console.log('🔧 NODE_ENV:', process.env.NODE_ENV);
+    console.log('🔧 All email-related env vars:', Object.keys(process.env).filter(k => k.includes('EMAIL')));
+    
+    try {
+        // Test transporter creation
+        console.log('🔧 Creating email transporter...');
+        const transporter = require('nodemailer').createTransport({
+            service: 'gmail',
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS
+            }
+        });
+        
+        console.log('✅ Transporter created');
+        
+        // Test connection
+        console.log('🔧 Verifying connection...');
+        await transporter.verify();
+        console.log('✅ Connection verified');
+        
+        res.json({
+            success: true,
+            message: 'Email configuration is working',
+            email_user: process.env.EMAIL_USER,
+            email_pass_set: !!process.env.EMAIL_PASS,
+            email_pass_length: process.env.EMAIL_PASS ? process.env.EMAIL_PASS.length : 0
+        });
+        
+    } catch (error) {
+        console.error('❌ Email configuration test failed:', error);
+        console.error('❌ Error code:', error.code);
+        console.error('❌ Error message:', error.message);
+        
+        res.json({
+            success: false,
+            message: 'Email configuration failed',
+            error: error.message,
+            error_code: error.code,
+            email_user: process.env.EMAIL_USER,
+            email_pass_set: !!process.env.EMAIL_PASS,
+            email_pass_length: process.env.EMAIL_PASS ? process.env.EMAIL_PASS.length : 0
+        });
+    }
+});
+
 module.exports = router;
