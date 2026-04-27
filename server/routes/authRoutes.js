@@ -47,6 +47,18 @@ const createEmailTransporter = () => {
     const emailUser = getEnv('EMAIL_USER', 'EMAIL_ID', 'Email_id', 'email_id');
     const emailPass = getEnv('EMAIL_PASS', 'EMAIL_PASSWORD', 'Email_pass', 'email_pass');
 
+    if (emailUser && emailPass) {
+        return nodemailer.createTransport({
+            host: 'smtp.gmail.com',
+            port: 465,
+            secure: true,
+            auth: {
+                user: emailUser,
+                pass: emailPass
+            }
+        });
+    }
+
     const effectiveSendgridKey = sendgridApiKey || (emailPass?.startsWith('SG.') ? emailPass : undefined);
 
     if (effectiveSendgridKey) {
@@ -67,18 +79,6 @@ const createEmailTransporter = () => {
             auth: {
                 user: smtpUser,
                 pass: smtpPass
-            }
-        });
-    }
-
-    if (emailUser && emailPass) {
-        return nodemailer.createTransport({
-            host: 'smtp.gmail.com',
-            port: 465,
-            secure: true,
-            auth: {
-                user: emailUser,
-                pass: emailPass
             }
         });
     }
@@ -213,7 +213,7 @@ router.post('/send-otp', async (req, res) => {
         res.status(500).json({
             message: 'Unable to send OTP. Please check the email sender configuration.',
             error: process.env.NODE_ENV === 'production' ? undefined : error.message,
-            code: process.env.NODE_ENV === 'production' ? undefined : error.code
+            code: error.code || error.responseCode || error.name
         });
     }
 });
