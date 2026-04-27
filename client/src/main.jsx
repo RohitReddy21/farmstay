@@ -22,9 +22,13 @@ if (!rootElement) {
   root.render(
     <StrictMode>
       <GlobalErrorBoundary>
-        <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID || "disabled"}>
+        {GOOGLE_CLIENT_ID && GOOGLE_CLIENT_ID !== "YOUR_GOOGLE_CLIENT_ID_HERE" ? (
+          <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+            <App />
+          </GoogleOAuthProvider>
+        ) : (
           <App />
-        </GoogleOAuthProvider>
+        )}
       </GlobalErrorBoundary>
     </StrictMode>,
   );

@@ -282,52 +282,23 @@ router.post('/send-otp', async (req, res) => {
 // @desc    Register user
 router.post('/register', async (req, res) => {
     try {
-        const { name, email, phone, password, otp } = req.body;
+        const { name, email, password } = req.body;
         const normalizedEmail = normalizeEmail(email);
-        const normalizedPhone = normalizePhone(phone);
 
-        if (!name?.trim() || !normalizedEmail || !normalizedPhone || !password || !otp) {
-            return res.status(400).json({ message: 'Name, email, mobile number, password, and OTP are required.' });
+        if (!name?.trim() || !normalizedEmail || !password) {
+            return res.status(400).json({ message: 'Name, email, and password are required.' });
         }
 
-        const userExists = await User.findOne({
-            $or: [
-                { email: normalizedEmail },
-                { phone: normalizedPhone }
-            ]
-        });
+        const userExists = await User.findOne({ email: normalizedEmail });
         if (userExists) {
-            return res.status(400).json({ message: 'An account already exists with this email or mobile number.' });
-        }
-
-        const otpRecord = await OtpVerification.findOne({
-            email: normalizedEmail
-        }).sort({ createdAt: -1 });
-
-        if (!otpRecord || otpRecord.expiresAt < new Date()) {
-            return res.status(400).json({ message: 'OTP is invalid or expired. Please request a new OTP.' });
-        }
-
-        if (otpRecord.attempts >= 5) {
-            await OtpVerification.deleteOne({ _id: otpRecord._id });
-            return res.status(429).json({ message: 'Too many invalid OTP attempts. Please request a new OTP.' });
-        }
-
-        if (hashOtp(otp) !== otpRecord.otpHash) {
-            otpRecord.attempts += 1;
-            await otpRecord.save();
-            return res.status(400).json({ message: 'Invalid OTP. Please check the code and try again.' });
+            return res.status(400).json({ message: 'User already exists' });
         }
 
         const user = await User.create({
             name: name.trim(),
             email: normalizedEmail,
-            phone: normalizedPhone,
-            password,
-            isEmailVerified: true
+            password
         });
-
-        await OtpVerification.deleteMany({ email: normalizedEmail });
 
         const token = createToken(user);
 

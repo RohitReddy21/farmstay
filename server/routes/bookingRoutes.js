@@ -156,6 +156,62 @@ router.post('/verify-payment', verifyToken, async (req, res) => {
     }
 });
 
+// @route   POST /api/bookings/cod
+// @desc    Create a COD booking
+// @access  Private
+router.post('/cod', verifyToken, async (req, res) => {
+    const { propertyId, roomId, startDate, endDate, guests, guestDetails, totalPrice, tax } = req.body;
+
+    try {
+        const property = await Farm.findById(propertyId);
+        if (!property) return res.status(404).json({ message: 'Property not found' });
+
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+
+        // Check availability
+        const overlap = await hasOverlap(propertyId, roomId, start, end);
+        if (overlap) {
+            return res.status(409).json({ message: 'Selected dates are not available.' });
+        }
+
+        // Create a 'Pending' Booking with COD
+        const booking = await Booking.create({
+            user: req.user.id,
+            property: propertyId,
+            room: roomId,
+            startDate: start,
+            endDate: end,
+            guests,
+            guestDetails,
+            totalPrice,
+            tax,
+            status: 'Pending',
+            paymentStatus: 'COD',
+            paymentMethod: 'COD'
+        });
+
+        // Create Payment Record
+        await Payment.create({
+            booking: booking._id,
+            user: req.user.id,
+            amount: totalPrice + tax,
+            status: 'COD',
+            paymentMethod: 'COD'
+        });
+
+        res.json({
+            success: true,
+            message: 'COD booking placed successfully.',
+            bookingId: booking._id
+        });
+
+    } catch (error) {
+        console.error('COD Booking Error:', error);
+        res.status(500).json({ message: 'Server Error: ' + error.message });
+    }
+});
+
 // @route   GET /api/bookings/property/:id/availability
 // @desc    Get unavailable dates for a property
 // @access  Public

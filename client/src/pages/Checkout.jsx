@@ -13,14 +13,20 @@ const Checkout = () => {
     const [isProcessing, setIsProcessing] = useState(false);
     const [error, setError] = useState(null);
     const [paymentMethod, setPaymentMethod] = useState('razorpay');
+    const [confirmationMessage, setConfirmationMessage] = useState('');
+    const [isCheckoutComplete, setIsCheckoutComplete] = useState(false);
 
     React.useEffect(() => {
+        if (isCheckoutComplete) {
+            return;
+        }
+
         if (!cartItem) {
             navigate('/farms');
         } else if (!user) {
             navigate('/login');
         }
-    }, [cartItem, user, navigate]);
+    }, [cartItem, user, navigate, isCheckoutComplete]);
 
     if (!cartItem || !user) {
         return null;
@@ -28,6 +34,13 @@ const Checkout = () => {
 
     const propertyTitle = cartItem.property?.title || 'Brown Cows Dairy Stay';
     const token = localStorage.getItem('token');
+
+    const finishCheckout = (message) => {
+        setIsCheckoutComplete(true);
+        setConfirmationMessage(message);
+        clearCart();
+        setIsProcessing(false);
+    };
 
     const buildBookingPayload = () => {
         const adults = Number(cartItem.guests?.adults ?? cartItem.guests) || 1;
@@ -83,8 +96,7 @@ const Checkout = () => {
                         });
 
                         if (verifyRes.data.success) {
-                            clearCart();
-                            navigate('/bookings', { state: { bookingSuccess: true } });
+                            finishCheckout('Payment received. Your booking is pending admin approval.');
                         }
                     } catch (err) {
                         setError('Payment verification failed. Please contact support.');
@@ -130,13 +142,7 @@ const Checkout = () => {
                 throw new Error('Failed to create COD booking');
             }
 
-            clearCart();
-            navigate('/bookings', {
-                state: {
-                    bookingSuccess: true,
-                    message: 'COD booking placed. Your booking is pending admin approval.'
-                }
-            });
+            finishCheckout('COD booking placed. Your booking is pending admin approval.');
         } catch (err) {
             console.error('COD checkout error:', err);
             setError(err.response?.data?.message || 'Could not place COD booking. Please try again.');
@@ -175,6 +181,25 @@ const Checkout = () => {
                 </div>
 
                 <div className="p-8">
+                    {confirmationMessage && (
+                        <div className="mb-6 rounded-2xl border border-[#cfe4c8] bg-[#f1f8ec] p-5 text-[#3f6b3f] shadow-sm">
+                            <div className="text-lg font-bold">Booking received</div>
+                            <p className="mt-1 text-sm">{confirmationMessage}</p>
+                            <button
+                                type="button"
+                                onClick={() => navigate('/bookings', {
+                                    state: {
+                                        bookingSuccess: true,
+                                        message: confirmationMessage
+                                    }
+                                })}
+                                className="mt-4 rounded-xl bg-[#3f6b3f] px-5 py-2 text-sm font-bold text-white transition hover:bg-[#315631]"
+                            >
+                                View My Bookings
+                            </button>
+                        </div>
+                    )}
+
                     {error && (
                         <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
                             {error}
@@ -267,14 +292,16 @@ const Checkout = () => {
                     <div className="space-y-4">
                         <button
                             onClick={handleSubmitPayment}
-                            disabled={isProcessing}
+                            disabled={isProcessing || isCheckoutComplete}
                             className={`flex w-full items-center justify-center gap-3 rounded-xl py-4 text-lg font-bold text-white shadow-lg transition-all ${
-                                isProcessing
+                                isProcessing || isCheckoutComplete
                                     ? 'cursor-not-allowed bg-[#b7aa98]'
                                     : 'bg-primary hover:bg-primary-800 active:scale-[0.98]'
                             }`}
                         >
-                            {isProcessing ? (
+                            {isCheckoutComplete ? (
+                                'Booking Received'
+                            ) : isProcessing ? (
                                 <>
                                     <Loader className="animate-spin" size={24} />
                                     Processing Securely...

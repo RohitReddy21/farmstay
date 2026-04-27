@@ -1,81 +1,24 @@
 import { useState } from 'react';
-import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
-import API_URL from '../config';
-
-// Debug script for Vercel troubleshooting
-console.log('🔍 Vercel Debug Information');
-console.log('📡 VITE_API_URL:', import.meta.env.VITE_API_URL);
-console.log('🌐 Current Origin:', window.location.origin);
-console.log('📧 Environment Variables:', {
-    VITE_API_URL: import.meta.env.VITE_API_URL,
-    NODE_ENV: import.meta.env.NODE_ENV
-});
 
 const Register = () => {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
-    const [phone, setPhone] = useState('');
     const [password, setPassword] = useState('');
-    const [otp, setOtp] = useState('');
-    const [otpSent, setOtpSent] = useState(false);
-    const [notice, setNotice] = useState('');
     const [error, setError] = useState('');
-    const [isSendingOtp, setIsSendingOtp] = useState(false);
     const [isRegistering, setIsRegistering] = useState(false);
     const { register, googleLogin } = useAuth();
     const navigate = useNavigate();
 
-    const handleSendOtp = async () => {
-        setError('');
-        setNotice('');
-        setIsSendingOtp(true);
-
-        try {
-            console.log('\n📤 Testing API Call...');
-            console.log('📡 Full URL:', `${API_URL}/api/auth/send-otp`);
-            console.log('📤 Request Body:', { name, email, phone });
-            
-            const { data } = await axios.post(`${API_URL}/api/auth/send-otp`, {
-                name,
-                email,
-                phone
-            });
-            
-            console.log('✅ Response Status:', data);
-            console.log('✅ Response Data:', data);
-            
-            setOtpSent(true);
-            setNotice(data.message || 'OTP sent to your email address.');
-        } catch (err) {
-            console.error('❌ Error Details:');
-            console.error('Status:', err.response?.status);
-            console.error('Status Text:', err.response?.statusText);
-            console.error('Response Data:', err.response?.data);
-            console.error('Request URL:', err.config?.url);
-            console.error('Full Error:', err.message);
-            
-            setError(err.response?.data?.message || 'Could not send OTP. Please try again.');
-        } finally {
-            setIsSendingOtp(false);
-        }
-    };
-
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
-        setNotice('');
-
-        if (!otpSent) {
-            setError('Please send and verify the email OTP before signing up.');
-            return;
-        }
 
         setIsRegistering(true);
         try {
-            await register(name, email, phone, password, otp);
+            await register(name, email, password);
             navigate('/');
         } catch (err) {
             setError(err.response?.data?.message || 'Registration failed');
@@ -89,96 +32,52 @@ const Register = () => {
             <div className="mb-8 text-center">
                 <p className="mb-2 text-xs font-bold uppercase tracking-[0.28em] text-[#8a642d]">Brown Cows Dairy</p>
                 <h2 className="text-3xl font-bold text-[#211b14]">Create Account</h2>
-                <p className="mt-2 text-sm text-[#645747]">Signup with your mobile number and verify your email address.</p>
+                <p className="mt-2 text-sm text-[#645747]">Sign up with your details to get started.</p>
             </div>
 
             {error && <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
-            {notice && <div className="mb-4 rounded-xl border border-[#cfe4c8] bg-[#f1f8ec] p-3 text-sm text-[#3f6b3f]">{notice}</div>}
 
             <form onSubmit={handleSubmit} className="space-y-5">
-                {/* First Row: Name and Email */}
-                <div className="grid gap-4 sm:grid-cols-2">
-                    <div>
-                        <label className="mb-1 block text-sm font-semibold text-[#3a2b1e]">Name</label>
-                        <input
-                            type="text"
-                            className="w-full rounded-xl border border-[#e3cfac] bg-white p-3 text-[#211b14] outline-none transition focus:border-[#7a5527] focus:ring-2 focus:ring-[#d6a23d]/30"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            autoComplete="name"
-                            required
-                        />
-                    </div>
-                    <div>
-                        <label className="mb-1 block text-sm font-semibold text-[#3a2b1e]">Email</label>
-                        <input
-                            type="email"
-                            className="w-full rounded-xl border border-[#e3cfac] bg-white p-3 text-[#211b14] outline-none transition focus:border-[#7a5527] focus:ring-2 focus:ring-[#d6a23d]/30"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            autoComplete="email"
-                            required
-                        />
-                    </div>
+                <div>
+                    <label className="mb-1 block text-sm font-semibold text-[#3a2b1e]">Name</label>
+                    <input
+                        type="text"
+                        className="w-full rounded-xl border border-[#e3cfac] bg-white p-3 text-[#211b14] outline-none transition focus:border-[#7a5527] focus:ring-2 focus:ring-[#d6a23d]/30"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        autoComplete="name"
+                        required
+                    />
                 </div>
-
-                {/* Second Row: Mobile and Password */}
-                <div className="grid gap-4 sm:grid-cols-2">
-                    <div>
-                        <label className="mb-1 block text-sm font-semibold text-[#3a2b1e]">Mobile Number</label>
-                        <input
-                            type="tel"
-                            className="w-full rounded-xl border border-[#e3cfac] bg-white p-3 text-[#211b14] outline-none transition focus:border-[#7a5527] focus:ring-2 focus:ring-[#d6a23d]/30"
-                            value={phone}
-                            onChange={(e) => setPhone(e.target.value)}
-                            placeholder="+91XXXXXXXXXX"
-                            autoComplete="tel"
-                            required
-                        />
-                    </div>
-                    <div>
-                        <label className="mb-1 block text-sm font-semibold text-[#3a2b1e]">Password</label>
-                        <input
-                            type="password"
-                            className="w-full rounded-xl border border-[#e3cfac] bg-white p-3 text-[#211b14] outline-none transition focus:border-[#7a5527] focus:ring-2 focus:ring-[#d6a23d]/30"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            autoComplete="new-password"
-                            required
-                        />
-                    </div>
+                <div>
+                    <label className="mb-1 block text-sm font-semibold text-[#3a2b1e]">Email</label>
+                    <input
+                        type="email"
+                        className="w-full rounded-xl border border-[#e3cfac] bg-white p-3 text-[#211b14] outline-none transition focus:border-[#7a5527] focus:ring-2 focus:ring-[#d6a23d]/30"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        autoComplete="email"
+                        required
+                    />
                 </div>
-
-                <button
-                    type="button"
-                    onClick={handleSendOtp}
-                    disabled={isSendingOtp || !name || !email || !phone}
-                    className="w-full rounded-xl border border-[#cfa86b] bg-[#f8efdf] py-3 font-bold text-[#7a5527] transition hover:bg-[#f1dfbd] disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                    {isSendingOtp ? 'Sending OTP...' : otpSent ? 'Resend OTP' : 'Send Email OTP'}
-                </button>
-
-                {otpSent && (
-                    <div>
-                        <label className="mb-1 block text-sm font-semibold text-[#3a2b1e]">Enter Email OTP</label>
-                        <input
-                            type="text"
-                            inputMode="numeric"
-                            maxLength={6}
-                            className="w-full rounded-xl border border-[#e3cfac] bg-white p-3 text-center text-lg font-bold tracking-[0.35em] text-[#211b14] outline-none transition focus:border-[#7a5527] focus:ring-2 focus:ring-[#d6a23d]/30"
-                            value={otp}
-                            onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                            required
-                        />
-                    </div>
-                )}
+                <div>
+                    <label className="mb-1 block text-sm font-semibold text-[#3a2b1e]">Password</label>
+                    <input
+                        type="password"
+                        className="w-full rounded-xl border border-[#e3cfac] bg-white p-3 text-[#211b14] outline-none transition focus:border-[#7a5527] focus:ring-2 focus:ring-[#d6a23d]/30"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        autoComplete="new-password"
+                        required
+                    />
+                </div>
 
                 <button
                     type="submit"
-                    disabled={isRegistering || !otpSent}
+                    disabled={isRegistering}
                     className="w-full rounded-xl bg-primary py-3 font-bold text-white shadow-lg transition hover:bg-primary-800 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                    {isRegistering ? 'Creating Account...' : 'Verify & Sign Up'}
+                    {isRegistering ? 'Creating Account...' : 'Sign Up'}
                 </button>
             </form>
 
@@ -212,7 +111,7 @@ const Register = () => {
                         />
                     ) : (
                         <div className="text-center text-xs italic text-[#8b7a66]">
-                            Google signup needs a real VITE_GOOGLE_CLIENT_ID in production.
+                            Google signup is currently unavailable.
                         </div>
                     )}
                 </div>

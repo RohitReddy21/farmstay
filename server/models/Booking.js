@@ -25,7 +25,16 @@ const bookingSchema = new mongoose.Schema({
     },
     rejectionReason: { type: String },
     paymentId: { type: String }, // Razorpay Order ID or Payment ID
-    paymentStatus: { type: String, enum: ['Pending', 'Authorized', 'Captured', 'Failed', 'Refunded'], default: 'Pending' }
+    paymentStatus: { 
+        type: String, 
+        enum: ['Pending', 'Authorized', 'Captured', 'Failed', 'Refunded', 'COD'], 
+        default: 'Pending' 
+    },
+    paymentMethod: {
+        type: String,
+        enum: ['Razorpay', 'COD'],
+        default: 'Razorpay'
+    }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Booking', bookingSchema);
