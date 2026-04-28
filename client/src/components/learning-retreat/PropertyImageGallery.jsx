@@ -20,8 +20,8 @@ const PropertyImageGallery = ({ experience, stayType, stayOptions, linkedFarm, r
             ];
         }
         
-        if (stayType === 'Solo' || stayType === 'Couple') {
-            // Use Mud Cottage images for both Solo and Couple
+        if (stayType === 'Shared' || stayType === 'Couple') {
+            // Use Mud Cottage images for both Shared and Couple stays
             return stayOptions[0]?.images || [
                 stayOptions[0]?.image || 'https://browncowsdairy.com/cdn/shop/files/WhatsAppImage2025-12-16at5.07.08PM.jpg?v=1777122827&width=1200',
                 'https://browncowsdairy.com/cdn/shop/files/DSC00332.jpg?v=1776069148&width=1200',

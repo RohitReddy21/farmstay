@@ -18,6 +18,20 @@ const bookingSchema = new mongoose.Schema({
         phone: { type: String, required: true },
         specialRequests: { type: String }
     },
+    variation: {
+        type: { type: String },
+        label: { type: String },
+        cottage: { type: String }
+    },
+    retreatMeta: {
+        package: { type: String },
+        stayType: { type: String },
+        cottage: { type: String },
+        seasonalMultiplier: { type: Number },
+        accommodationPrice: { type: Number },
+        stayPricePerGuest: { type: Number },
+        experiencePricePerGuest: { type: Number }
+    },
     status: {
         type: String,
         enum: ['Pending', 'Approved', 'Rejected', 'Confirmed', 'Cancelled', 'Completed'],

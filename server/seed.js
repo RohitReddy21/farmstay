@@ -2,27 +2,41 @@ const mongoose = require('mongoose');
 const Farm = require('./models/Farm');
 const User = require('./models/User');
 
-const mudCottageContent = {
-    description: "Traditional mud cottages designed for a grounded, earthy living experience, perfect for couples or solo travelers.\n\nDetails:\n- 2 guests\n- 1 king bed\n- Common bathroom",
+const mudCottageImages = [
+    "https://browncowsdairy.com/cdn/shop/files/WhatsAppImage2025-12-16at5.07.08PM.jpg?v=1777122827",
+    "https://browncowsdairy.com/cdn/shop/files/DSC00456_fd027cac-92be-4484-9419-150a64572c9f.jpg?v=1777122828",
+    "https://browncowsdairy.com/cdn/shop/files/DSC00458_33e91b5d-5aad-4922-a54c-a391e1a0e5c1.jpg?v=1777122828",
+    "https://browncowsdairy.com/cdn/shop/files/IMG_20260326_234747.jpg?v=1777216098",
+    "https://browncowsdairy.com/cdn/shop/files/DSC00465_5ea5cf30-1758-431c-911f-2b0fc0b4b715.jpg?v=1777216105",
+    "https://browncowsdairy.com/cdn/shop/files/DSC08589.jpg?v=1777216110",
+    "https://browncowsdairy.com/cdn/shop/files/DSC08604.jpg?v=1777216116",
+    "https://browncowsdairy.com/cdn/shop/files/DSC08716.jpg?v=1777216113",
+    "https://browncowsdairy.com/cdn/shop/files/DSC08760.jpg?v=1777216114",
+    "https://browncowsdairy.com/cdn/shop/files/DSC08718.jpg?v=1776069148"
+];
+
+const mudCottage1SharedContent = {
+    description: "Traditional mud cottage designed for shared accommodation in a grounded, earthy living experience.\n\nDetails:\n- Up to 2 guests\n- Shared accommodation cottage\n- Traditional mud cottage stay\n- Perfect for friends or solo travelers",
     location: "BrownCows Dairy Farm",
     price: 4999,
     capacity: 2,
-    images: [
-        "https://browncowsdairy.com/cdn/shop/files/WhatsAppImage2025-12-16at5.07.08PM.jpg?v=1777122827",
-        "https://browncowsdairy.com/cdn/shop/files/DSC00456_fd027cac-92be-4484-9419-150a64572c9f.jpg?v=1777122828",
-        "https://browncowsdairy.com/cdn/shop/files/DSC00458_33e91b5d-5aad-4922-a54c-a391e1a0e5c1.jpg?v=1777122828",
-        "https://browncowsdairy.com/cdn/shop/files/IMG_20260326_234747.jpg?v=1777216098",
-        "https://browncowsdairy.com/cdn/shop/files/DSC00465_5ea5cf30-1758-431c-911f-2b0fc0b4b715.jpg?v=1777216105",
-        "https://browncowsdairy.com/cdn/shop/files/DSC08589.jpg?v=1777216110",
-        "https://browncowsdairy.com/cdn/shop/files/DSC08604.jpg?v=1777216116",
-        "https://browncowsdairy.com/cdn/shop/files/DSC08716.jpg?v=1777216113",
-        "https://browncowsdairy.com/cdn/shop/files/DSC08760.jpg?v=1777216114",
-        "https://browncowsdairy.com/cdn/shop/files/DSC08718.jpg?v=1776069148"
-    ],
+    images: mudCottageImages,
     videos: [
         "https://cdn.shopify.com/videos/c/vp/e936e986352347fcaf778348d7697152/e936e986352347fcaf778348d7697152.SD-480p-1.5Mbps-81429832.mp4"
     ],
-    amenities: ["Traditional Mud Cottage", "Earthy Living", "Farm Experience", "Wifi", "AC", "Gym", "Firepit", "Breakfast Included", "Free Parking", "Pet Friendly"]
+    amenities: ["Shared Accommodation", "Traditional Mud Cottage", "Earthy Living", "Farm Experience", "Wifi", "AC", "Firepit", "Breakfast Included", "Free Parking", "Bonfire Nights", "Farm Activities"]
+};
+
+const mudCottage2CoupleContent = {
+    description: "Traditional mud cottage designed for couples seeking intimate, earthy living experience.\n\nDetails:\n- 2 guests\n- 1 king size bed\n- Private bathroom\n- Romantic ambiance",
+    location: "BrownCows Dairy Farm",
+    price: 4999,
+    capacity: 2,
+    images: mudCottageImages,
+    videos: [
+        "https://cdn.shopify.com/videos/c/vp/e936e986352347fcaf778348d7697152/e936e986352347fcaf778348d7697152.SD-480p-1.5Mbps-81429832.mp4"
+    ],
+    amenities: ["King Size Bed", "Private Bathroom", "Traditional Mud Cottage", "Earthy Living", "Farm Experience", "Wifi", "AC", "Romantic Ambiance", "Breakfast Included", "Free Parking", "Couple Bonfire Experience", "Garden Views"]
 };
 
 const limestoneVillaContent = {
@@ -74,7 +88,27 @@ const vineyardContent = {
     videos: [
         "https://cdn.shopify.com/videos/c/vp/7c0e3478315a4beb9428d0c4052e3214/7c0e3478315a4beb9428d0c4052e3214.SD-480p-1.2Mbps-81256402.mp4"
     ],
-    amenities: ["3 Bedrooms", "5 Beds", "Attached Bathrooms", "Private Bungalow", "Garden Views", "Terrace", "Board Games", "Chess", "Ludo", "Poker Table", "Play Area"]
+    amenities: [
+        "Bathroom",
+        "Hot water",
+        "Free washer - In building",
+        "Free dryer - In building",
+        "TV",
+        "Life-size games",
+        "Board games",
+        "Air conditioning",
+        "Ceiling fan",
+        "First aid kit",
+        "Wifi",
+        "LG refrigerator",
+        "Microwave",
+        "Kettle",
+        "Firepit",
+        "Outdoor dining area",
+        "BBQ grill",
+        "Free parking on premises",
+        "Pool"
+    ]
 };
 
 const seedData = async () => {
@@ -104,6 +138,55 @@ const seedData = async () => {
                 availability: "All Days"
             },
             {
+                title: "Traditional Mud Cottage",
+                description: "Experience authentic farm living in our four traditional mud cottages. Mud Cottage 1 and 2 are for shared accommodation. Mud Cottage 3 and 4 are for couple accommodation. Each single cottage is priced at Rs 4,999 and allows a maximum of 2 guests.",
+                location: "BrownCows Dairy Farm",
+                price: 4999,
+                capacity: 2,
+                images: mudCottageImages,
+                videos: [
+                    "https://cdn.shopify.com/videos/c/vp/e936e986352347fcaf778348d7697152/e936e986352347fcaf778348d7697152.SD-480p-1.5Mbps-81429832.mp4"
+                ],
+                amenities: ["Traditional Mud Cottage", "Earthy Living", "Farm Experience", "Wifi", "AC"],
+                category: "Farm",
+                subCategory: "Brown Cows Dairy",
+                availability: "Monday to Friday",
+                variations: [
+                    {
+                        type: "Mud Cottage 1",
+                        label: "Mud Cottage 1 - Shared Accommodation",
+                        price: 4999,
+                        capacity: 2,
+                        amenities: ["Shared Accommodation", "Traditional Mud Cottage", "Earthy Living", "Farm Experience", "Wifi", "AC", "Firepit", "Breakfast Included", "Free Parking", "Bonfire Nights", "Farm Activities"],
+                        availableCottages: ["Traditional Mud Cottage - 1"]
+                    },
+                    {
+                        type: "Mud Cottage 2",
+                        label: "Mud Cottage 2 - Shared Accommodation",
+                        price: 4999,
+                        capacity: 2,
+                        amenities: ["Shared Accommodation", "Traditional Mud Cottage", "Earthy Living", "Farm Experience", "Wifi", "AC", "Firepit", "Breakfast Included", "Free Parking", "Bonfire Nights", "Farm Activities"],
+                        availableCottages: ["Traditional Mud Cottage - 2"]
+                    },
+                    {
+                        type: "Mud Cottage 3",
+                        label: "Mud Cottage 3 - Couple Accommodation",
+                        price: 4999,
+                        capacity: 2,
+                        amenities: ["King Size Bed", "Private Bathroom", "Traditional Mud Cottage", "Earthy Living", "Farm Experience", "Wifi", "AC", "Romantic Ambiance", "Breakfast Included", "Free Parking", "Couple Bonfire Experience", "Garden Views"],
+                        availableCottages: ["Traditional Mud Cottage - 3"]
+                    },
+                    {
+                        type: "Mud Cottage 4",
+                        label: "Mud Cottage 4 - Couple Accommodation",
+                        price: 4999,
+                        capacity: 2,
+                        amenities: ["King Size Bed", "Private Bathroom", "Traditional Mud Cottage", "Earthy Living", "Farm Experience", "Wifi", "AC", "Romantic Ambiance", "Breakfast Included", "Free Parking", "Couple Bonfire Experience", "Garden Views"],
+                        availableCottages: ["Traditional Mud Cottage - 4"]
+                    }
+                ]
+            },
+            {
                 title: "Luxury Limestone Villa - 1",
                 ...limestoneVillaContent,
                 category: "Farm",
@@ -117,20 +200,38 @@ const seedData = async () => {
                 subCategory: "Brown Cows Dairy",
                 availability: "Monday to Friday"
             },
+            /*
+            // Standalone mud cottage farm records are paused for now.
+            // Use the single "Traditional Mud Cottage" farm above with variations instead.
             {
                 title: "Traditional Mud Cottage - 1",
-                ...mudCottageContent,
+                ...mudCottage1SharedContent,
                 category: "Farm",
                 subCategory: "Brown Cows Dairy",
                 availability: "Monday to Friday"
             },
             {
                 title: "Traditional Mud Cottage - 2",
-                ...mudCottageContent,
+                ...mudCottage1SharedContent,
+                category: "Farm",
+                subCategory: "Brown Cows Dairy",
+                availability: "Monday to Friday"
+            },
+            {
+                title: "Traditional Mud Cottage - 3 (Couple)",
+                ...mudCottage2CoupleContent,
+                category: "Farm",
+                subCategory: "Brown Cows Dairy",
+                availability: "Monday to Friday"
+            },
+            {
+                title: "Traditional Mud Cottage - 4 (Couple)",
+                ...mudCottage2CoupleContent,
                 category: "Farm",
                 subCategory: "Brown Cows Dairy",
                 availability: "Monday to Friday"
             }
+            */
         ];
 
         await Farm.insertMany(farms);

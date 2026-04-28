@@ -4,50 +4,91 @@ import { motion } from 'framer-motion';
 import FavoriteButton from './FavoriteButton';
 
 const FarmCard = ({ farm }) => {
+    const variations = farm.variations || [];
+    const hasVariations = variations.length > 0;
+    const variationPrices = variations.map((variation) => Number(variation.price)).filter(Boolean);
+    const startingPrice = variationPrices.length > 0 ? Math.min(...variationPrices) : farm.price;
+    const maxCapacity = hasVariations
+        ? Math.max(...variations.map((variation) => Number(variation.capacity) || 0))
+        : farm.capacity;
+    const cottageCount = variations.reduce((count, variation) => count + (variation.availableCottages?.length || 0), 0);
+    const sharedCount = variations.filter((variation) => variation.label?.toLowerCase().includes('shared')).length;
+    const coupleCount = variations.filter((variation) => variation.label?.toLowerCase().includes('couple')).length;
+
     return (
         <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             whileHover={{ y: -5 }}
-            className="bg-white dark:bg-gray-800 rounded-xl md:rounded-2xl overflow-hidden shadow-lg border border-gray-100 dark:border-gray-700 transition-colors duration-200"
+            className="flex h-full flex-col overflow-hidden rounded-xl border border-gray-100 bg-white shadow-lg transition-colors duration-200 dark:border-gray-700 dark:bg-gray-800 md:rounded-2xl"
         >
             <div className="relative">
                 <img
                     src={farm.images[0] || 'https://via.placeholder.com/400'}
                     alt={farm.title}
-                    className="w-full h-44 md:h-48 object-cover"
+                    className="h-44 w-full object-cover md:h-48"
                     loading="lazy"
                 />
                 <div className="absolute top-3 right-3">
                     <FavoriteButton farmId={farm._id} />
                 </div>
             </div>
-            <div className="p-4 md:p-5">
-                <div className="flex justify-between items-start mb-2 gap-2">
-                    <h3 className="text-base md:text-lg font-bold text-gray-900 dark:text-white line-clamp-1 flex-1">{farm.title}</h3>
-                    <span className="bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 text-xs px-2 py-1 rounded-full font-medium whitespace-nowrap">₹{farm.price}/night</span>
+            <div className="flex flex-1 flex-col p-4 md:p-5">
+                <div className="mb-2 flex items-start justify-between gap-2">
+                    <h3 className="line-clamp-1 flex-1 text-base font-bold text-gray-900 dark:text-white md:text-lg">{farm.title}</h3>
+                    <span className="whitespace-nowrap rounded-full bg-[#edf7ee] px-2.5 py-1 text-xs font-bold text-[#2f6b3a] dark:bg-green-900 dark:text-green-200">
+                        {hasVariations ? 'From ' : ''}₹{startingPrice}/night
+                    </span>
                 </div>
-                <div className="flex flex-wrap gap-2 mb-3">
+                <div className="mb-3 flex flex-wrap gap-2">
                     {farm.subCategory && (
-                        <span className="bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-md font-bold border border-blue-100 dark:border-blue-800">
+                        <span className="rounded-md border border-blue-100 bg-blue-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
                             {farm.subCategory}
                         </span>
                     )}
                     {farm.availability && (
-                        <span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-md font-bold border ${
-                            farm.availability === 'All Days' 
-                            ? 'bg-purple-50 text-purple-600 border-purple-100 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800' 
-                            : 'bg-orange-50 text-orange-600 border-orange-100 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-800'
+                        <span className={`rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                            farm.availability === 'All Days'
+                                ? 'border-purple-100 bg-purple-50 text-purple-600 dark:border-purple-800 dark:bg-purple-900/30 dark:text-purple-300'
+                                : 'border-orange-100 bg-orange-50 text-orange-600 dark:border-orange-800 dark:bg-orange-900/30 dark:text-orange-300'
                         }`}>
                             {farm.availability}
                         </span>
                     )}
                 </div>
-                <div className="flex items-center text-gray-500 dark:text-gray-400 text-xs md:text-sm mb-3 space-x-3">
-                    <span className="flex items-center"><MapPin size={14} className="mr-1" /> {farm.location}</span>
-                    <span className="flex items-center"><Users size={14} className="mr-1" /> {farm.capacity}</span>
+                <div className="mb-3 flex items-center space-x-3 text-xs text-gray-500 dark:text-gray-400 md:text-sm">
+                    <span className="flex min-w-0 items-center">
+                        <MapPin size={14} className="mr-1 shrink-0" />
+                        <span className="truncate">{farm.location}</span>
+                    </span>
+                    <span className="flex items-center">
+                        <Users size={14} className="mr-1" />
+                        {maxCapacity}
+                    </span>
                 </div>
-                <Link to={`/farm/${farm._id}`} className="block w-full text-center bg-secondary text-white py-2.5 md:py-2 rounded-lg hover:bg-blue-600 transition font-medium text-sm md:text-base">
+                {hasVariations && (
+                    <div className="mb-4 rounded-xl border border-[#e7dbc9] bg-[#fbf7ef] p-3 dark:border-gray-700 dark:bg-gray-900/40">
+                        <div className="flex items-center justify-between gap-3">
+                            <div>
+                                <p className="text-xs font-bold uppercase tracking-wide text-[#7a5527] dark:text-amber-300">
+                                    Cottage choices
+                                </p>
+                                <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
+                                    {cottageCount} cottages available
+                                </p>
+                            </div>
+                            <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-[#7a5527] shadow-sm dark:bg-gray-800 dark:text-amber-200">
+                                {variations.length} options
+                            </span>
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] font-semibold">
+                            {sharedCount > 0 && <span className="rounded-full bg-white px-2 py-1 text-gray-700 dark:bg-gray-800 dark:text-gray-200">{sharedCount} shared</span>}
+                            {coupleCount > 0 && <span className="rounded-full bg-white px-2 py-1 text-gray-700 dark:bg-gray-800 dark:text-gray-200">{coupleCount} couple</span>}
+                            <span className="rounded-full bg-white px-2 py-1 text-gray-700 dark:bg-gray-800 dark:text-gray-200">Max 2 each</span>
+                        </div>
+                    </div>
+                )}
+                <Link to={`/farm/${farm._id}`} className="mt-auto block w-full rounded-lg bg-secondary py-2.5 text-center text-sm font-medium text-white transition hover:bg-blue-600 md:py-2 md:text-base">
                     View Details
                 </Link>
             </div>

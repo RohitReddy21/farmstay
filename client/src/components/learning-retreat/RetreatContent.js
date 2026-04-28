@@ -20,28 +20,31 @@ const retreatContent = {
         },
         stays: [
             {
-                type: 'Solo',
-                title: 'Solo Farm Stay',
-                subtitle: 'Shared Accommodation',
-                basePrice: 5000,
-                maxGuests: 1,
+                type: 'Shared',
+                title: 'Shared Farm Stay',
+                subtitle: 'Shared Accommodation (Mud Cottage 1 or 2)',
+                basePrice: 1500,
+                pricingMode: 'perGuest',
+                maxGuests: 2,
                 propertyTitleHint: 'Traditional Mud Cottage',
-                inclusions: ['Event access', 'Shared stay', 'Meals']
+                inclusions: ['Event access', 'Shared mud cottage stay', 'Meals', 'Farm activities']
             },
             {
                 type: 'Couple',
                 title: 'Couple Farm Stay',
-                subtitle: 'Mud Cottage',
-                basePrice: 10000,
-                maxGuests: 2,
+                subtitle: 'Private Accommodation (Mud Cottage 3 or 4)',
+                basePrice: 3000,
+                pricingMode: 'flat',
                 propertyTitleHint: 'Traditional Mud Cottage',
-                inclusions: ['Event access', 'Private mud cottage', 'Meals']
+                maxGuests: 2,
+                inclusions: ['Event access', 'Private mud cottage with king bed', 'Meals', 'Romantic bonfire experience']
             },
             {
                 type: 'Group',
                 title: 'Group Farm Retreat',
                 subtitle: 'Limestone Villa',
-                basePrice: 22000,
+                basePrice: 7000,
+                pricingMode: 'flat',
                 maxGuests: 4,
                 propertyTitleHint: 'Luxury Limestone Villa',
                 inclusions: ['Event access', 'Private villa stay', 'Meals']
@@ -79,9 +82,19 @@ const retreatContent = {
     ],
     stayOptions: [
         {
-            title: 'Mud Cottage',
-            text: 'Warm, earthy, and close to nature for couples and solo guests.',
-            image: 'https://browncowsdairy.com/cdn/shop/files/WhatsAppImage2025-12-16at5.07.08PM.jpg?v=1777122827&width=900',
+            title: 'Mud Cottage 1 & 2 - Shared Accommodation',
+            text: 'Perfect for friends and solo travelers. Two traditional earthy cottages for shared accommodation, with max 2 guests per cottage.',
+            image: 'https://browncowsdairy.com/cdn/shop/files/WhatsAppImage2025-12-16at5.07.08PM.jpg?v=1777122827&width=1000',
+            images: [
+                'https://browncowsdairy.com/cdn/shop/files/WhatsAppImage2025-12-16at5.07.08PM.jpg?v=1777122827&width=1200',
+                'https://browncowsdairy.com/cdn/shop/files/DSC00332.jpg?v=1776069148&width=1200',
+                'https://browncowsdairy.com/cdn/shop/files/DSC00333.jpg?v=1776069148&width=1200'
+            ]
+        },
+        {
+            title: 'Mud Cottage 3 & 4 - Couple Accommodation',
+            text: 'Designed for couples seeking privacy and romance. Two private cottages with max 2 guests per cottage.',
+            image: 'https://browncowsdairy.com/cdn/shop/files/DSC00332.jpg?v=1776069148&width=1000',
             images: [
                 'https://browncowsdairy.com/cdn/shop/files/WhatsAppImage2025-12-16at5.07.08PM.jpg?v=1777122827&width=1200',
                 'https://browncowsdairy.com/cdn/shop/files/DSC00332.jpg?v=1776069148&width=1200',
@@ -91,7 +104,7 @@ const retreatContent = {
         {
             title: 'Limestone Villa',
             text: 'A private villa stay for groups who want comfort with farm access.',
-            image: 'https://browncowsdairy.com/cdn/shop/files/DSC00331.jpg?v=1776069148&width=900',
+            image: 'https://browncowsdairy.com/cdn/shop/files/IJJU8350_1.jpg?v=1775652524&width=1000',
             images: [
                 'https://browncowsdairy.com/cdn/shop/files/DSC00331.jpg?v=1776069148&width=1200',
                 'https://browncowsdairy.com/cdn/shop/files/IJJU8350_1.jpg?v=1775652524&width=1200',
@@ -149,7 +162,10 @@ const retreatContent = {
         ['How long are the retreat programs?', 'We offer both 1-day and 2-day retreat programs. The 1-day experience typically runs from morning to evening (around 9:00 AM to 7:30 PM), while the 2-day retreat includes an overnight stay with a more immersive schedule across both days.'],
         ['What should I bring?', 'We recommend bringing comfortable clothing, footwear suitable for farm activities, personal essentials, and any medications you may need. For overnight stays, carry a change of clothes and basic toiletries. Sunscreen, hats, and reusable water bottles are also suggested.'],
         ['Is it suitable for children?', 'Yes, the farm experience is suitable for children. It is a great opportunity for them to learn about nature, animals, and sustainable farming in a safe and engaging environment. Children should be accompanied by adults at all times.'],
-        ['What is the cancellation policy?', 'Bookings once confirmed are subject to our cancellation policy. Cancellations made within a specified time frame may be eligible for partial refunds or rescheduling, depending on availability. We recommend contacting us directly for detailed cancellation and rescheduling terms.']
+        ['What is the cancellation policy?', 'Cancellations made 7 days or more before the retreat date: Full refund minus 10% processing fee. Cancellations made 3-6 days before the retreat date: 50% refund. Cancellations made less than 3 days before the retreat date: No refund. In case of extreme weather conditions or government restrictions, full refund or rescheduling options will be provided.'],
+        ['What is the refund policy?', 'Refunds are processed within 7-10 business days from the date of cancellation approval. The refund amount will be credited to the original payment method used during booking. For group bookings (4+ guests), the cancellation policy may vary - please contact us directly for group-specific terms. No refunds for no-shows or late arrivals.'],
+        ['Can I reschedule my booking?', 'Yes, you can reschedule your booking up to 7 days before the retreat date, subject to availability. A nominal rescheduling fee of 5% may apply. Rescheduling requests made less than 7 days before the retreat date will be treated as cancellations and will be subject to the cancellation policy terms.'],
+        ['What if I need to cancel due to emergency?', 'In case of medical emergencies or unavoidable circumstances, please contact us immediately with supporting documentation. We will review each case individually and may offer rescheduling options or partial refunds based on the situation and timing of the request.']
     ],
     blockedDates: [],
     seasonalPricing: {

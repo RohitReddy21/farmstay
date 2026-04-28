@@ -158,13 +158,23 @@ router.post('/google', async (req, res) => {
 });
 
 // @route   GET /api/auth/me
-// @desc    Get current user
-router.get('/me', verifyToken, async (req, res) => {
+// @desc    Get current user without surfacing stale-token 401s during app boot
+router.get('/me', async (req, res) => {
     try {
-        const user = await User.findById(req.user._id).select('-password');
+        const token = req.headers.authorization?.split(' ')[1];
+        if (!token) {
+            return res.json(null);
+        }
+
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const user = await User.findById(decoded._id).select('-password');
+        if (!user) {
+            return res.json(null);
+        }
+
         res.json(user);
     } catch (error) {
-        res.status(500).json({ message: 'Server Error' });
+        res.json(null);
     }
 });
 

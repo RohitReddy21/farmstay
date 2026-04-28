@@ -21,12 +21,18 @@ export const AuthProvider = ({ children }) => {
                         }
                     };
                     const { data } = await axios.get(`${API_URL}/api/auth/me`, config);
-                    setUser(data);
+                    if (data?._id) {
+                        setUser(data);
+                    } else {
+                        localStorage.removeItem('token');
+                        setUser(null);
+                    }
                 } catch (error) {
                     if (error.response?.status !== 401) {
                         console.error('Auth check failed:', error);
                     }
                     localStorage.removeItem('token');
+                    setUser(null);
                 }
             }
             setLoading(false);

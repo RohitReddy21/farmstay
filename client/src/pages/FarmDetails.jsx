@@ -4,7 +4,36 @@ import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MapPin, Users, Check, ChevronLeft, ChevronRight, AlertCircle, X, Play } from 'lucide-react';
+import {
+    Bath,
+    BedDouble,
+    Car,
+    Check,
+    ChevronDown,
+    ChevronLeft,
+    ChevronRight,
+    Coffee,
+    Dumbbell,
+    Fan,
+    Flame,
+    Gamepad2,
+    Heart,
+    Home,
+    MapPin,
+    Microwave,
+    Play,
+    Refrigerator,
+    ShieldPlus,
+    Snowflake,
+    TreePine,
+    Tv,
+    Users,
+    Utensils,
+    WashingMachine,
+    Waves,
+    Wifi,
+    X
+} from 'lucide-react';
 import { DateRange } from 'react-date-range';
 import 'react-date-range/dist/styles.css'; 
 import 'react-date-range/dist/theme/default.css';
@@ -36,6 +65,7 @@ const FarmDetails = () => {
     const [isCalendarOpen, setIsCalendarOpen] = useState(false);
     const [confirmedBookingDetails, setConfirmedBookingDetails] = useState(null);
     const [showLightbox, setShowLightbox] = useState(false);
+    const [isVariationSelectorOpen, setIsVariationSelectorOpen] = useState(false);
     const [dateSelection, setDateSelection] = useState([
         {
             startDate: new Date(),
@@ -48,6 +78,23 @@ const FarmDetails = () => {
         guestName: '',
         guestPhone: ''
     });
+    const [selectedVariation, setSelectedVariation] = useState(null);
+    const [selectedCottage, setSelectedCottage] = useState(null);
+
+    const hasVariations = farm?.variations?.length > 0;
+    const nightlyPrice = selectedVariation?.price || farm?.price || 0;
+    const guestLimit = selectedVariation?.capacity || farm?.capacity || 1;
+
+    const selectVariation = (variation) => {
+        if (!variation) return;
+        setSelectedVariation(variation);
+        setSelectedCottage(variation.availableCottages?.[0] || null);
+        setBookingData((current) => ({
+            ...current,
+            guests: Math.min(Number(current.guests) || 1, variation.capacity || farm?.capacity || 1)
+        }));
+        setIsVariationSelectorOpen(false);
+    };
 
     // Combine images and videos into a single media array
     const combineMedia = (farmData) => {
@@ -104,6 +151,35 @@ const FarmDetails = () => {
         const sep = embedUrl.includes('?') ? '&' : '?';
         return `${embedUrl}${sep}controls=${controls ? 1 : 0}`;
     };
+
+    const getAmenityIcon = (amenity = '') => {
+        const text = amenity.toLowerCase();
+        if (text.includes('wifi')) return Wifi;
+        if (text.includes('air conditioning') || text === 'ac') return Snowflake;
+        if (text.includes('fan')) return Fan;
+        if (text.includes('bed') || text.includes('king')) return BedDouble;
+        if (text.includes('bath') || text.includes('hot water')) return Bath;
+        if (text.includes('parking')) return Car;
+        if (text.includes('washer') || text.includes('dryer') || text.includes('laundry')) return WashingMachine;
+        if (text.includes('tv')) return Tv;
+        if (text.includes('game') || text.includes('chess') || text.includes('ludo') || text.includes('poker')) return Gamepad2;
+        if (text.includes('first aid') || text.includes('safety')) return ShieldPlus;
+        if (text.includes('refrigerator') || text.includes('fridge')) return Refrigerator;
+        if (text.includes('microwave')) return Microwave;
+        if (text.includes('kettle')) return Coffee;
+        if (text.includes('pool')) return Waves;
+        if (text.includes('breakfast') || text.includes('coffee')) return Coffee;
+        if (text.includes('meal') || text.includes('kitchen')) return Utensils;
+        if (text.includes('fire') || text.includes('bonfire') || text.includes('bbq')) return Flame;
+        if (text.includes('outdoor dining')) return Utensils;
+        if (text.includes('gym')) return Dumbbell;
+        if (text.includes('garden') || text.includes('farm') || text.includes('earth')) return TreePine;
+        if (text.includes('romantic') || text.includes('couple')) return Heart;
+        if (text.includes('cottage') || text.includes('villa') || text.includes('stay')) return Home;
+        return Check;
+    };
+
+    const displayedAmenities = selectedVariation?.amenities?.length ? selectedVariation.amenities : farm?.amenities || [];
 
     // Check for date conflicts whenever dates change
     const checkDateConflict = (start, end) => {
@@ -171,6 +247,14 @@ const FarmDetails = () => {
                 const { data } = await axios.get(`${API_URL}/api/farms/${id}`);
                 setFarm(data);
                 setAllMedia(combineMedia(data));
+                // Set first variation as selected if variations exist
+                if (data.variations?.length > 0) {
+                    setSelectedVariation(data.variations[0]);
+                    setSelectedCottage(data.variations[0].availableCottages?.[0] || null);
+                } else {
+                    setSelectedVariation(null);
+                    setSelectedCottage(null);
+                }
             } catch (error) {
                 console.error('Error fetching farm details:', error);
             } finally {
@@ -264,7 +348,8 @@ const FarmDetails = () => {
             }
 
             const nights = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
-            const totalPrice = nights * farm.price;
+            const basePrice = nightlyPrice;
+            const totalPrice = nights * basePrice;
             const tax = Math.round(totalPrice * 0.18); // 18% GST example
 
             // Set Cart Data and Navigate to Cart
@@ -278,8 +363,13 @@ const FarmDetails = () => {
                     name: bookingData.guestName,
                     phone: bookingData.guestPhone
                 },
+                variation: selectedVariation ? {
+                    type: selectedVariation.type,
+                    label: selectedVariation.label,
+                    cottage: selectedCottage
+                } : null,
                 pricing: {
-                    basePrice: farm.price,
+                    basePrice,
                     nights,
                     totalPrice,
                     tax,
@@ -454,9 +544,191 @@ const FarmDetails = () => {
                             <h1 className="text-2xl md:text-3xl font-bold text-gray-900 leading-tight">{farm.title}</h1>
                         </div>
                         <div className="flex justify-between items-end mb-4 md:mb-6">
-                            <span className="text-2xl md:text-3xl font-bold text-gray-900">₹{farm.price}</span>
+                            <span className="text-2xl md:text-3xl font-bold text-gray-900">₹{nightlyPrice}</span>
                             <span className="text-gray-500 mb-1 text-sm md:text-base">/ night</span>
                         </div>
+
+                        {hasVariations && (
+                            <div className="mb-6 border-b border-gray-100 pb-6">
+                                <div className="mb-3 flex items-end justify-between gap-3">
+                                    <div>
+                                        <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Choose cottage</p>
+                                        <h2 className="text-lg font-bold text-gray-900">Accommodation type</h2>
+                                    </div>
+                                    <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
+                                        Max {guestLimit} guests
+                                    </span>
+                                </div>
+                                <div className="relative">
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsVariationSelectorOpen((current) => !current)}
+                                        className="group w-full overflow-hidden rounded-3xl border-2 border-primary/20 bg-gradient-to-br from-white via-[#fffaf4] to-[#fff2df] p-4 text-left shadow-[0_14px_35px_rgba(122,85,39,0.12)] outline-none transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-[0_18px_45px_rgba(122,85,39,0.18)] focus:border-primary focus:ring-4 focus:ring-primary/20"
+                                        aria-expanded={isVariationSelectorOpen}
+                                    >
+                                        <div className="flex items-center justify-between gap-4">
+                                            <div className="min-w-0">
+                                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">
+                                                    Selected cottage
+                                                </p>
+                                                <p className="mt-1 truncate text-sm font-black text-gray-900 md:text-base">
+                                                    {selectedVariation?.label || 'Choose a cottage'}
+                                                </p>
+                                                <div className="mt-3 flex flex-wrap gap-2">
+                                                    <span className="rounded-full bg-primary/10 px-3 py-1 text-[11px] font-black text-primary">
+                                                        Rs {nightlyPrice} / night
+                                                    </span>
+                                                    <span className="rounded-full bg-white px-3 py-1 text-[11px] font-black text-gray-600 shadow-sm">
+                                                        Max {guestLimit} guests
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary text-white shadow-lg transition-transform group-hover:scale-105">
+                                                <ChevronDown size={22} className={`transition-transform ${isVariationSelectorOpen ? 'rotate-180' : ''}`} />
+                                            </div>
+                                        </div>
+                                    </button>
+
+                                    <AnimatePresence>
+                                        {isVariationSelectorOpen && (
+                                            <motion.div
+                                                initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                                                animate={{ opacity: 1, y: 8, scale: 1 }}
+                                                exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                                                transition={{ duration: 0.18 }}
+                                                className="absolute left-0 right-0 top-full z-40 overflow-hidden rounded-3xl border border-primary/20 bg-[#fffaf4] p-2 shadow-[0_22px_55px_rgba(68,45,19,0.22)]"
+                                            >
+                                                <div className="max-h-80 space-y-2 overflow-y-auto pr-1">
+                                                    {farm.variations.map((variation) => {
+                                                        const isSelected = selectedVariation?.type === variation.type;
+                                                        const stayLabel = variation.label?.toLowerCase().includes('couple') ? 'Couple stay' : 'Shared stay';
+                                                        return (
+                                                            <button
+                                                                key={variation.type}
+                                                                type="button"
+                                                                onClick={() => selectVariation(variation)}
+                                                                className={`w-full rounded-2xl border p-3 text-left transition-all ${
+                                                                    isSelected
+                                                                        ? 'border-primary bg-primary text-white shadow-md'
+                                                                        : 'border-primary/10 bg-white text-gray-900 hover:border-primary/40 hover:bg-[#fff8ed]'
+                                                                }`}
+                                                            >
+                                                                <div className="flex items-start justify-between gap-3">
+                                                                    <div className="min-w-0">
+                                                                        <p className="text-sm font-black leading-tight md:text-base">{variation.label}</p>
+                                                                        <p className={`mt-1 text-xs font-semibold ${isSelected ? 'text-white/80' : 'text-gray-500'}`}>
+                                                                            {variation.availableCottages?.[0] || variation.type}
+                                                                        </p>
+                                                                        <div className="mt-2 flex flex-wrap gap-1.5">
+                                                                            <span className={`rounded-full px-2.5 py-1 text-[11px] font-black ${isSelected ? 'bg-white/15 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                                                                                {variation.capacity} guests
+                                                                            </span>
+                                                                            <span className={`rounded-full px-2.5 py-1 text-[11px] font-black ${isSelected ? 'bg-white/15 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                                                                                {stayLabel}
+                                                                            </span>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="flex shrink-0 items-center gap-2">
+                                                                        <span className={`rounded-full px-3 py-1 text-xs font-black ${isSelected ? 'bg-white/15 text-white' : 'bg-primary/10 text-primary'}`}>
+                                                                            Rs {variation.price}
+                                                                        </span>
+                                                                        {isSelected && <Check size={18} />}
+                                                                    </div>
+                                                                </div>
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+                                {false && selectedVariation && (
+                                    <div className="mt-3 rounded-2xl border border-primary/20 bg-[#fff8ed] p-3">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div>
+                                                <p className="text-sm font-bold text-gray-900">{selectedVariation.label}</p>
+                                                <p className="mt-1 text-xs font-medium text-gray-500">
+                                                    {selectedCottage || selectedVariation.availableCottages?.[0]} - {guestLimit} guests max
+                                                </p>
+                                            </div>
+                                            <p className="shrink-0 text-base font-extrabold text-primary">₹{nightlyPrice}</p>
+                                        </div>
+                                    </div>
+                                )}
+                                <div className="hidden">
+                                    {farm.variations.map((variation, index) => (
+                                        <button
+                                            key={index}
+                                            type="button"
+                                            onClick={() => {
+                                                setSelectedVariation(variation);
+                                                setSelectedCottage(variation.availableCottages?.[0] || null);
+                                                setBookingData((current) => ({
+                                                    ...current,
+                                                    guests: Math.min(Number(current.guests) || 1, variation.capacity || farm.capacity || 1)
+                                                }));
+                                            }}
+                                            className={`group w-full rounded-2xl border p-3 text-left transition-all ${
+                                                selectedVariation?.type === variation.type
+                                                    ? 'border-primary bg-[#fff8ed] shadow-sm ring-2 ring-primary/10'
+                                                    : 'border-gray-200 bg-white hover:border-primary/50 hover:bg-gray-50'
+                                            }`}
+                                        >
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border ${
+                                                    selectedVariation?.type === variation.type
+                                                        ? 'border-primary bg-primary text-white'
+                                                        : 'border-gray-200 bg-gray-50 text-gray-400 group-hover:border-primary/40 group-hover:text-primary'
+                                                }`}>
+                                                    <Check size={16} strokeWidth={3} />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="text-sm font-bold leading-snug text-gray-900 md:text-base">{variation.label}</p>
+                                                    <div className="mt-2 flex flex-wrap gap-1.5">
+                                                        <span className="rounded-full bg-gray-100 px-2 py-1 text-[11px] font-semibold text-gray-600">
+                                                            {variation.capacity} guests
+                                                        </span>
+                                                        <span className="rounded-full bg-gray-100 px-2 py-1 text-[11px] font-semibold text-gray-600">
+                                                            {variation.label?.toLowerCase().includes('couple') ? 'Couple stay' : 'Shared stay'}
+                                                        </span>
+                                                    </div>
+                                                    {variation.availableCottages?.length > 0 && (
+                                                        <p className="mt-2 text-xs font-medium text-gray-500">
+                                                            {variation.availableCottages.join(', ')}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                                <p className="font-bold text-primary">₹{variation.price}</p>
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* Cottage Selection */}
+                                {selectedVariation?.availableCottages && selectedVariation.availableCottages.length > 1 && (
+                                    <div className="mt-4">
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">Select Cottage</label>
+                                        <select
+                                            value={selectedCottage || ''}
+                                            onChange={(e) => setSelectedCottage(e.target.value)}
+                                            className="w-full rounded-2xl border-2 border-primary/20 bg-gradient-to-br from-white to-[#fff8ed] p-3 text-sm font-bold text-gray-900 outline-none transition-all hover:border-primary/40 focus:border-primary focus:ring-4 focus:ring-primary/20 md:text-base"
+                                        >
+                                            {selectedVariation.availableCottages.map((cottage, idx) => (
+                                                <option key={idx} value={cottage}>
+                                                    {cottage}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
+                                {false && selectedVariation?.availableCottages?.length === 1 && (
+                                    <p className="mt-3 rounded-xl bg-gray-50 px-3 py-2 text-sm text-gray-600">
+                                        Selected cottage: <span className="font-semibold text-gray-900">{selectedVariation.availableCottages[0]}</span>
+                                    </p>
+                                )}
+                            </div>
+                        )}
 
                         {/* Dynamic Date Conflict Warning */}
                         {dateConflict && (
@@ -577,13 +849,13 @@ const FarmDetails = () => {
                                 <input
                                     type="number"
                                     min="1"
-                                    max={farm.capacity}
+                                    max={guestLimit}
                                     required
                                     value={bookingData.guests}
                                     className="w-full p-2.5 md:p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all text-sm md:text-base"
-                                    onChange={(e) => setBookingData({ ...bookingData, guests: e.target.value })}
+                                    onChange={(e) => setBookingData({ ...bookingData, guests: Math.min(Number(e.target.value) || 1, guestLimit) })}
                                 />
-                                <p className="text-xs text-gray-500 mt-1">Maximum {farm.capacity} guests</p>
+                                <p className="text-xs text-gray-500 mt-1">Maximum {guestLimit} guests</p>
                             </div>
 
                             <button
@@ -656,6 +928,7 @@ const FarmDetails = () => {
                     </h2>
                     <p className="text-gray-700 leading-relaxed whitespace-pre-line text-xs md:text-base">
                         {farm.description}
+    
                     </p>
 
                     {/* Host Profile Section (Mock Data) */}
@@ -671,15 +944,20 @@ const FarmDetails = () => {
                             </div>
                         </div>
                         <div className="flex-1">
-                            <h3 className="text-xl font-bold text-gray-900 mb-1">Hosted by Thomas</h3>
-                            <p className="text-gray-500 text-sm mb-2">Superhost · Joined December 2021</p>
+                            <h3 className="text-xl font-bold text-gray-900 mb-1">Hosted by Kusuma Ijju</h3>
+                            <p className="text-gray-500 text-sm mb-2">Superhost · Joined in 2022</p>
                             <p className="text-gray-600 text-sm md:text-base line-clamp-2">
                                 We love sharing our organic farm with guests! I'm always available to show you around the vineyards or recommend local hiking trails.
                             </p>
                         </div>
-                        <button className="hidden sm:block px-4 py-2 border border-gray-300 rounded-lg hover:border-gray-900 hover:bg-gray-50 font-medium transition-all">
-                            Contact Host
-                        </button>
+                        <a
+  href="https://wa.me/916300612812?text=Hi%20I%20am%20interested%20in%20your%20farmstay"
+  target="_blank"
+  rel="noopener noreferrer"
+  className="hidden sm:block px-4 py-2 border border-gray-300 rounded-lg hover:border-gray-900 hover:bg-gray-50 font-medium transition-all text-center"
+>
+  Contact Host
+</a>
                     </div>
                 </div>
 
@@ -687,17 +965,25 @@ const FarmDetails = () => {
                 <div>
                     <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-5 flex items-center gap-3">
                         <div className="w-1.5 h-8 bg-gradient-to-b from-primary to-primary-800 rounded-full"></div>
-                        What this place offers
+                        {selectedVariation ? `${selectedVariation.type} offers` : 'What this place offers'}
                     </h2>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {farm.amenities.map((amenity, index) => (
-                            <div key={index} className="flex items-center gap-3 p-4 bg-gradient-to-br from-gray-50 to-white rounded-xl hover:shadow-md hover:scale-105 transition-all duration-200 border border-gray-100">
-                                <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary-800 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm">
-                                    <Check size={20} className="text-white" />
+                    {selectedVariation?.availableCottages?.[0] && (
+                        <p className="mb-4 text-sm font-medium text-gray-500">
+                            Showing amenities for <span className="text-gray-900">{selectedVariation.availableCottages[0]}</span>
+                        </p>
+                    )}
+                    <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+                        {displayedAmenities.map((amenity, index) => {
+                            const AmenityIcon = getAmenityIcon(amenity);
+                            return (
+                            <div key={index} className="group flex min-h-[96px] flex-col justify-between rounded-2xl border border-gray-100 bg-[#fbfaf7] p-4 transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:bg-white hover:shadow-md">
+                                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-white">
+                                    <AmenityIcon size={20} />
                                 </div>
-                                <span className="text-gray-800 font-medium text-base">{amenity}</span>
+                                <span className="text-sm font-bold leading-snug text-gray-800 md:text-base">{amenity}</span>
                             </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
 
@@ -877,7 +1163,7 @@ const FarmDetails = () => {
             {/* Sticky Mobile Booking Bar */}
             <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 md:hidden z-40 shadow-[0_-4px_10px_rgba(0,0,0,0.05)] flex items-center justify-between gap-4">
                 <div>
-                    <p className="text-gray-900 font-bold text-lg">₹{farm.price}<span className="text-sm font-normal text-gray-500"> / night</span></p>
+                    <p className="text-gray-900 font-bold text-lg">₹{nightlyPrice}<span className="text-sm font-normal text-gray-500"> / night</span></p>
                     {dateConflict ? (
                         <p className="text-xs text-red-500 font-medium">Dates unavailable</p>
                     ) : (

@@ -60,7 +60,9 @@ const Checkout = () => {
             guests: { adults, children },
             totalPrice: cartItem.pricing.totalPrice,
             tax: cartItem.pricing.tax,
-            guestDetails: cartItem.guestDetails
+            guestDetails: cartItem.guestDetails,
+            variation: cartItem.variation,
+            retreatMeta: cartItem.retreatMeta
         };
     };
 

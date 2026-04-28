@@ -16,6 +16,14 @@ const farmSchema = new mongoose.Schema({
         enum: ['All Days', 'Monday to Friday'],
         default: 'All Days'
     },
+    variations: [{
+        type: { type: String }, // e.g., "Shared", "Couple"
+        label: { type: String }, // e.g., "Shared Accommodation", "Couple Accommodation"
+        price: { type: Number },
+        capacity: { type: Number },
+        amenities: [{ type: String }],
+        availableCottages: [{ type: String }] // e.g., ["Cottage 1", "Cottage 2"]
+    }],
     owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User' } // Optional: if we want to link to an owner
 }, { timestamps: true });
 

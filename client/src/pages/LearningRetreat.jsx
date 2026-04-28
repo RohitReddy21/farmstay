@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle2, CreditCard, MessageCircle, ShoppingBag, X } from 'lucide-react';
+import { CalendarDays, CheckCircle2, CreditCard, Home, MessageCircle, ShoppingBag, Sprout, Utensils, X } from 'lucide-react';
 import API_URL from '../config';
 import { useCart } from '../context/CartContext';
 
@@ -55,12 +55,85 @@ const FloatingWhatsApp = ({ phone }) => (
     </a>
 );
 
+const RetreatExperienceStrip = ({ experience, stayType, retreatContent, selectedStay }) => {
+    const stayImage = experience === 'day'
+        ? retreatContent.heroImage
+        : retreatContent.stayOptions.find((option) =>
+            selectedStay?.propertyTitleHint && option.title.toLowerCase().includes(
+                selectedStay.propertyTitleHint.toLowerCase().includes('limestone') ? 'limestone' : 'mud cottage'
+            )
+        )?.image || retreatContent.heroImage;
+    const stripTitle = experience === 'stay'
+        ? 'Learn, eat, rest, and wake up on the farm.'
+        : 'Spend the day learning, tasting, and slowing down.';
+
+    const cards = [
+        {
+            title: 'Farm learning',
+            text: 'Hands-on sessions around natural farming, soil, dairy, biogas, and slow rural living.',
+            icon: Sprout
+        },
+        {
+            title: 'Fresh meals',
+            text: 'Farm-style vegetarian meals with seasonal produce and dairy from the Brown Cows kitchen.',
+            icon: Utensils
+        },
+        {
+            title: experience === 'stay' ? `${stayType} stay` : 'Day visit',
+            text: experience === 'stay'
+                ? `${selectedStay.subtitle} with weekend access to the full retreat schedule.`
+                : 'A Saturday farm experience with guided activities, meal, and nature time.',
+            icon: experience === 'stay' ? Home : CalendarDays
+        }
+    ];
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.55, delay: 0.35 }}
+            className="overflow-hidden rounded-[2rem] border border-[#dfd1bb] bg-[#fffaf1] shadow-[0_18px_55px_rgba(82,58,28,0.12)] dark:border-[#31392f] dark:bg-[#171d17]"
+        >
+            <div className="grid gap-0 md:grid-cols-[0.9fr_1.1fr]">
+                <div className="relative min-h-[240px] overflow-hidden">
+                    <img
+                        src={stayImage}
+                        alt={experience === 'stay' ? selectedStay.title : retreatContent.packages.day.title}
+                        className="h-full min-h-[240px] w-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#21170d]/55 via-transparent to-transparent" />
+                    <div className="absolute bottom-4 left-4 right-4">
+                        <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#f5deb3]">Weekend rhythm</p>
+                        <h3 className="mt-2 text-2xl font-black leading-tight text-white">
+                            {stripTitle}
+                        </h3>
+                    </div>
+                </div>
+                <div className="grid content-center gap-3 p-4 sm:p-5 lg:p-6">
+                    {cards.map(({ title, text, icon: Icon }) => (
+                        <div key={title} className="flex gap-4 rounded-2xl border border-[#ead8b9] bg-white/70 p-4 dark:border-[#31392f] dark:bg-[#232823]">
+                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#7a5527] text-white shadow-md">
+                                <Icon size={20} />
+                            </div>
+                            <div>
+                                <h4 className="text-base font-black text-[#211b14] dark:text-[#fff8ea]">{title}</h4>
+                                <p className="mt-1 text-sm leading-relaxed text-[#6b5d4c] dark:text-[#cfc2b2]">{text}</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </motion.div>
+    );
+};
+
 const LearningRetreat = () => {
     const navigate = useNavigate();
     const { addToCart } = useCart();
     const [farms, setFarms] = useState([]);
     const [experience, setExperience] = useState('day');
-    const [stayType, setStayType] = useState('Solo');
+    const [stayType, setStayType] = useState('Shared');
+    const [selectedStayVariation, setSelectedStayVariation] = useState(null);
     const [guests, setGuests] = useState(1);
     const [selectedDate, setSelectedDate] = useState('');
     const [selectedMonth, setSelectedMonth] = useState(() => new Date());
@@ -80,10 +153,60 @@ const LearningRetreat = () => {
     );
 
     const activePackage = experience === 'day' ? retreatContent.packages.day : selectedStay;
+    const linkedFarm = useMemo(() => {
+        const hint = activePackage.propertyTitleHint;
+        return farms.find((farm) => farm.title?.toLowerCase().includes(hint.toLowerCase())) || farms[0];
+    }, [activePackage.propertyTitleHint, farms]);
+    const stayVariations = useMemo(() => {
+        if (experience !== 'stay') return [];
+        const type = stayType.toLowerCase();
+        const farmVariations = linkedFarm?.variations?.filter((variation) =>
+            variation.label?.toLowerCase().includes(type) ||
+            variation.type?.toLowerCase().includes(type)
+        ) || [];
+
+        if (farmVariations.length > 0) return farmVariations;
+
+        const hint = selectedStay.propertyTitleHint?.toLowerCase();
+        if (!hint?.includes('limestone')) return [];
+
+        return farms
+            .filter((farm) => farm.title?.toLowerCase().includes(hint))
+            .map((farm, index) => ({
+                type: farm._id || farm.title || `limestone-villa-${index + 1}`,
+                label: farm.title || `Luxury Limestone Villa - ${index + 1}`,
+                price: farm.price || selectedStay.basePrice,
+                capacity: farm.capacity || selectedStay.maxGuests,
+                amenities: farm.amenities || [],
+                availableCottages: [farm.title || `Luxury Limestone Villa - ${index + 1}`],
+                farmId: farm._id
+            }));
+    }, [experience, farms, linkedFarm, selectedStay, stayType]);
+    const selectedStayCapacity = selectedStayVariation?.capacity || selectedStay.maxGuests;
     const seasonalMultiplier = selectedDate ? (retreatContent.seasonalPricing[selectedDate] || 1) : 1;
-    const baseTotal = activePackage.basePrice * (experience === 'day' ? guests : 1) * seasonalMultiplier;
-    const tax = Math.round(baseTotal * activePackage.taxRate || baseTotal * 0.18);
+    const dayExperiencePrice = retreatContent.packages.day.basePrice;
+    const isFlatStayPrice = selectedStay.pricingMode === 'flat';
+    const stayPricePerGuest = experience === 'stay' ? Number(selectedStay.basePrice || 0) : 0;
+    const stayAccommodationPrice = experience === 'stay'
+        ? (isFlatStayPrice ? stayPricePerGuest : stayPricePerGuest * guests)
+        : 0;
+    const guestExperienceTotal = dayExperiencePrice * guests;
+    const preSeasonBaseTotal = experience === 'day'
+        ? guestExperienceTotal
+        : stayAccommodationPrice + guestExperienceTotal;
+    const baseTotal = preSeasonBaseTotal * seasonalMultiplier;
+    const tax = Math.round(baseTotal * (activePackage.taxRate || 0.18));
     const grandTotal = Math.round(baseTotal + tax);
+    const displayPackage = {
+        ...activePackage,
+        basePrice: experience === 'stay'
+            ? (isFlatStayPrice ? stayPricePerGuest + dayExperiencePrice : stayPricePerGuest + dayExperiencePrice)
+            : dayExperiencePrice
+    };
+    const displayStay = {
+        ...selectedStay,
+        maxGuests: selectedStayCapacity
+    };
 
     // Generate calendar dates
     const monthDates = useMemo(() => {
@@ -160,20 +283,44 @@ const LearningRetreat = () => {
 
     useEffect(() => {
         if (experience === 'stay') {
-            setGuests((current) => Math.min(Math.max(current, 0), selectedStay.maxGuests));
+            setGuests((current) => Math.min(Math.max(current, 1), selectedStayCapacity));
         }
-    }, [experience, selectedStay]);
+    }, [experience, selectedStayCapacity]);
+
+    useEffect(() => {
+        if (experience !== 'stay' || stayVariations.length === 0) {
+            setSelectedStayVariation(null);
+            return;
+        }
+
+        setSelectedStayVariation((current) => {
+            if (current && stayVariations.some((variation) => variation.type === current.type)) {
+                return current;
+            }
+            return stayVariations[0];
+        });
+    }, [experience, stayVariations]);
 
     const resolveFarmForBooking = () => {
-        const hint = activePackage.propertyTitleHint;
-        return farms.find((farm) => farm.title?.toLowerCase().includes(hint.toLowerCase())) || farms[0];
+        if (selectedStayVariation?.farmId) {
+            return farms.find((farm) => farm._id === selectedStayVariation.farmId) || linkedFarm;
+        }
+        return linkedFarm;
     };
 
     const handleBook = async (overrides = {}) => {
         const bookingGuestDetails = overrides.guestDetails || guestDetails;
         const bookingGuests = overrides.guests ?? guests;
-        const bookingBaseTotal = activePackage.basePrice * (experience === 'day' ? bookingGuests : 1) * seasonalMultiplier;
-        const bookingTax = Math.round(bookingBaseTotal * activePackage.taxRate || bookingBaseTotal * 0.18);
+        const bookingGuestExperienceTotal = dayExperiencePrice * bookingGuests;
+        const bookingStayPricePerGuest = experience === 'stay' ? Number(selectedStay.basePrice || 0) : 0;
+        const bookingIsFlatStayPrice = selectedStay.pricingMode === 'flat';
+        const bookingStayAccommodationPrice = experience === 'stay'
+            ? (bookingIsFlatStayPrice ? bookingStayPricePerGuest : bookingStayPricePerGuest * bookingGuests)
+            : 0;
+        const bookingBaseTotal = (experience === 'day'
+            ? bookingGuestExperienceTotal
+            : bookingStayAccommodationPrice + bookingGuestExperienceTotal) * seasonalMultiplier;
+        const bookingTax = Math.round(bookingBaseTotal * (activePackage.taxRate || 0.18));
         const bookingGrandTotal = Math.round(bookingBaseTotal + bookingTax);
 
         // Validation
@@ -183,9 +330,12 @@ const LearningRetreat = () => {
         else if (!/\S+@\S+\.\S+/.test(bookingGuestDetails.email)) errors.email = 'Email is invalid';
         if (!bookingGuestDetails.phone.trim()) errors.phone = 'Phone is required';
         if (!selectedDate) errors.date = 'Please select a date';
+        if (experience === 'stay' && stayVariations.length > 0 && !selectedStayVariation) {
+            errors.cottage = 'Please select an accommodation option';
+        }
 
         if (Object.keys(errors).length > 0) {
-            setCalendarError(errors.date || 'Please fill in all required fields');
+            setCalendarError(errors.date || errors.cottage || 'Please fill in all required fields');
             return;
         }
 
@@ -222,7 +372,7 @@ const LearningRetreat = () => {
             }
 
             const endDate = experience === 'day' ? addDays(selectedDate, 1) : addDays(selectedDate, 2);
-            const packageLabel = experience === 'day' ? 'Day Experience' : `${stayType} 2-Day Farm Stay`;
+            const packageLabel = experience === 'day' ? 'Day Experience' : `${selectedStayVariation?.label || stayType} 2-Day Farm Stay`;
 
             // Match the farmstay flow: add selection to cart, then checkout creates the booking/payment order.
             addToCart({
@@ -240,7 +390,7 @@ const LearningRetreat = () => {
                     name: bookingGuestDetails.name,
                     email: bookingGuestDetails.email,
                     phone: bookingGuestDetails.phone,
-                    specialRequests: `${packageLabel}; Pending approval after payment`
+                    specialRequests: `${packageLabel}${selectedStayVariation ? `; Cottage: ${selectedStayVariation.availableCottages?.[0] || selectedStayVariation.type}` : ''}; Pending approval after payment`
                 },
                 pricing: {
                     basePrice: Math.round(bookingBaseTotal),
@@ -251,10 +401,19 @@ const LearningRetreat = () => {
                     addOns: [],
                     status: 'Pending Approval'
                 },
+                variation: selectedStayVariation ? {
+                    type: selectedStayVariation.type,
+                    label: selectedStayVariation.label,
+                    cottage: selectedStayVariation.availableCottages?.[0] || selectedStayVariation.type
+                } : null,
                 retreatMeta: {
                     package: packageLabel,
                     stayType: experience === 'day' ? null : stayType,
-                    seasonalMultiplier
+                    cottage: selectedStayVariation?.availableCottages?.[0] || selectedStayVariation?.type || null,
+                    seasonalMultiplier,
+                    accommodationPrice: bookingStayAccommodationPrice,
+                    stayPricePerGuest: bookingStayPricePerGuest,
+                    experiencePricePerGuest: dayExperiencePrice
                 }
             });
 
@@ -303,8 +462,8 @@ ${retreatContent.highlights.map(h => `• ${h}`).join('\n')}
 
 PACKAGES:
 • Day Experience: ${formatMoney(retreatContent.packages.day.basePrice)} per person
-• Solo Stay: ${formatMoney(retreatContent.packages.stays[0].basePrice)} per person
-• Couple Stay: ${formatMoney(retreatContent.packages.stays[1].basePrice)} per couple
+• Shared Mud Cottage Stay: ${formatMoney(retreatContent.packages.stays[0].basePrice)} per person
+• Couple Mud Cottage Stay: ${formatMoney(retreatContent.packages.stays[1].basePrice)} per cottage
 • Group Stay: ${formatMoney(retreatContent.packages.stays[2].basePrice)} per group
 
 LOCATION:
@@ -333,7 +492,7 @@ For bookings and inquiries, visit: ${window.location.origin}
                 }}
             />
 
-            <main className="w-full space-y-16 py-14 sm:space-y-24 sm:py-20 lg:space-y-32 lg:py-24">
+            <main className="w-full py-12 sm:py-16 lg:py-20">
                 <div className="mx-auto w-full max-w-[1480px] px-4 sm:px-6 lg:px-10">
                 <section id="booking" className="grid gap-8 lg:grid-cols-[minmax(0,1.45fr)_minmax(360px,0.9fr)] lg:items-start lg:gap-12">
                     <div className="space-y-8">
@@ -352,6 +511,13 @@ For bookings and inquiries, visit: ${window.location.origin}
                                 retreatHeroImage={retreatContent.heroImage}
                             />
                         </motion.div>
+
+                        <RetreatExperienceStrip
+                            experience={experience}
+                            stayType={stayType}
+                            retreatContent={retreatContent}
+                            selectedStay={displayStay}
+                        />
                     </div>
 
                     <div className="lg:sticky lg:top-8">
@@ -362,7 +528,10 @@ For bookings and inquiries, visit: ${window.location.origin}
                             setStayType={setStayType}
                             guests={guests}
                             setGuests={setGuests}
-                            selectedStay={selectedStay}
+                            selectedStay={displayStay}
+                            stayVariations={stayVariations}
+                            selectedStayVariation={selectedStayVariation}
+                            setSelectedStayVariation={setSelectedStayVariation}
                             selectedDate={selectedDate}
                             setSelectedDate={setSelectedDate}
                             selectedMonth={selectedMonth}
@@ -379,41 +548,37 @@ For bookings and inquiries, visit: ${window.location.origin}
                             handleBook={handleBook}
                             isCalendarOpen={isCalendarOpen}
                             setIsCalendarOpen={setIsCalendarOpen}
-                            activePackage={activePackage}
+                            activePackage={displayPackage}
                             seasonalMultiplier={seasonalMultiplier}
                             retreatContent={retreatContent}
                             guestDetails={guestDetails}
                             setGuestDetails={setGuestDetails}
                             isSubmitting={isSubmitting}
+                            stayAccommodationPrice={stayAccommodationPrice}
+                            stayPricePerGuest={stayPricePerGuest}
+                            guestExperienceTotal={guestExperienceTotal}
+                            dayExperiencePrice={dayExperiencePrice}
                         />
                     </div>
                 </section>
 
-                <div className="h-4 sm:h-8 lg:h-12"></div>
-
-                <AudienceSection audience={retreatContent.audience} />
-                
-                <StayOptionsSection stayOptions={retreatContent.stayOptions} />
-                
-                <div className="h-4 sm:h-8"></div>
-                
-                <ScheduleSection schedule={retreatContent.schedule} />
-                
-                <div className="h-4 sm:h-8"></div>
-                
-                <GallerySection 
-                    gallery={retreatContent.gallery} 
-                    lightboxIndex={lightboxIndex}
-                    setLightboxIndex={setLightboxIndex}
-                />
-                
-                <div className="h-4 sm:h-8"></div>
-                
-                <FAQSection faqs={retreatContent.faqs} />
-                
-                <div className="h-4 sm:h-8"></div>
-                
-                <ContactSection retreatContent={retreatContent} />
+                <div className="mt-14 space-y-14 sm:mt-20 sm:space-y-20 lg:mt-24 lg:space-y-24">
+                    <AudienceSection audience={retreatContent.audience} />
+                    
+                    <StayOptionsSection stayOptions={retreatContent.stayOptions} />
+                    
+                    <ScheduleSection schedule={retreatContent.schedule} />
+                    
+                    <GallerySection 
+                        gallery={retreatContent.gallery} 
+                        lightboxIndex={lightboxIndex}
+                        setLightboxIndex={setLightboxIndex}
+                    />
+                    
+                    <FAQSection faqs={retreatContent.faqs} />
+                    
+                    <ContactSection retreatContent={retreatContent} />
+                </div>
 
                 <Lightbox
                     index={lightboxIndex}

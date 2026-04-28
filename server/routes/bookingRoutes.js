@@ -33,7 +33,7 @@ async function hasOverlap(propertyId, roomId, startDate, endDate) {
 // @desc    Create a Razorpay order and save a pending booking
 // @access  Private
 router.post('/create-order', verifyToken, async (req, res) => {
-    const { propertyId, roomId, startDate, endDate, guests, guestDetails, totalPrice, tax } = req.body;
+    const { propertyId, roomId, startDate, endDate, guests, guestDetails, totalPrice, tax, variation, retreatMeta } = req.body;
 
     try {
         const property = await Farm.findById(propertyId);
@@ -77,6 +77,8 @@ router.post('/create-order', verifyToken, async (req, res) => {
             endDate: end,
             guests,
             guestDetails,
+            variation,
+            retreatMeta,
             totalPrice,
             tax,
             status: 'Pending',
@@ -160,7 +162,7 @@ router.post('/verify-payment', verifyToken, async (req, res) => {
 // @desc    Create a COD booking
 // @access  Private
 router.post('/cod', verifyToken, async (req, res) => {
-    const { propertyId, roomId, startDate, endDate, guests, guestDetails, totalPrice, tax } = req.body;
+    const { propertyId, roomId, startDate, endDate, guests, guestDetails, totalPrice, tax, variation, retreatMeta } = req.body;
 
     try {
         const property = await Farm.findById(propertyId);
@@ -184,6 +186,8 @@ router.post('/cod', verifyToken, async (req, res) => {
             endDate: end,
             guests,
             guestDetails,
+            variation,
+            retreatMeta,
             totalPrice,
             tax,
             status: 'Pending',
