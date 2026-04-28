@@ -847,13 +847,17 @@ const FarmDetails = () => {
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Number of Guests</label>
                                 <input
-                                    type="number"
-                                    min="1"
-                                    max={guestLimit}
+                                    type="text"
+                                    inputMode="numeric"
                                     required
                                     value={bookingData.guests}
+                                    placeholder="Enter number of guests"
                                     className="w-full p-2.5 md:p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all text-sm md:text-base"
-                                    onChange={(e) => setBookingData({ ...bookingData, guests: Math.min(Number(e.target.value) || 1, guestLimit) })}
+                                    onChange={(e) => {
+                                        const val = e.target.value.replace(/\D/g, ''); // Only allow digits
+                                        const numVal = Math.min(Math.max(Number(val) || 1, 1), guestLimit);
+                                        setBookingData({ ...bookingData, guests: numVal });
+                                    }}
                                 />
                                 <p className="text-xs text-gray-500 mt-1">Maximum {guestLimit} guests</p>
                             </div>

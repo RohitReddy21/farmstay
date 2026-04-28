@@ -448,34 +448,10 @@ const LearningRetreat = () => {
             setLeadStatus('Your brochure download has started. We could not save the lead right now.');
         }
 
-        // Simulate brochure download
+        // Download brochure PDF
         const link = document.createElement('a');
-        link.href = 'data:text/plain;charset=utf-8,' + encodeURIComponent(`
-BROWN COWS DAIRY - 2-DAY LEARNING RETREAT
-
-${retreatContent.title}
-
-${retreatContent.subtitle}
-
-RETREAT HIGHLIGHTS:
-${retreatContent.highlights.map(h => `• ${h}`).join('\n')}
-
-PACKAGES:
-• Day Experience: ${formatMoney(retreatContent.packages.day.basePrice)} per person
-• Shared Mud Cottage Stay: ${formatMoney(retreatContent.packages.stays[0].basePrice)} per person
-• Couple Mud Cottage Stay: ${formatMoney(retreatContent.packages.stays[1].basePrice)} per cottage
-• Group Stay: ${formatMoney(retreatContent.packages.stays[2].basePrice)} per group
-
-LOCATION:
-${retreatContent.location}
-
-CONTACT:
-📱 ${retreatContent.whatsapp}
-📧 ${retreatContent.email}
-
-For bookings and inquiries, visit: ${window.location.origin}
-        `);
-        link.download = retreatContent.brochureFileName;
+        link.href = '/brochures/brown-cows-learning-retreat.pdf';
+        link.download = 'Brown Cows Dairy - 2-Day Learning Retreat.pdf';
         link.click();
     };
 

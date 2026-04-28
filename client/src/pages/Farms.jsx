@@ -142,22 +142,22 @@ const Farms = () => {
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
                             exit={{ opacity: 0, x: -20 }}
-                            className="fixed md:static inset-0 md:inset-auto z-50 md:z-auto md:col-span-1 bg-white dark:bg-gray-800 md:p-6 md:rounded-2xl md:shadow-md h-full md:h-fit overflow-y-auto md:overflow-visible"
+                            className="fixed md:static inset-0 md:inset-auto z-50 md:z-auto md:col-span-1 bg-white dark:bg-gray-800 md:p-6 md:rounded-2xl md:shadow-md h-screen md:h-fit overflow-y-auto md:overflow-visible scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100"
                         >
                             {/* Mobile overlay backdrop */}
                             <div
-                                className="md:hidden fixed inset-0 bg-black/50 -z-10"
+                                className="md:hidden fixed inset-0 bg-black/50 -z-20"
                                 onClick={() => setShowFilters(false)}
                             />
 
                             {/* Filter content */}
-                            <div className="bg-white dark:bg-gray-800 h-full md:h-auto p-6 md:p-0 space-y-6">
-                                <div className="flex justify-between items-center">
+                            <div className="bg-white dark:bg-gray-800 min-h-screen md:min-h-auto p-6 md:p-0 space-y-6">
+                                <div className="sticky top-0 bg-white dark:bg-gray-800 pb-4 flex justify-between items-center md:pb-0">
                                     <h2 className="text-xl font-bold text-gray-800 dark:text-white">Filters</h2>
                                     <div className="flex items-center gap-2">
                                         <button
                                             onClick={clearFilters}
-                                            className="text-sm text-primary hover:text-primary-800 font-medium"
+                                            className="text-xs md:text-sm text-primary hover:text-primary-800 font-medium transition-colors"
                                         >
                                             Clear All
                                         </button>
@@ -173,70 +173,75 @@ const Farms = () => {
 
                                 {/* Location */}
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Location</label>
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 uppercase tracking-wide">Location</label>
                                     <input
                                         type="text"
                                         value={filters.location}
                                         onChange={(e) => setFilters({ ...filters, location: e.target.value })}
                                         placeholder="e.g. California"
-                                        className="w-full p-3 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary outline-none dark:bg-gray-700 dark:text-white text-base"
+                                        className="w-full p-3 md:p-2.5 border-2 border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none dark:bg-gray-700 dark:text-white text-sm md:text-base transition-all"
                                     />
                                 </div>
 
                                 {/* Price Range */}
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                        Price Range: ₹{filters.minPrice} - ₹{filters.maxPrice}
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 uppercase tracking-wide">
+                                        Price: ₹{filters.minPrice} - ₹{filters.maxPrice}
                                     </label>
-                                    <div className="space-y-2">
-                                        <input
-                                            type="range"
-                                            min="0"
-                                            max={PRICE_FILTER_MAX}
-                                            step="100"
-                                            value={filters.minPrice}
-                                            onChange={(e) => setFilters({ ...filters, minPrice: parseInt(e.target.value) })}
-                                            className="w-full"
-                                        />
-                                        <input
-                                            type="range"
-                                            min="0"
-                                            max={PRICE_FILTER_MAX}
-                                            step="100"
-                                            value={filters.maxPrice}
-                                            onChange={(e) => setFilters({ ...filters, maxPrice: parseInt(e.target.value) })}
-                                            className="w-full"
-                                        />
+                                    <div className="space-y-4">
+                                        <div>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Minimum Price</p>
+                                            <input
+                                                type="range"
+                                                min="0"
+                                                max={PRICE_FILTER_MAX}
+                                                step="100"
+                                                value={filters.minPrice}
+                                                onChange={(e) => setFilters({ ...filters, minPrice: parseInt(e.target.value) })}
+                                                className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-primary"
+                                            />
+                                        </div>
+                                        <div>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Maximum Price</p>
+                                            <input
+                                                type="range"
+                                                min="0"
+                                                max={PRICE_FILTER_MAX}
+                                                step="100"
+                                                value={filters.maxPrice}
+                                                onChange={(e) => setFilters({ ...filters, maxPrice: parseInt(e.target.value) })}
+                                                className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-primary"
+                                            />
+                                        </div>
                                     </div>
                                 </div>
 
                                 {/* Capacity */}
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Min Guests</label>
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 uppercase tracking-wide">Min Guests</label>
                                     <input
                                         type="number"
                                         value={filters.capacity}
                                         onChange={(e) => setFilters({ ...filters, capacity: e.target.value })}
                                         placeholder="1"
                                         min="1"
-                                        className="w-full p-3 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary outline-none dark:bg-gray-700 dark:text-white text-base"
+                                        className="w-full p-3 md:p-2.5 border-2 border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none dark:bg-gray-700 dark:text-white text-sm md:text-base transition-all"
                                     />
                                 </div>
 
                                 {/* Amenities */}
-                                {/* Amenities */}
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Amenities</label>
-                                    <div className="space-y-3">
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 uppercase tracking-wide">Amenities</label>
+                                    <div className="grid grid-cols-2 md:grid-cols-1 gap-3 md:gap-2">
                                         {amenitiesList.map(amenity => (
-                                            <label key={amenity} className="flex items-center space-x-3 cursor-pointer py-1">
+                                            <label key={amenity} className="flex items-center space-x-3 cursor-pointer p-2 md:p-1 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                                                 <input
                                                     type="checkbox"
                                                     checked={filters.amenities.includes(amenity)}
                                                     onChange={() => handleAmenityToggle(amenity)}
-                                                    className="w-5 h-5 text-primary focus:ring-primary rounded"
+                                                    className="w-5 h-5 text-primary focus:ring-primary rounded cursor-pointer"
                                                 />
-                                                <span className="text-base text-gray-700 dark:text-gray-300">{amenity}</span>
+                                                <span className="text-sm md:text-base text-gray-700 dark:text-gray-300 font-medium">{amenity}</span>
                                             </label>
                                         ))}
                                     </div>
@@ -244,8 +249,8 @@ const Farms = () => {
 
                                 {/* Category/SubCategory */}
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Farm Category</label>
-                                    <div className="flex flex-wrap gap-2">
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 uppercase tracking-wide">Farm Category</label>
+                                    <div className="flex flex-col md:flex-col gap-2">
                                         {['Brown Cows Dairy', 'Vineyard'].map(cat => (
                                             <button
                                                 key={cat}

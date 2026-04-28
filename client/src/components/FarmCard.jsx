@@ -1,9 +1,23 @@
 import { Link } from 'react-router-dom';
 import { MapPin, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useState, useEffect } from 'react';
 import FavoriteButton from './FavoriteButton';
 
 const FarmCard = ({ farm }) => {
+    const [currentImageIndex, setCurrentImageIndex] = useState(0);
+    const images = farm.images || [];
+
+    useEffect(() => {
+        if (images.length <= 1) return;
+
+        const interval = setInterval(() => {
+            setCurrentImageIndex((prev) => (prev + 1) % images.length);
+        }, 4000); // Change image every 4 seconds
+
+        return () => clearInterval(interval);
+    }, [images.length]);
+
     const variations = farm.variations || [];
     const hasVariations = variations.length > 0;
     const variationPrices = variations.map((variation) => Number(variation.price)).filter(Boolean);
@@ -22,13 +36,34 @@ const FarmCard = ({ farm }) => {
             whileHover={{ y: -5 }}
             className="flex h-full flex-col overflow-hidden rounded-xl border border-gray-100 bg-white shadow-lg transition-colors duration-200 dark:border-gray-700 dark:bg-gray-800 md:rounded-2xl"
         >
-            <div className="relative">
-                <img
-                    src={farm.images[0] || 'https://via.placeholder.com/400'}
+            <div className="relative overflow-hidden bg-gray-100 dark:bg-gray-700">
+                <motion.img
+                    key={currentImageIndex}
+                    src={images[currentImageIndex] || 'https://via.placeholder.com/400'}
                     alt={farm.title}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.5 }}
                     className="h-44 w-full object-cover md:h-48"
                     loading="lazy"
                 />
+                {images.length > 1 && (
+                    <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 gap-1">
+                        {images.map((_, index) => (
+                            <button
+                                key={index}
+                                onClick={() => setCurrentImageIndex(index)}
+                                className={`h-1.5 rounded-full transition-all ${
+                                    index === currentImageIndex
+                                        ? 'w-4 bg-white'
+                                        : 'w-1.5 bg-white/50 hover:bg-white/75'
+                                }`}
+                                aria-label={`Go to image ${index + 1}`}
+                            />
+                        ))}
+                    </div>
+                )}
                 <div className="absolute top-3 right-3">
                     <FavoriteButton farmId={farm._id} />
                 </div>

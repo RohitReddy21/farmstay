@@ -41,9 +41,12 @@ const Home = () => {
                                 <Link to="/farms" className="inline-flex items-center justify-center bg-[#8b5e34] hover:bg-[#704721] text-[#fff8ea] px-6 md:px-8 py-3 md:py-4 rounded-full text-base md:text-lg font-semibold transition-all transform hover:scale-105 shadow-lg hover:shadow-[#1b2517]/30">
                                     Explore Farms <ArrowRight className="ml-2" size={20} />
                                 </Link>
-                                <Link to="/register" className="inline-flex items-center justify-center bg-[#fff8ea]/15 backdrop-blur-md hover:bg-[#fff8ea]/25 text-[#fff8ea] px-6 md:px-8 py-3 md:py-4 rounded-full text-base md:text-lg font-semibold transition-all border border-[#fff8ea]/45">
-                                    Join Us
+                                <Link to="/learning-retreat" className="inline-flex items-center justify-center bg-[#d6a23d] hover:bg-[#c0922e] text-[#211b14] px-6 md:px-8 py-3 md:py-4 rounded-full text-base md:text-lg font-semibold transition-all transform hover:scale-105 shadow-lg hover:shadow-[#d6a23d]/30">
+                                    Farm Retreat <ArrowRight className="ml-2" size={20} />
                                 </Link>
+                                {/* <Link to="/register" className="inline-flex items-center justify-center bg-[#fff8ea]/15 backdrop-blur-md hover:bg-[#fff8ea]/25 text-[#fff8ea] px-6 md:px-8 py-3 md:py-4 rounded-full text-base md:text-lg font-semibold transition-all border border-[#fff8ea]/45">
+                                    Join Us
+                                </Link> */}
                             </div>
                         </motion.div>
                     </div>

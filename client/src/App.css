@@ -40,3 +40,41 @@
 .read-the-docs {
   color: #888;
 }
+
+/* Number Input Styling - Show Arrows on Mobile */
+input[type="number"] {
+  -moz-appearance: textfield; /* Firefox */
+}
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: outer-spin-button;
+  -webkit-appearance: inner-spin-button;
+  opacity: 1;
+  height: auto;
+  width: auto;
+  margin-left: 4px;
+}
+
+/* Show spinners on mobile by default */
+@media (max-width: 768px) {
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: outer-spin-button;
+    opacity: 1 !important;
+  }
+}
+
+/* Auto-sliding carousel styles */
+.carousel-auto-slide {
+  overflow: hidden;
+}
+
+.carousel-track {
+  display: flex;
+  transition: transform 0.5s ease-in-out;
+}
+
+.carousel-slide {
+  min-width: 100%;
+}

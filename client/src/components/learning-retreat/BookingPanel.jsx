@@ -533,13 +533,13 @@ const BookingPanel = ({
                             <span className="text-sm font-bold text-[#211b14] dark:text-[#fff8ea]">{formatMoney(guestExperienceTotal)}</span>
                         </div>
                         <div className="flex justify-between items-center">
-                            <span className="text-sm font-semibold text-[#645747] dark:text-[#d5c9b7]">Subtotal</span>
-                            <span className="text-sm font-bold text-[#211b14] dark:text-[#fff8ea]">{formatMoney(baseTotal)}</span>
+                            <span className="text-sm font-semibold text-[#645747] dark:text-[#d5c9b7]">Taxes</span>
+                            <span className="text-sm font-bold text-[#211b14] dark:text-[#fff8ea]">{formatMoney(tax)}</span>
                         </div>
-                        
-                        <div className="flex justify-between items-center">
-                            <span className="text-sm font-semibold text-[#645747] dark:text-[#d5c9b7]">Taxes (18%) + Total</span>
-                            <span className="text-sm font-bold text-[#211b14] dark:text-[#fff8ea]">{formatMoney(grandTotal)}</span>
+
+                        <div className="border-t border-[#d6a23d]/30 pt-3 flex justify-between items-center">
+                            <span className="text-base font-bold text-[#211b14] dark:text-[#fff8ea]">Total</span>
+                            <span className="text-base font-bold text-[#d6a23d]">{formatMoney(grandTotal)}</span>
                         </div>
                     </div>
                 </div>
