@@ -27,7 +27,7 @@ const Cart = () => {
     }
 
     return (
-        <div className="mx-auto max-w-4xl px-4 py-8">
+        <div className="mx-auto w-full max-w-5xl px-2 py-5 sm:px-4 sm:py-8">
             <button 
                 onClick={() => navigate(-1)}
                 className="mb-8 flex items-center text-[#645747] transition-colors hover:text-[#7a5527]"
@@ -36,32 +36,32 @@ const Cart = () => {
                 Back to Property
             </button>
 
-            <h1 className="mb-8 text-3xl font-bold text-[#211b14] md:text-4xl">Review Booking Details</h1>
+            <h1 className="mb-6 text-2xl font-bold text-[#211b14] sm:mb-8 md:text-4xl">Review Booking Details</h1>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 lg:gap-8">
                 {/* Left: Cart Details */}
                 <div className="lg:col-span-2 space-y-6">
                     <motion.div 
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="rounded-2xl border border-[#ead7b8] bg-[#fffaf1] p-6 shadow-xl md:p-8"
+                        className="rounded-2xl border border-[#ead7b8] bg-[#fffaf1] p-4 shadow-xl sm:p-6 md:p-8"
                     >
-                        <div className="mb-6 flex items-start gap-4 border-b border-[#ead7b8] pb-6">
+                        <div className="mb-6 flex flex-col gap-4 border-b border-[#ead7b8] pb-6 sm:flex-row sm:items-start">
                             <img 
-                                src={cartItem.property.images[0]} 
+                                src={cartItem.property.images?.[0]} 
                                 alt={cartItem.property.title} 
-                                className="w-24 h-24 md:w-32 md:h-32 object-cover rounded-xl"
+                                className="h-44 w-full rounded-xl object-cover sm:h-28 sm:w-32 md:h-32 md:w-36"
                             />
-                            <div>
-                                <h2 className="mb-2 text-xl font-bold text-[#211b14] md:text-2xl">{cartItem.property.title}</h2>
-                                <div className="flex items-center text-sm text-[#645747] md:text-base">
-                                    <MapPin size={16} className="mr-1" />
-                                    {cartItem.property.location}
+                            <div className="min-w-0">
+                                <h2 className="mb-2 break-words text-xl font-bold leading-tight text-[#211b14] md:text-2xl">{cartItem.property.title}</h2>
+                                <div className="flex items-start text-sm text-[#645747] md:text-base">
+                                    <MapPin size={16} className="mr-1 mt-0.5 shrink-0" />
+                                    <span className="break-words">{cartItem.property.location}</span>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
+                        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 md:mb-8">
                             <div className="rounded-xl border border-[#ead7b8] bg-[#f8efdf] p-4">
                                 <p className="mb-2 text-xs font-semibold uppercase text-[#8b7a66]">Check-in</p>
                                 <p className="text-lg font-bold text-[#211b14]">
@@ -76,11 +76,11 @@ const Cart = () => {
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-3 rounded-xl border border-[#ead7b8] bg-[#f4ead8] p-4">
-                            <Users size={24} className="text-primary" />
-                            <div>
+                        <div className="flex items-start gap-3 rounded-xl border border-[#ead7b8] bg-[#f4ead8] p-4">
+                            <Users size={24} className="mt-0.5 shrink-0 text-primary" />
+                            <div className="min-w-0">
                                 <p className="font-bold text-[#211b14]">{cartItem.guests} Guests</p>
-                                <p className="text-sm text-[#645747]">Guest Name: {cartItem.guestDetails.name}</p>
+                                <p className="break-words text-sm text-[#645747]">Guest Name: {cartItem.guestDetails.name}</p>
                             </div>
                         </div>
                     </motion.div>
@@ -92,22 +92,22 @@ const Cart = () => {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.1 }}
-                        className="rounded-2xl border border-[#ead7b8] bg-[#fffaf1] p-6 shadow-xl lg:sticky lg:top-24"
+                        className="rounded-2xl border border-[#ead7b8] bg-[#fffaf1] p-4 shadow-xl sm:p-6 lg:sticky lg:top-24"
                     >
                         <h3 className="mb-6 text-xl font-bold text-[#211b14]">Price Details</h3>
                         
                         <div className="mb-6 space-y-4 border-b border-[#ead7b8] pb-6">
-                            <div className="flex justify-between text-[#645747]">
+                            <div className="flex justify-between gap-4 text-sm text-[#645747] sm:text-base">
                                 <span>₹{cartItem.pricing.basePrice} x {cartItem.pricing.nights} nights</span>
                                 <span>₹{cartItem.pricing.totalPrice}</span>
                             </div>
-                            <div className="flex justify-between text-[#645747]">
+                            <div className="flex justify-between gap-4 text-sm text-[#645747] sm:text-base">
                                 <span>Taxes & Fees (18% GST)</span>
                                 <span>₹{cartItem.pricing.tax}</span>
                             </div>
                         </div>
 
-                        <div className="flex justify-between items-center mb-8">
+                        <div className="mb-8 flex items-center justify-between gap-4">
                             <span className="text-lg font-bold text-[#211b14]">Total (INR)</span>
                             <span className="text-2xl font-bold text-primary">₹{cartItem.pricing.grandTotal}</span>
                         </div>

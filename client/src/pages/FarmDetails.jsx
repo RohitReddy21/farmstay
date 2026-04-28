@@ -331,6 +331,8 @@ const FarmDetails = () => {
             return;
         }
 
+        const guestCount = Math.min(Math.max(Number(bookingData.guests) || 1, 1), guestLimit);
+
         try {
             const startDate = dateSelection[0].startDate;
             const endDate = dateSelection[0].endDate;
@@ -358,7 +360,7 @@ const FarmDetails = () => {
                 propertyId: id,
                 startDate: startStr,
                 endDate: endStr,
-                guests: bookingData.guests,
+                guests: guestCount,
                 guestDetails: {
                     name: bookingData.guestName,
                     phone: bookingData.guestPhone
@@ -854,9 +856,12 @@ const FarmDetails = () => {
                                     placeholder="Enter number of guests"
                                     className="w-full p-2.5 md:p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all text-sm md:text-base"
                                     onChange={(e) => {
-                                        const val = e.target.value.replace(/\D/g, ''); // Only allow digits
-                                        const numVal = Math.min(Math.max(Number(val) || 1, 1), guestLimit);
-                                        setBookingData({ ...bookingData, guests: numVal });
+                                        const value = e.target.value.replace(/\D/g, '');
+                                        setBookingData({ ...bookingData, guests: value });
+                                    }}
+                                    onBlur={() => {
+                                        const guests = Math.min(Math.max(Number(bookingData.guests) || 1, 1), guestLimit);
+                                        setBookingData({ ...bookingData, guests });
                                     }}
                                 />
                                 <p className="text-xs text-gray-500 mt-1">Maximum {guestLimit} guests</p>

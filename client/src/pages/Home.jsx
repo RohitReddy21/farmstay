@@ -6,7 +6,7 @@ const Home = () => {
     return (
         <div className="space-y-12 md:space-y-16 lg:space-y-20 pb-12 md:pb-20 lg:pb-20">
             {/* Hero Section */}
-            <section className="relative h-[500px] md:h-[600px] lg:h-[600px] rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl mx-2 mt-2 group">
+            <section className="relative mx-0 mt-2 h-[520px] overflow-hidden rounded-2xl shadow-2xl sm:mx-2 md:h-[600px] md:rounded-3xl lg:h-[600px] group">
                 <motion.img
                     initial={{ scale: 1.1 }}
                     animate={{ scale: 1 }}
@@ -16,7 +16,7 @@ const Home = () => {
                     className="absolute inset-0 w-full h-full object-cover"
                 />
                 <div className="absolute inset-0 bg-gradient-to-r from-[#132018]/85 via-[#2f3b25]/55 to-[#132018]/10 flex items-center">
-                    <div className="container mx-auto">
+                    <div className="container mx-auto px-4 sm:px-6">
                         <motion.div
                             initial={{ opacity: 0, x: -50 }}
                             animate={{ opacity: 1, x: 0 }}
@@ -37,7 +37,7 @@ const Home = () => {
                             <p className="text-base md:text-xl mb-6 md:mb-8 text-[#f7f1df] leading-relaxed max-w-lg drop-shadow-lg">
                                 Discover unique farm stays, connect with local hosts, and experience the tranquility of rural life.
                             </p>
-                            <div className="flex flex-col sm:flex-row gap-3 md:gap-4">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap md:gap-4">
                                 <Link to="/farms" className="inline-flex items-center justify-center bg-[#8b5e34] hover:bg-[#704721] text-[#fff8ea] px-6 md:px-8 py-3 md:py-4 rounded-full text-base md:text-lg font-semibold transition-all transform hover:scale-105 shadow-lg hover:shadow-[#1b2517]/30">
                                     Explore Farms <ArrowRight className="ml-2" size={20} />
                                 </Link>

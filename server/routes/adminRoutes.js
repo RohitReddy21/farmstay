@@ -1,11 +1,86 @@
 const express = require('express');
 const mongoose = require('mongoose');
+const nodemailer = require('nodemailer');
 const router = express.Router();
 const User = require('../models/User');
 const Booking = require('../models/Booking');
 const Farm = require('../models/Farm');
 const { verifyAdmin, verifyToken } = require('../middleware/authMiddleware');
 const upload = require('../middleware/uploadMiddleware');
+
+const createEmailTransporter = () => {
+    if (process.env.SENDGRID_API_KEY) {
+        return nodemailer.createTransport({
+            service: 'SendGrid',
+            auth: {
+                user: 'apikey',
+                pass: process.env.SENDGRID_API_KEY
+            }
+        });
+    }
+
+    if (process.env.SMTP_HOST) {
+        return nodemailer.createTransport({
+            host: process.env.SMTP_HOST,
+            port: Number(process.env.SMTP_PORT || 587),
+            secure: process.env.SMTP_SECURE === 'true',
+            auth: process.env.SMTP_USER && process.env.SMTP_PASS ? {
+                user: process.env.SMTP_USER,
+                pass: process.env.SMTP_PASS
+            } : undefined
+        });
+    }
+
+    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+        return nodemailer.createTransport({
+            host: 'smtp.gmail.com',
+            port: 465,
+            secure: true,
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS
+            }
+        });
+    }
+
+    return null;
+};
+
+const sendBookingStatusEmail = async (booking, status, rejectionReason = '') => {
+    const to = booking.guestDetails?.email || booking.user?.email;
+    const from = process.env.EMAIL_FROM || process.env.SMTP_FROM || process.env.EMAIL_USER;
+    const transporter = createEmailTransporter();
+
+    if (!to || !from || !transporter) {
+        console.log('Booking status email skipped:', { bookingId: booking._id, to, status });
+        return;
+    }
+
+    const propertyTitle = booking.property?.title || booking.propertyTitle || 'your farm stay';
+    const guestName = booking.guestDetails?.name || booking.user?.name || 'Guest';
+    const isRejected = status === 'Rejected';
+
+    await transporter.sendMail({
+        from,
+        to,
+        subject: isRejected
+            ? `Your Brown Cows booking was not approved`
+            : `Your Brown Cows booking is confirmed`,
+        text: [
+            `Hi ${guestName},`,
+            '',
+            isRejected
+                ? `Your booking for ${propertyTitle} has been rejected.`
+                : `Your booking for ${propertyTitle} has been confirmed.`,
+            rejectionReason ? `Reason: ${rejectionReason}` : '',
+            '',
+            `Check-in: ${booking.startDate ? new Date(booking.startDate).toLocaleDateString('en-IN') : '-'}`,
+            `Check-out: ${booking.endDate ? new Date(booking.endDate).toLocaleDateString('en-IN') : '-'}`,
+            '',
+            'Brown Cows Organic Dairy'
+        ].filter(Boolean).join('\n')
+    });
+};
 
 const fileToPublicUrl = (req, file) => {
     const pathOrUrl = file?.path ? String(file.path) : '';
@@ -229,7 +304,7 @@ router.put('/bookings/:id/status', verifyAdmin, async (req, res) => {
     try {
         const { status, rejectionReason } = req.body;
         
-        if (!['Confirmed', 'Rejected', 'Completed'].includes(status)) {
+        if (!['Confirmed', 'Approved', 'Rejected', 'Completed', 'Cancelled'].includes(status)) {
             return res.status(400).json({ message: 'Invalid status' });
         }
 
@@ -242,10 +317,18 @@ router.put('/bookings/:id/status', verifyAdmin, async (req, res) => {
             req.params.id,
             updateData,
             { new: true }
-        );
+        )
+            .populate('user', 'name email')
+            .populate('property', 'title location');
 
         if (!booking) {
             return res.status(404).json({ message: 'Booking not found' });
+        }
+
+        if (status === 'Confirmed' || status === 'Approved' || status === 'Rejected') {
+            sendBookingStatusEmail(booking, status, rejectionReason).catch((emailError) => {
+                console.error('Booking status email failed:', emailError);
+            });
         }
 
         res.json(booking);

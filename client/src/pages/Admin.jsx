@@ -87,9 +87,10 @@ const Admin = () => {
 
             await axios.put(`${API_URL}/api/admin/bookings/${bookingId}/status`, { status, rejectionReason }, authConfig());
             fetchData();
+            alert(status === 'Rejected' ? 'Booking rejected and guest email sent if configured.' : 'Booking accepted and guest email sent if configured.');
         } catch (error) {
             console.error('Error updating booking status:', error);
-            alert('Failed to update booking status');
+            alert(error.response?.data?.message || 'Failed to update booking status');
         }
     };
 
@@ -101,7 +102,7 @@ const Admin = () => {
                 alert('Booking deleted successfully');
             } catch (error) {
                 console.error('Error deleting booking:', error);
-                alert('Failed to delete booking');
+                alert(error.response?.data?.message || 'Failed to delete booking');
             }
         }
     };
@@ -172,7 +173,7 @@ const Admin = () => {
     };
 
     return (
-        <div className="container mx-auto px-4 py-8">
+        <div className="mx-auto w-full max-w-7xl px-2 py-5 sm:px-4 sm:py-8">
             <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-center">
                 <h1 className="text-3xl font-bold text-[#211b14]">Admin Dashboard</h1>
                 <button
@@ -186,7 +187,7 @@ const Admin = () => {
             <div className="mb-8 rounded-xl bg-white p-6 shadow-md">
                 <h2 className="mb-4 text-xl font-bold text-gray-800">Registered Users ({users.length})</h2>
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left">
+                    <table className="min-w-[760px] w-full text-left">
                         <thead>
                             <tr className="border-b">
                                 <th className="pb-2">Name</th>
@@ -256,8 +257,8 @@ const Admin = () => {
                         Download Bookings CSV
                     </button>
                 </div>
-                <div className="overflow-x-auto">
-                    <table className="min-w-[1200px] w-full text-left text-sm">
+                <div className="overflow-x-auto rounded-xl border border-[#ead7b8]">
+                    <table className="min-w-[1050px] w-full text-left text-sm">
                         <thead className="bg-[#f8efdf] text-xs uppercase tracking-wide text-[#7a5527]">
                             <tr>
                                 <th className="px-4 py-3">Property</th>
@@ -311,11 +312,15 @@ const Admin = () => {
                                     </td>
                                     <td className="px-4 py-3">
                                         <div className="flex min-w-[150px] flex-col gap-2">
-                                            {(b.status === 'Pending' || !b.status) && (
+                                            {b.status !== 'Confirmed' && b.status !== 'Completed' && (
                                                 <>
                                                     <button onClick={() => handleBookingStatus(b._id, 'Confirmed')} className="rounded-lg bg-secondary px-3 py-2 text-xs font-semibold text-white transition hover:bg-secondary-800">
                                                         Accept
                                                     </button>
+                                                </>
+                                            )}
+                                            {b.status !== 'Rejected' && b.status !== 'Completed' && (
+                                                <>
                                                     <button onClick={() => handleBookingStatus(b._id, 'Rejected')} className="rounded-lg bg-red-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-red-600">
                                                         Reject
                                                     </button>
