@@ -59,6 +59,24 @@ const Admin = () => {
         }
     };
 
+    const handleDeleteUser = async (userId, email) => {
+        if (email === user?.email) {
+            alert('You cannot delete your own account while logged in.');
+            return;
+        }
+
+        if (window.confirm('Are you sure you want to permanently delete this user?')) {
+            try {
+                await axios.delete(`${API_URL}/api/admin/users/${userId}`, authConfig());
+                fetchData();
+                alert('User deleted successfully');
+            } catch (error) {
+                console.error('Error deleting user:', error);
+                alert('Failed to delete user');
+            }
+        }
+    };
+
     const handleBookingStatus = async (bookingId, status) => {
         try {
             let rejectionReason = '';
@@ -123,8 +141,8 @@ const Admin = () => {
 
         const rows = bookings.map((b) => [
             b._id,
-            b.property?.title || b.farm?.title || 'Unknown Property',
-            b.property?.location || b.farm?.location || '',
+            b.property?.title || b.propertyTitle || b.farm?.title || 'Unknown Property',
+            b.property?.location || b.propertyLocation || b.farm?.location || '',
             b.guestDetails?.name || b.user?.name || '',
             b.guestDetails?.phone || '',
             b.guestDetails?.email || '',
@@ -193,23 +211,31 @@ const Admin = () => {
                                     </td>
                                     <td className="py-3">
                                         {u.email !== 'admin@farmstay.com' && (
-                                            <select
-                                                className="rounded border p-1 text-sm"
-                                                defaultValue={u.role}
-                                                onChange={(e) => {
-                                                    if (e.target.value === 'custom') {
-                                                        const newRole = prompt('Enter new role name:');
-                                                        if (newRole) handleRoleUpdate(u._id, newRole.toLowerCase());
-                                                    } else {
-                                                        handleRoleUpdate(u._id, e.target.value);
-                                                    }
-                                                }}
-                                            >
-                                                <option value="user">User</option>
-                                                <option value="admin">Admin</option>
-                                                {!['user', 'admin'].includes(u.role) && <option value={u.role}>{u.role}</option>}
-                                                <option value="custom">+ Add New Role</option>
-                                            </select>
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <select
+                                                    className="rounded border p-1 text-sm"
+                                                    defaultValue={u.role}
+                                                    onChange={(e) => {
+                                                        if (e.target.value === 'custom') {
+                                                            const newRole = prompt('Enter new role name:');
+                                                            if (newRole) handleRoleUpdate(u._id, newRole.toLowerCase());
+                                                        } else {
+                                                            handleRoleUpdate(u._id, e.target.value);
+                                                        }
+                                                    }}
+                                                >
+                                                    <option value="user">User</option>
+                                                    <option value="admin">Admin</option>
+                                                    {!['user', 'admin'].includes(u.role) && <option value={u.role}>{u.role}</option>}
+                                                    <option value="custom">+ Add New Role</option>
+                                                </select>
+                                                <button
+                                                    onClick={() => handleDeleteUser(u._id, u.email)}
+                                                    className="rounded bg-red-500 px-2 py-1 text-xs font-semibold text-white transition hover:bg-red-600"
+                                                >
+                                                    Delete
+                                                </button>
+                                            </div>
                                         )}
                                     </td>
                                 </tr>
@@ -248,8 +274,8 @@ const Admin = () => {
                             {bookings.map((b) => (
                                 <tr key={b._id} className="align-top hover:bg-[#fffaf1]">
                                     <td className="px-4 py-3">
-                                        <div className="font-bold text-gray-900">{b.property?.title || b.farm?.title || 'Unknown Property'}</div>
-                                        <div className="text-xs text-gray-500">{b.property?.location || b.farm?.location || ''}</div>
+                                        <div className="font-bold text-gray-900">{b.property?.title || b.propertyTitle || b.farm?.title || 'Unknown Property'}</div>
+                                        <div className="text-xs text-gray-500">{b.property?.location || b.propertyLocation || b.farm?.location || ''}</div>
                                         <div className="mt-1 text-[11px] text-gray-400">ID: {b._id}</div>
                                     </td>
                                     <td className="px-4 py-3">

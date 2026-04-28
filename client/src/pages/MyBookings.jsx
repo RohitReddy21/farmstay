@@ -105,8 +105,8 @@ const MyBookings = () => {
 
         const rows = filteredBookings.map((booking) => [
             booking._id,
-            booking.property?.title || booking.farm?.title || 'Unknown Property',
-            booking.property?.location || booking.farm?.location || '',
+            booking.property?.title || booking.propertyTitle || booking.farm?.title || 'Unknown Property',
+            booking.property?.location || booking.propertyLocation || booking.farm?.location || '',
             booking.guestDetails?.name || user?.name || '',
             booking.guestDetails?.phone || user?.phone || '',
             booking.guestDetails?.email || user?.email || '',
@@ -206,8 +206,8 @@ const MyBookings = () => {
                             </thead>
                             <tbody className="divide-y divide-[#ead7b8]">
                                 {filteredBookings.map((booking) => {
-                                    const title = booking.property?.title || booking.farm?.title || 'Unknown Property';
-                                    const location = booking.property?.location || booking.farm?.location || '';
+                                    const title = booking.property?.title || booking.propertyTitle || booking.farm?.title || 'Unknown Property';
+                                    const location = booking.property?.location || booking.propertyLocation || booking.farm?.location || '';
                                     const total = Number(booking.totalPrice || 0) + Number(booking.tax || 0);
 
                                     return (

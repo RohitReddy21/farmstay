@@ -72,6 +72,8 @@ router.post('/create-order', verifyToken, async (req, res) => {
         const booking = await Booking.create({
             user: req.user.id,
             property: propertyId,
+            propertyTitle: property.title || '',
+            propertyLocation: property.location || '',
             room: roomId,
             startDate: start,
             endDate: end,
@@ -181,6 +183,8 @@ router.post('/cod', verifyToken, async (req, res) => {
         const booking = await Booking.create({
             user: req.user.id,
             property: propertyId,
+            propertyTitle: property.title || '',
+            propertyLocation: property.location || '',
             room: roomId,
             startDate: start,
             endDate: end,

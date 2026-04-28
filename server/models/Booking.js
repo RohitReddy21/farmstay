@@ -3,6 +3,8 @@ const mongoose = require('mongoose');
 const bookingSchema = new mongoose.Schema({
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     property: { type: mongoose.Schema.Types.ObjectId, ref: 'Farm', required: true },
+    propertyTitle: { type: String, default: '' },
+    propertyLocation: { type: String, default: '' },
     room: { type: mongoose.Schema.Types.ObjectId, ref: 'Room' }, // Optional for now, required later
     startDate: { type: Date, required: true },
     endDate: { type: Date, required: true },
