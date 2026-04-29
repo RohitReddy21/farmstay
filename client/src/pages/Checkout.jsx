@@ -279,7 +279,7 @@ const Checkout = () => {
                             <span className="font-semibold text-[#211b14]">Rs {cartItem.pricing.totalPrice}</span>
                         </div>
                         <div className="mb-4 flex items-center justify-between border-b border-[#ead7b8] pb-4">
-                            <span className="text-[#645747]">Taxes (18%)</span>
+                            <span className="text-[#645747]">Taxes</span>
                             <span className="font-semibold text-[#211b14]">Rs {cartItem.pricing.tax}</span>
                         </div>
                         <div className="flex items-center justify-between text-xl">
@@ -296,11 +296,10 @@ const Checkout = () => {
                             <button
                                 type="button"
                                 onClick={() => setPaymentMethod('razorpay')}
-                                className={`rounded-2xl border p-4 text-left transition ${
-                                    paymentMethod === 'razorpay'
+                                className={`rounded-2xl border p-4 text-left transition ${paymentMethod === 'razorpay'
                                         ? 'border-[#7a5527] bg-[#f8efdf] shadow-md'
                                         : 'border-[#ead7b8] bg-white hover:border-[#cfa86b]'
-                                }`}
+                                    }`}
                             >
                                 <div className="mb-2 flex items-center gap-2 font-bold text-[#211b14]">
                                     <CreditCard size={20} className="text-[#7a5527]" />
@@ -312,11 +311,10 @@ const Checkout = () => {
                             <button
                                 type="button"
                                 onClick={() => setPaymentMethod('cod')}
-                                className={`rounded-2xl border p-4 text-left transition ${
-                                    paymentMethod === 'cod'
+                                className={`rounded-2xl border p-4 text-left transition ${paymentMethod === 'cod'
                                         ? 'border-[#7a5527] bg-[#f8efdf] shadow-md'
                                         : 'border-[#ead7b8] bg-white hover:border-[#cfa86b]'
-                                }`}
+                                    }`}
                             >
                                 <div className="mb-2 flex items-center gap-2 font-bold text-[#211b14]">
                                     <Banknote size={20} className="text-[#527b52]" />
@@ -359,11 +357,10 @@ const Checkout = () => {
                         <button
                             onClick={handleSubmitPayment}
                             disabled={isProcessing || isCheckoutComplete}
-                            className={`flex w-full items-center justify-center gap-3 rounded-xl py-4 text-lg font-bold text-white shadow-lg transition-all ${
-                                isProcessing || isCheckoutComplete
+                            className={`flex w-full items-center justify-center gap-3 rounded-xl py-4 text-lg font-bold text-white shadow-lg transition-all ${isProcessing || isCheckoutComplete
                                     ? 'cursor-not-allowed bg-[#b7aa98]'
                                     : 'bg-primary hover:bg-primary-800 active:scale-[0.98]'
-                            }`}
+                                }`}
                         >
                             {isCheckoutComplete ? (
                                 'Booking Received'

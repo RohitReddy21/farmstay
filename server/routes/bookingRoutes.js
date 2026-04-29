@@ -29,6 +29,25 @@ async function hasOverlap(propertyId, roomId, startDate, endDate) {
     return !!overlap;
 }
 
+function rangeIncludesWeekend(startDate, endDate) {
+    const cursor = new Date(startDate);
+    cursor.setHours(0, 0, 0, 0);
+    const last = new Date(endDate);
+    last.setHours(0, 0, 0, 0);
+
+    while (cursor <= last) {
+        const day = cursor.getDay();
+        if (day === 0 || day === 6) return true;
+        cursor.setDate(cursor.getDate() + 1);
+    }
+
+    return false;
+}
+
+function isWeekendBlockedForProperty(property, startDate, endDate) {
+    return property?.availability === 'Monday to Friday' && rangeIncludesWeekend(startDate, endDate);
+}
+
 // @route   POST /api/bookings/create-order
 // @desc    Create a Razorpay order and save a pending booking
 // @access  Private
@@ -41,6 +60,12 @@ router.post('/create-order', verifyToken, async (req, res) => {
 
         const start = new Date(startDate);
         const end = new Date(endDate);
+
+        if (isWeekendBlockedForProperty(property, start, end)) {
+            return res.status(400).json({
+                message: 'This farm stay is available Monday to Friday only. Saturdays and Sundays are reserved for the 2-day Learning Retreat.'
+            });
+        }
         
         // Check availability
         const overlap = await hasOverlap(propertyId, roomId, start, end);
@@ -172,6 +197,12 @@ router.post('/cod', verifyToken, async (req, res) => {
 
         const start = new Date(startDate);
         const end = new Date(endDate);
+
+        if (isWeekendBlockedForProperty(property, start, end)) {
+            return res.status(400).json({
+                message: 'This farm stay is available Monday to Friday only. Saturdays and Sundays are reserved for the 2-day Learning Retreat.'
+            });
+        }
 
         // Check availability
         const overlap = await hasOverlap(propertyId, roomId, start, end);

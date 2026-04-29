@@ -61,69 +61,74 @@ const Register = () => {
     };
 
     return (
-        <div className="mx-auto mt-16 max-w-md rounded-3xl border border-[#ead7b8] bg-[#fffaf1] p-8 shadow-2xl">
-            <div className="mb-8 text-center">
-                <p className="mb-2 text-xs font-bold uppercase tracking-[0.28em] text-[#8a642d]">Brown Cows Dairy</p>
-                <h2 className="text-3xl font-bold text-[#211b14]">Create Account</h2>
-                <p className="mt-2 text-sm text-[#645747]">Sign up with your details to get started.</p>
-            </div>
+        <div className="min-h-screen bg-[#f7efe2] px-4 py-10 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-4xl rounded-3xl border border-[#ead7b8] bg-[#fffaf1] p-5 shadow-xl sm:p-8 lg:p-10">
+                <div className="mb-8 text-center">
+                    <p className="mb-2 text-xs font-bold uppercase tracking-[0.28em] text-[#8a642d]">Brown Cows Dairy</p>
+                    <h2 className="text-3xl font-bold text-[#211b14] sm:text-4xl">Create Account</h2>
+                    <p className="mt-2 text-sm text-[#645747]">Sign up with your details to get started.</p>
+                </div>
 
-            {error && <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
-            {notice && <div className="mb-4 rounded-xl border border-[#d9c18e] bg-[#fff4d7] p-3 text-sm text-[#6d4d1f]">{notice}</div>}
+                {error && <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+                {notice && <div className="mb-4 rounded-xl border border-[#d9c18e] bg-[#fff4d7] p-3 text-sm text-[#6d4d1f]">{notice}</div>}
 
-            <form onSubmit={handleSubmit} className="space-y-5">
-                <div>
-                    <label className="mb-1 block text-sm font-semibold text-[#3a2b1e]">Name</label>
-                    <input
-                        type="text"
-                        className="w-full rounded-xl border border-[#e3cfac] bg-white p-3 text-[#211b14] outline-none transition focus:border-[#7a5527] focus:ring-2 focus:ring-[#d6a23d]/30"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        autoComplete="name"
-                        required
-                    />
-                </div>
-                <div>
-                    <label className="mb-1 block text-sm font-semibold text-[#3a2b1e]">Email</label>
-                    <input
-                        type="email"
-                        className="w-full rounded-xl border border-[#e3cfac] bg-white p-3 text-[#211b14] outline-none transition focus:border-[#7a5527] focus:ring-2 focus:ring-[#d6a23d]/30"
-                        value={email}
-                        onChange={(e) => {
-                            setEmail(e.target.value);
-                            setOtp('');
-                            setOtpSent(false);
-                            setNotice('');
-                        }}
-                        autoComplete="email"
-                        required
-                    />
-                </div>
-                <div>
-                    <label className="mb-1 block text-sm font-semibold text-[#3a2b1e]">Mobile Number</label>
-                    <input
-                        type="tel"
-                        className="w-full rounded-xl border border-[#e3cfac] bg-white p-3 text-[#211b14] outline-none transition focus:border-[#7a5527] focus:ring-2 focus:ring-[#d6a23d]/30"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        autoComplete="tel"
-                        required
-                    />
-                </div>
-                <div>
-                    <label className="mb-1 block text-sm font-semibold text-[#3a2b1e]">Password</label>
-                    <input
-                        type="password"
-                        className="w-full rounded-xl border border-[#e3cfac] bg-white p-3 text-[#211b14] outline-none transition focus:border-[#7a5527] focus:ring-2 focus:ring-[#d6a23d]/30"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        autoComplete="new-password"
-                        required
-                    />
-                </div>
-                <div className="rounded-2xl border border-[#ead7b8] bg-white/70 p-4">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-                        <div className="flex-1">
+                <form onSubmit={handleSubmit} className="space-y-5">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <div>
+                            <label className="mb-1 block text-sm font-semibold text-[#3a2b1e]">Name</label>
+                            <input
+                                type="text"
+                                className="w-full rounded-xl border border-[#e3cfac] bg-white p-3 text-[#211b14] outline-none transition focus:border-[#7a5527] focus:ring-2 focus:ring-[#d6a23d]/30"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                autoComplete="name"
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label className="mb-1 block text-sm font-semibold text-[#3a2b1e]">Mobile Number</label>
+                            <input
+                                type="tel"
+                                className="w-full rounded-xl border border-[#e3cfac] bg-white p-3 text-[#211b14] outline-none transition focus:border-[#7a5527] focus:ring-2 focus:ring-[#d6a23d]/30"
+                                value={phone}
+                                onChange={(e) => setPhone(e.target.value)}
+                                autoComplete="tel"
+                                required
+                            />
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <div>
+                            <label className="mb-1 block text-sm font-semibold text-[#3a2b1e]">Email</label>
+                            <input
+                                type="email"
+                                className="w-full rounded-xl border border-[#e3cfac] bg-white p-3 text-[#211b14] outline-none transition focus:border-[#7a5527] focus:ring-2 focus:ring-[#d6a23d]/30"
+                                value={email}
+                                onChange={(e) => {
+                                    setEmail(e.target.value);
+                                    setOtp('');
+                                    setOtpSent(false);
+                                    setNotice('');
+                                }}
+                                autoComplete="email"
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label className="mb-1 block text-sm font-semibold text-[#3a2b1e]">Password</label>
+                            <input
+                                type="password"
+                                className="w-full rounded-xl border border-[#e3cfac] bg-white p-3 text-[#211b14] outline-none transition focus:border-[#7a5527] focus:ring-2 focus:ring-[#d6a23d]/30"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                autoComplete="new-password"
+                                required
+                            />
+                        </div>
+                    </div>
+                <div className="rounded-2xl border border-[#ead7b8] bg-white/75 p-4">
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto] md:items-end">
+                        <div>
                             <label className="mb-1 block text-sm font-semibold text-[#3a2b1e]">Email OTP</label>
                             <input
                                 type="text"
@@ -141,7 +146,7 @@ const Register = () => {
                             type="button"
                             onClick={handleSendOtp}
                             disabled={isSendingOtp || !email.trim()}
-                            className="rounded-xl border border-[#7a5527] px-5 py-3 font-bold text-[#7a5527] transition hover:bg-[#7a5527] hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                            className="h-12 rounded-xl border border-[#7a5527] px-6 font-bold text-[#7a5527] transition hover:bg-[#7a5527] hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
                         >
                             {isSendingOtp ? 'Sending...' : otpSent ? 'Resend OTP' : 'Send OTP'}
                         </button>
@@ -194,9 +199,10 @@ const Register = () => {
                 </div>
             </div>
 
-            <p className="mt-6 text-center text-[#645747]">
-                Already have an account? <Link to="/login" className="font-bold text-primary hover:underline">Login</Link>
-            </p>
+                <p className="mt-6 text-center text-[#645747]">
+                    Already have an account? <Link to="/login" className="font-bold text-primary hover:underline">Login</Link>
+                </p>
+            </div>
         </div>
     );
 };

@@ -66,6 +66,8 @@ const FarmDetails = () => {
     const [confirmedBookingDetails, setConfirmedBookingDetails] = useState(null);
     const [showLightbox, setShowLightbox] = useState(false);
     const [isVariationSelectorOpen, setIsVariationSelectorOpen] = useState(false);
+    const [weekendDateConflict, setWeekendDateConflict] = useState(null);
+    const [showRetreatPrompt, setShowRetreatPrompt] = useState(false);
     const [dateSelection, setDateSelection] = useState([
         {
             startDate: new Date(),
@@ -180,6 +182,47 @@ const FarmDetails = () => {
     };
 
     const displayedAmenities = selectedVariation?.amenities?.length ? selectedVariation.amenities : farm?.amenities || [];
+    const isWeekdayOnlyFarm = farm?.availability === 'Monday to Friday';
+
+    const formatDateForDisplay = (date) => date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+    });
+
+    const rangeIncludesWeekend = (startDate, endDate) => {
+        const cursor = new Date(startDate);
+        cursor.setHours(0, 0, 0, 0);
+        const last = new Date(endDate);
+        last.setHours(0, 0, 0, 0);
+
+        while (cursor <= last) {
+            const day = cursor.getDay();
+            if (day === 0 || day === 6) return true;
+            cursor.setDate(cursor.getDate() + 1);
+        }
+
+        return false;
+    };
+
+    const checkWeekendConflict = (startDate, endDate) => {
+        if (!isWeekdayOnlyFarm || !startDate || !endDate) {
+            setWeekendDateConflict(null);
+            return false;
+        }
+
+        if (rangeIncludesWeekend(startDate, endDate)) {
+            setWeekendDateConflict({
+                start: formatDateForDisplay(startDate),
+                end: formatDateForDisplay(endDate)
+            });
+            setShowRetreatPrompt(true);
+            return true;
+        }
+
+        setWeekendDateConflict(null);
+        return false;
+    };
 
     // Check for date conflicts whenever dates change
     const checkDateConflict = (start, end) => {
@@ -239,6 +282,7 @@ const FarmDetails = () => {
         const endStr = item.selection.endDate.toLocaleDateString('en-CA');
         
         checkDateConflict(startStr, endStr);
+        checkWeekendConflict(item.selection.startDate, item.selection.endDate);
     };
 
     useEffect(() => {
@@ -326,6 +370,10 @@ const FarmDetails = () => {
             return;
         }
 
+        if (checkWeekendConflict(dateSelection[0].startDate, dateSelection[0].endDate)) {
+            return;
+        }
+
         if (!bookingData.guestName || !bookingData.guestPhone) {
             alert('Please enter your name and mobile number');
             return;
@@ -406,8 +454,65 @@ const FarmDetails = () => {
     if (loading) return <div className="text-center py-20">Loading...</div>;
     if (!farm) return <div className="text-center py-20">Farm not found</div>;
 
+    const isBookingBlocked = Boolean(dateConflict || weekendDateConflict);
+
     return (
         <div className="space-y-6 md:space-y-8">
+            <AnimatePresence>
+                {showRetreatPrompt && weekendDateConflict && (
+                    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+                        <motion.div
+                            initial={{ opacity: 0, y: 18, scale: 0.96 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 18, scale: 0.96 }}
+                            className="relative w-full max-w-md overflow-hidden rounded-3xl bg-[#fffaf1] shadow-2xl ring-1 ring-[#ead7b8]"
+                        >
+                            <button
+                                type="button"
+                                onClick={() => setShowRetreatPrompt(false)}
+                                className="absolute right-4 top-4 rounded-full bg-white/80 p-2 text-[#6b5a45] shadow-sm transition hover:bg-white"
+                                aria-label="Close retreat information"
+                            >
+                                <X size={18} />
+                            </button>
+                            <div className="bg-gradient-to-br from-[#7a5527] to-[#4f3519] px-6 py-7 text-white">
+                                <p className="text-xs font-bold uppercase tracking-[0.28em] text-[#f4d59b]">Weekend Reserved</p>
+                                <h3 className="mt-3 text-2xl font-bold">Join our Learning Retreat instead</h3>
+                                <p className="mt-2 text-sm leading-relaxed text-[#fff2d9]">
+                                    Mud Cottages and Limestone Villas are reserved for the 2-day Brown Cows Dairy Learning Retreat on Saturdays and Sundays.
+                                </p>
+                            </div>
+                            <div className="space-y-4 p-6">
+                                <div className="rounded-2xl border border-[#ead7b8] bg-white p-4">
+                                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8a642d]">Your selected dates</p>
+                                    <p className="mt-1 font-semibold text-[#211b14]">
+                                        {weekendDateConflict.start} - {weekendDateConflict.end}
+                                    </p>
+                                </div>
+                                <p className="text-sm leading-relaxed text-[#645747]">
+                                    The retreat includes farm activities, meals, hands-on learning, and stay options in the same cottages and villas.
+                                </p>
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowRetreatPrompt(false)}
+                                        className="rounded-xl border border-[#d9c18e] px-4 py-3 font-bold text-[#7a5527] transition hover:bg-[#fff3dc]"
+                                    >
+                                        Choose Weekdays
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => navigate('/2-day-learning-retreat')}
+                                        className="rounded-xl bg-primary px-4 py-3 font-bold text-white shadow-lg transition hover:bg-primary-800"
+                                    >
+                                        View Retreat
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
                 {/* Left: Media Gallery (Images & Videos) */}
                 <div className="lg:col-span-2 space-y-3 md:space-y-4">
@@ -751,6 +856,29 @@ const FarmDetails = () => {
                             </div>
                         )}
 
+                        {weekendDateConflict && (
+                            <div className="mb-4 rounded-xl border-2 border-[#d6a23d]/40 bg-[#fff7e8] p-4 shadow-sm">
+                                <div className="flex items-start gap-3">
+                                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#f3e1bf] text-[#7a5527]">
+                                        <Home size={20} />
+                                    </div>
+                                    <div className="flex-1">
+                                        <h4 className="mb-1 text-sm font-bold text-[#4f3519]">Weekend reserved for Learning Retreat</h4>
+                                        <p className="text-xs leading-relaxed text-[#7a5527]">
+                                            This stay is available Monday to Friday only. Saturdays and Sundays are used for the 2-day Learning Retreat.
+                                        </p>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowRetreatPrompt(true)}
+                                            className="mt-3 text-xs font-bold uppercase tracking-[0.16em] text-primary hover:underline"
+                                        >
+                                            See retreat details
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         <div className="mb-6 relative">
                             <label className="block text-sm font-medium text-gray-700 mb-2">Select Dates</label>
 
@@ -869,13 +997,13 @@ const FarmDetails = () => {
 
                             <button
                                 type="submit"
-                                disabled={dateConflict}
-                                className={`w-full py-3 md:py-4 rounded-xl font-bold text-base md:text-lg transition-all shadow-lg transform ${dateConflict
+                                disabled={isBookingBlocked}
+                                className={`w-full py-3 md:py-4 rounded-xl font-bold text-base md:text-lg transition-all shadow-lg transform ${isBookingBlocked
                                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                                     : 'bg-primary text-white hover:bg-primary-800 hover:-translate-y-0.5 active:translate-y-0'
                                     }`}
                             >
-                                {dateConflict ? 'Dates Unavailable' : 'Book Now'}
+                                {isBookingBlocked ? 'Dates Unavailable' : 'Book Now'}
                             </button>
                             <p className="text-center text-xs md:text-sm text-gray-500 mt-2">You won't be charged yet</p>
                         </form>
@@ -944,7 +1072,7 @@ const FarmDetails = () => {
                     <div className="mt-8 pt-8 border-t border-gray-100 flex items-start sm:items-center gap-4 md:gap-6 group cursor-pointer">
                         <div className="relative">
                             <img
-                                src="https://images.unsplash.com/photo-1560250097-0b93528c311a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=256&q=80"
+                                src="/images/host-kusuma.png?v=20260429"
                                 alt="Host"
                                 className="w-16 h-16 md:w-20 md:h-20 rounded-full object-cover shadow-md ring-4 ring-white group-hover:ring-primary/20 transition-all"
                             />
@@ -1021,7 +1149,7 @@ const FarmDetails = () => {
             </div>
 
             {/* Reviews Section */}
-            <div className="bg-white rounded-2xl md:rounded-3xl shadow-lg border border-gray-100 p-6 md:p-8 lg:p-10">
+            {/* <div className="bg-white rounded-2xl md:rounded-3xl shadow-lg border border-gray-100 p-6 md:p-8 lg:p-10">
                 <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6 flex items-center gap-3">
                     <div className="w-1.5 h-8 bg-gradient-to-b from-primary to-primary-800 rounded-full"></div>
                     Guest Reviews
@@ -1045,7 +1173,7 @@ const FarmDetails = () => {
                         }}
                     />
                 )}
-            </div>
+            </div> */}
 
             {/* Booking Confirmation Modal */}
             <BookingConfirmationModal

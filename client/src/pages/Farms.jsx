@@ -178,7 +178,7 @@ const Farms = () => {
                                         type="text"
                                         value={filters.location}
                                         onChange={(e) => setFilters({ ...filters, location: e.target.value })}
-                                        placeholder="e.g. California"
+                                        placeholder="e.g. Hyderabad"
                                         className="w-full p-3 md:p-2.5 border-2 border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none dark:bg-gray-700 dark:text-white text-sm md:text-base transition-all"
                                     />
                                 </div>
@@ -255,11 +255,10 @@ const Farms = () => {
                                             <button
                                                 key={cat}
                                                 onClick={() => setFilters(prev => ({ ...prev, subCategory: prev.subCategory === cat ? '' : cat }))}
-                                                className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
-                                                    filters.subCategory === cat
+                                                className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${filters.subCategory === cat
                                                         ? 'bg-primary text-white border-primary shadow-md'
                                                         : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:border-primary'
-                                                }`}
+                                                    }`}
                                             >
                                                 {cat}
                                             </button>
