@@ -308,7 +308,7 @@ const Checkout = () => {
                                 <p className="text-sm text-[#645747]">Pay now with UPI, cards, wallets, or net banking.</p>
                             </button>
 
-                            <button
+                            {/* <button
                                 type="button"
                                 onClick={() => setPaymentMethod('cod')}
                                 className={`rounded-2xl border p-4 text-left transition ${paymentMethod === 'cod'
@@ -321,7 +321,7 @@ const Checkout = () => {
                                     COD / Pay at Farm
                                 </div>
                                 <p className="text-sm text-[#645747]">Place the booking now and pay after admin approval.</p>
-                            </button>
+                            </button> */}
                         </div>
 
                         <div className="overflow-hidden rounded-xl border-2 border-[#d6a23d]/60 bg-[#fffaf1]">
