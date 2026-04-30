@@ -55,13 +55,18 @@ const createEmailTransporter = () => {
     const emailPass = getEnv('EMAIL_PASS', 'EMAIL_PASSWORD', 'Email_pass', 'email_pass');
 
     if (emailUser && emailPass) {
+        const isGmail = emailUser.includes('gmail.com') || !smtpHost;
         cachedTransporter = nodemailer.createTransport({
-            host: 'smtp.gmail.com',
-            port: 465,
+            service: isGmail ? 'gmail' : undefined,
+            host: isGmail ? 'smtp.gmail.com' : (smtpHost || 'smtp.gmail.com'),
+            port: isGmail ? 465 : (Number(process.env.SMTP_PORT) || 465),
             secure: true,
             auth: {
                 user: emailUser,
                 pass: emailPass
+            },
+            tls: {
+                rejectUnauthorized: false
             }
         });
         return cachedTransporter;
@@ -122,15 +127,20 @@ const sendEmailOtp = async (email, otp) => {
     }
 
     await transporter.sendMail({
-        from: fromAddress,
+        from: `"Brown Cows Farm Stay" <${fromAddress}>`,
         to: email,
         subject: 'Your Brown Cows Dairy signup OTP',
         html: `
-            <div style="font-family:Arial,sans-serif;color:#211b14;line-height:1.6">
-                <h2>Brown Cows Dairy email verification</h2>
-                <p>Your signup OTP is:</p>
-                <p style="font-size:28px;font-weight:700;letter-spacing:6px;color:#7a5527">${otp}</p>
-                <p>This code expires in 10 minutes.</p>
+            <div style="font-family:Arial,sans-serif;color:#211b14;line-height:1.6;max-width:600px;margin:0 auto;padding:20px;border:1px solid #eee;border-radius:10px">
+                <h2 style="color:#7a5527;text-align:center">Brown Cows Dairy</h2>
+                <p>Hello,</p>
+                <p>To complete your signup, please use the following One-Time Password (OTP):</p>
+                <div style="background:#f9f9f9;padding:20px;text-align:center;border-radius:5px;margin:20px 0">
+                    <span style="font-size:32px;font-weight:bold;letter-spacing:8px;color:#7a5527">${otp}</span>
+                </div>
+                <p>This code is valid for 10 minutes. Please do not share it with anyone.</p>
+                <hr style="border:none;border-top:1px solid #eee;margin:20px 0">
+                <p style="font-size:12px;color:#888;text-align:center">If you didn't request this, you can safely ignore this email.</p>
             </div>
         `
     });
@@ -256,8 +266,9 @@ router.post('/send-otp', async (req, res) => {
 
         res.status(500).json({
             message: 'Unable to send OTP. Please check the email sender configuration.',
-            error: process.env.NODE_ENV === 'production' ? undefined : error.message,
-            code: error.code || error.responseCode || error.name
+            error: error.message,
+            code: error.code || error.responseCode || error.name,
+            details: process.env.NODE_ENV === 'production' ? undefined : error
         });
     }
 });
