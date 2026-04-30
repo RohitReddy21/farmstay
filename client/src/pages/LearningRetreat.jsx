@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { CalendarDays, CheckCircle2, CreditCard, Home, MessageCircle, ShoppingBag, Sprout, Utensils, X } from 'lucide-react';
 import API_URL from '../config';
 import { useCart } from '../context/CartContext';
+import { useToast } from '../context/ToastContext';
 
 // Import components
 import HeroSection from '../components/learning-retreat/HeroSection';
@@ -20,9 +21,11 @@ import FAQSection from '../components/learning-retreat/FAQSection';
 import ContactSection from '../components/learning-retreat/ContactSection';
 import Lightbox from '../components/learning-retreat/Lightbox';
 import retreatContent from '../components/learning-retreat/RetreatContent';
+import LazySection from '../components/LazySection';
 
 // Utility functions
 const formatMoney = (value) => `Rs ${Math.round(value).toLocaleString('en-IN')}`;
+const getTenDigitPhone = (value = '') => value.replace(/\D/g, '').slice(0, 10);
 
 const toDateValue = (date) => {
     const year = date.getFullYear();
@@ -130,6 +133,7 @@ const RetreatExperienceStrip = ({ experience, stayType, retreatContent, selected
 const LearningRetreat = () => {
     const navigate = useNavigate();
     const { addToCart } = useCart();
+    const { showToast } = useToast();
     const [farms, setFarms] = useState([]);
     const [experience, setExperience] = useState('day');
     const [stayType, setStayType] = useState('Shared');
@@ -329,13 +333,20 @@ const LearningRetreat = () => {
         if (!bookingGuestDetails.email.trim()) errors.email = 'Email is required';
         else if (!/\S+@\S+\.\S+/.test(bookingGuestDetails.email)) errors.email = 'Email is invalid';
         if (!bookingGuestDetails.phone.trim()) errors.phone = 'Phone is required';
+        else if (getTenDigitPhone(bookingGuestDetails.phone).length !== 10) errors.phone = 'Phone must be exactly 10 digits';
         if (!selectedDate) errors.date = 'Please select a date';
         if (experience === 'stay' && stayVariations.length > 0 && !selectedStayVariation) {
             errors.cottage = 'Please select an accommodation option';
         }
 
         if (Object.keys(errors).length > 0) {
-            setCalendarError(errors.date || errors.cottage || 'Please fill in all required fields');
+            const message = errors.name || errors.email || errors.phone || errors.date || errors.cottage || 'Please fill in all required fields';
+            setCalendarError(message);
+            showToast({
+                type: 'error',
+                title: 'Complete retreat booking',
+                message
+            });
             return;
         }
 
@@ -378,10 +389,12 @@ const LearningRetreat = () => {
             addToCart({
                 propertyId: linkedFarm._id,
                 property: {
-                    ...linkedFarm,
+                    _id: linkedFarm._id,
                     title: `${retreatContent.retreatName} - ${packageLabel}`,
                     location: retreatContent.location,
-                    images: [retreatContent.heroImage, ...(linkedFarm.images || [])]
+                    price: linkedFarm.price,
+                    capacity: linkedFarm.capacity,
+                    images: [retreatContent.heroImage]
                 },
                 startDate: selectedDate,
                 endDate,
@@ -424,7 +437,7 @@ const LearningRetreat = () => {
 
             window.setTimeout(() => {
                 navigate('/cart');
-            }, 1500);
+            }, 350);
         } catch (error) {
             console.error('Booking error:', error);
             setCalendarError(error.response?.data?.message || 'An error occurred while booking. Please try again.');
@@ -435,6 +448,18 @@ const LearningRetreat = () => {
 
     const submitLead = async (event) => {
         event.preventDefault();
+        if (!leadForm.name.trim() || !leadForm.email.trim()) {
+            const message = 'Please fill in your name and email.';
+            setLeadStatus(message);
+            showToast({ type: 'error', title: 'Brochure details missing', message });
+            return;
+        }
+        if (getTenDigitPhone(leadForm.phone).length !== 10) {
+            const message = 'Phone number must be exactly 10 digits.';
+            setLeadStatus(message);
+            showToast({ type: 'error', title: 'Brochure details missing', message });
+            return;
+        }
         setLeadStatus('Saving your request...');
 
         try {
@@ -539,21 +564,33 @@ const LearningRetreat = () => {
                 </section>
 
                 <div className="mt-14 space-y-14 sm:mt-20 sm:space-y-20 lg:mt-24 lg:space-y-24">
-                    <AudienceSection audience={retreatContent.audience} />
+                    <LazySection placeholderClassName="min-h-[420px]">
+                        <AudienceSection audience={retreatContent.audience} />
+                    </LazySection>
                     
-                    <StayOptionsSection stayOptions={retreatContent.stayOptions} />
+                    <LazySection placeholderClassName="min-h-[520px]">
+                        <StayOptionsSection stayOptions={retreatContent.stayOptions} />
+                    </LazySection>
                     
-                    <ScheduleSection schedule={retreatContent.schedule} />
+                    <LazySection placeholderClassName="min-h-[520px]">
+                        <ScheduleSection schedule={retreatContent.schedule} />
+                    </LazySection>
                     
-                    <GallerySection 
-                        gallery={retreatContent.gallery} 
-                        lightboxIndex={lightboxIndex}
-                        setLightboxIndex={setLightboxIndex}
-                    />
+                    <LazySection placeholderClassName="min-h-[520px]">
+                        <GallerySection 
+                            gallery={retreatContent.gallery} 
+                            lightboxIndex={lightboxIndex}
+                            setLightboxIndex={setLightboxIndex}
+                        />
+                    </LazySection>
                     
-                    <FAQSection faqs={retreatContent.faqs} />
+                    <LazySection placeholderClassName="min-h-[360px]">
+                        <FAQSection faqs={retreatContent.faqs} />
+                    </LazySection>
                     
-                    <ContactSection retreatContent={retreatContent} />
+                    <LazySection placeholderClassName="min-h-[420px]">
+                        <ContactSection retreatContent={retreatContent} />
+                    </LazySection>
                 </div>
 
                 <Lightbox
@@ -717,7 +754,10 @@ const LearningRetreat = () => {
                                         type="tel"
                                         required
                                         value={leadForm.phone}
-                                        onChange={(e) => setLeadForm({ ...leadForm, phone: e.target.value })}
+                                        onChange={(e) => setLeadForm({ ...leadForm, phone: getTenDigitPhone(e.target.value) })}
+                                        inputMode="numeric"
+                                        pattern="[0-9]{10}"
+                                        maxLength="10"
                                         className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-[#7a5527] focus:outline-none focus:ring-2 focus:ring-[#7a5527]/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                                     />
                                 </div>

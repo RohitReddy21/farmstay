@@ -50,6 +50,8 @@ const Cart = () => {
                             <img
                                 src={cartItem.property.images?.[0]}
                                 alt={cartItem.property.title}
+                                loading="lazy"
+                                decoding="async"
                                 className="h-44 w-full rounded-xl object-cover sm:h-28 sm:w-32 md:h-32 md:w-36"
                             />
                             <div className="min-w-0">

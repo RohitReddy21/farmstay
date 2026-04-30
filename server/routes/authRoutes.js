@@ -13,6 +13,7 @@ const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const normalizeEmail = (email = '') => email.toLowerCase().trim();
 const normalizePhone = (phone = '') => phone.replace(/[^\d+]/g, '').trim();
+const getPhoneDigits = (phone = '') => String(phone).replace(/\D/g, '');
 const hashOtp = (otp) => crypto.createHash('sha256').update(String(otp)).digest('hex');
 const isDatabaseConnected = () => mongoose.connection.readyState === 1;
 const getEnv = (...keys) => {
@@ -242,6 +243,10 @@ router.post('/register', async (req, res) => {
 
         if (!name?.trim() || !normalizedEmail || !normalizedPhone || !password || !otp) {
             return res.status(400).json({ message: 'Name, email, mobile number, password, and OTP are required.' });
+        }
+
+        if (getPhoneDigits(normalizedPhone).length !== 10) {
+            return res.status(400).json({ message: 'Mobile number must be exactly 10 digits.' });
         }
 
         const userExists = await User.findOne({

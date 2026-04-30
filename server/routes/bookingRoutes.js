@@ -15,16 +15,31 @@ const razorpay = new Razorpay({
 });
 
 // Helper function to check for date overlaps
-async function hasOverlap(propertyId, roomId, startDate, endDate) {
+async function hasOverlap(propertyId, roomId, startDate, endDate, variation) {
+    const selectedCottages = Array.isArray(variation?.cottages) && variation.cottages.length
+        ? variation.cottages
+        : (variation?.cottage ? [variation.cottage] : []);
+    const resourceFilter = selectedCottages.length
+        ? {
+            $or: [
+                { 'variation.cottage': { $in: selectedCottages } },
+                { 'variation.cottages': { $in: selectedCottages } },
+                { 'variation.cottage': { $exists: false } },
+                { 'variation.cottage': null }
+            ]
+        }
+        : (roomId && { room: roomId });
     const overlap = await Booking.findOne({
         property: propertyId,
-        ...(roomId && { room: roomId }),
+        ...(resourceFilter || {}),
         status: { $in: ['Confirmed', 'Pending', 'Approved'] },
-        $or: [
+        $and: [{
+            $or: [
             { startDate: { $lte: startDate }, endDate: { $gte: startDate } },
             { startDate: { $lte: endDate }, endDate: { $gte: endDate } },
             { startDate: { $gte: startDate }, endDate: { $lte: endDate } }
-        ]
+            ]
+        }]
     });
     return !!overlap;
 }
@@ -48,6 +63,16 @@ function isWeekendBlockedForProperty(property, startDate, endDate) {
     return property?.availability === 'Monday to Friday' && rangeIncludesWeekend(startDate, endDate);
 }
 
+const getPhoneDigits = (phone = '') => String(phone).replace(/\D/g, '');
+
+function validateGuestPhone(guestDetails) {
+    if (getPhoneDigits(guestDetails?.phone).length !== 10) {
+        const error = new Error('Mobile number must be exactly 10 digits.');
+        error.statusCode = 400;
+        throw error;
+    }
+}
+
 // @route   POST /api/bookings/create-order
 // @desc    Create a Razorpay order and save a pending booking
 // @access  Private
@@ -57,6 +82,7 @@ router.post('/create-order', verifyToken, async (req, res) => {
     try {
         const property = await Farm.findById(propertyId);
         if (!property) return res.status(404).json({ message: 'Property not found in DB' });
+        validateGuestPhone(guestDetails);
 
         const start = new Date(startDate);
         const end = new Date(endDate);
@@ -68,7 +94,7 @@ router.post('/create-order', verifyToken, async (req, res) => {
         }
         
         // Check availability
-        const overlap = await hasOverlap(propertyId, roomId, start, end);
+        const overlap = await hasOverlap(propertyId, roomId, start, end, variation);
         if (overlap) {
             return res.status(409).json({ message: 'Selected dates are not available.' });
         }
@@ -130,7 +156,7 @@ router.post('/create-order', verifyToken, async (req, res) => {
 
     } catch (error) {
         console.error('Create Order Error:', error);
-        res.status(500).json({ message: 'Server Error: ' + error.message });
+        res.status(error.statusCode || 500).json({ message: error.statusCode ? error.message : 'Server Error: ' + error.message });
     }
 });
 
@@ -194,6 +220,7 @@ router.post('/cod', verifyToken, async (req, res) => {
     try {
         const property = await Farm.findById(propertyId);
         if (!property) return res.status(404).json({ message: 'Property not found' });
+        validateGuestPhone(guestDetails);
 
         const start = new Date(startDate);
         const end = new Date(endDate);
@@ -205,7 +232,7 @@ router.post('/cod', verifyToken, async (req, res) => {
         }
 
         // Check availability
-        const overlap = await hasOverlap(propertyId, roomId, start, end);
+        const overlap = await hasOverlap(propertyId, roomId, start, end, variation);
         if (overlap) {
             return res.status(409).json({ message: 'Selected dates are not available.' });
         }
@@ -247,7 +274,7 @@ router.post('/cod', verifyToken, async (req, res) => {
 
     } catch (error) {
         console.error('COD Booking Error:', error);
-        res.status(500).json({ message: 'Server Error: ' + error.message });
+        res.status(error.statusCode || 500).json({ message: error.statusCode ? error.message : 'Server Error: ' + error.message });
     }
 });
 
@@ -259,7 +286,7 @@ router.get('/property/:id/availability', async (req, res) => {
         const bookings = await Booking.find({
             property: req.params.id,
             status: { $in: ['Confirmed', 'Pending', 'Approved'] }
-        }).select('startDate endDate room');
+        }).select('startDate endDate room variation');
         res.json(bookings);
     } catch (error) {
         console.error('Error fetching availability:', error);

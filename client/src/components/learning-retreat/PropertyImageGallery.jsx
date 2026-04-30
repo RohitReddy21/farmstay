@@ -81,6 +81,8 @@ const PropertyImageGallery = ({ experience, stayType, stayOptions, linkedFarm, r
                         onError={(e) => {
                             e.target.src = retreatHeroImage || 'https://via.placeholder.com/800x600?text=Image+Not+Available';
                         }}
+                        loading="lazy"
+                        decoding="async"
                     />
                 </AnimatePresence>
                 

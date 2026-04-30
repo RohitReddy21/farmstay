@@ -89,6 +89,8 @@ const Favorites = () => {
                                     <img
                                         src={farm.images?.[0] || 'https://via.placeholder.com/400'}
                                         alt={farm.title}
+                                        loading="lazy"
+                                        decoding="async"
                                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                                     />
 

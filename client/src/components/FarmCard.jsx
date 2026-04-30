@@ -1,22 +1,42 @@
 import { Link } from 'react-router-dom';
 import { MapPin, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import FavoriteButton from './FavoriteButton';
 
 const FarmCard = ({ farm }) => {
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
+    const [isInView, setIsInView] = useState(false);
+    const cardRef = useRef(null);
     const images = farm.images || [];
 
     useEffect(() => {
-        if (images.length <= 1) return;
+        const node = cardRef.current;
+        if (!node) return undefined;
+
+        if (!('IntersectionObserver' in window)) {
+            setIsInView(true);
+            return undefined;
+        }
+
+        const observer = new IntersectionObserver(
+            ([entry]) => setIsInView(entry.isIntersecting),
+            { rootMargin: '220px' }
+        );
+
+        observer.observe(node);
+        return () => observer.disconnect();
+    }, []);
+
+    useEffect(() => {
+        if (!isInView || images.length <= 1) return undefined;
 
         const interval = setInterval(() => {
             setCurrentImageIndex((prev) => (prev + 1) % images.length);
         }, 4000); // Change image every 4 seconds
 
         return () => clearInterval(interval);
-    }, [images.length]);
+    }, [images.length, isInView]);
 
     const variations = farm.variations || [];
     const hasVariations = variations.length > 0;
@@ -31,6 +51,7 @@ const FarmCard = ({ farm }) => {
 
     return (
         <motion.div
+            ref={cardRef}
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             whileHover={{ y: -5 }}
@@ -47,6 +68,7 @@ const FarmCard = ({ farm }) => {
                     transition={{ duration: 0.5 }}
                     className="h-44 w-full object-cover md:h-48"
                     loading="lazy"
+                    decoding="async"
                 />
                 {images.length > 1 && (
                     <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 gap-1">

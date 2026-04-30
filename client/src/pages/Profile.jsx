@@ -4,10 +4,12 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { User, Mail, Phone, Lock, Save } from 'lucide-react';
 import API_URL from '../config';
+import { useToast } from '../context/ToastContext';
 
 const Profile = () => {
     const { user, setUser } = useAuth();
     const navigate = useNavigate();
+    const { showToast } = useToast();
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState({ type: '', text: '' });
 
@@ -22,6 +24,7 @@ const Profile = () => {
         newPassword: '',
         confirmPassword: ''
     });
+    const getTenDigitPhone = (value = '') => value.replace(/\D/g, '').slice(0, 10);
 
     useEffect(() => {
         if (!user) {
@@ -53,6 +56,14 @@ const Profile = () => {
         e.preventDefault();
         setLoading(true);
         setMessage({ type: '', text: '' });
+
+        if (getTenDigitPhone(profileData.phone).length !== 10) {
+            const text = 'Phone number must be exactly 10 digits.';
+            setMessage({ type: 'error', text });
+            showToast({ type: 'error', title: 'Profile details missing', message: text });
+            setLoading(false);
+            return;
+        }
 
         try {
             const token = localStorage.getItem('token');
@@ -171,7 +182,10 @@ const Profile = () => {
                                 <input
                                     type="tel"
                                     value={profileData.phone}
-                                    onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
+                                    onChange={(e) => setProfileData({ ...profileData, phone: getTenDigitPhone(e.target.value) })}
+                                    inputMode="numeric"
+                                    pattern="[0-9]{10}"
+                                    maxLength="10"
                                     className="w-full pl-10 p-2.5 md:p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all text-sm md:text-base"
                                 />
                             </div>

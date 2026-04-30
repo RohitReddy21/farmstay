@@ -57,6 +57,7 @@ const StayOptionsSection = ({ stayOptions }) => {
                                 alt={stay.title}
                                 className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
                                 loading="lazy"
+                                decoding="async"
                             />
                             <div className="absolute inset-0 bg-gradient-to-t from-[#21170d]/70 via-[#21170d]/10 to-transparent" />
                             <div className="absolute left-4 top-4 flex items-center gap-2 rounded-full border border-white/30 bg-white/90 px-3 py-2 text-xs font-black uppercase tracking-[0.12em] text-[#7a5527] shadow-lg backdrop-blur dark:bg-[#171d17]/90 dark:text-[#e7c678]">

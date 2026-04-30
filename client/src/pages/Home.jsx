@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Star, MapPin, Users, Heart, Shield, Leaf, Award, Quote } from 'lucide-react';
+import LazySection from '../components/LazySection';
 
 /* ─── Real Google Reviews ─── */
 const googleReviews = [
@@ -104,6 +105,9 @@ const Home = () => {
             </section>
 
             {/* ── Features Section ── */}
+            <LazySection placeholderClassName="min-h-[560px]">
+            </LazySection>
+            <LazySection placeholderClassName="min-h-[620px]">
             <section className="container mx-auto">
                 <div className="text-center mb-12 md:mb-16">
                     <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#7a5527] dark:text-[#d6a23d] mb-2">Why Choose Us</p>
@@ -143,6 +147,8 @@ const Home = () => {
             </section>
 
             {/* ── How It Works ── */}
+            </LazySection>
+            <LazySection placeholderClassName="min-h-[480px]">
             <section className="bg-gradient-to-br from-[#fffaf1] to-[#f4ead8] dark:from-[#111812] dark:to-[#0f1510] py-12 md:py-16 lg:py-20 rounded-3xl">
                 <div className="container mx-auto">
                     <div className="text-center mb-12 md:mb-16">
@@ -181,6 +187,8 @@ const Home = () => {
             </section>
 
             {/* ── Google Reviews ── */}
+            </LazySection>
+            <LazySection placeholderClassName="min-h-[620px]">
             <section className="container mx-auto">
                 <div className="text-center mb-12 md:mb-16">
                     {/* Google branding row */}
@@ -270,6 +278,8 @@ const Home = () => {
             </section>
 
             {/* ── CTA Section ── */}
+            </LazySection>
+            <LazySection placeholderClassName="min-h-[320px]">
             <section className="container mx-auto">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
@@ -281,6 +291,8 @@ const Home = () => {
                     <img
                         src="/images/home-hero.JPG"
                         alt="Farm background"
+                        loading="lazy"
+                        decoding="async"
                         className="absolute inset-0 w-full h-full object-cover"
                     />
                     {/* Dark overlay */}
@@ -308,6 +320,7 @@ const Home = () => {
                     </div>
                 </motion.div>
             </section>
+            </LazySection>
         </div>
     );
 };

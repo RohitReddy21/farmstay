@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import API_URL from '../config';
+import { useToast } from '../context/ToastContext';
 
 const Register = () => {
     const [name, setName] = useState('');
@@ -18,13 +19,34 @@ const Register = () => {
     const [isRegistering, setIsRegistering] = useState(false);
     const { register, googleLogin } = useAuth();
     const navigate = useNavigate();
+    const { showToast } = useToast();
+    const getTenDigitPhone = (value = '') => value.replace(/\D/g, '').slice(0, 10);
+
+    const showFormError = (message) => {
+        setError(message);
+        showToast({
+            type: 'error',
+            title: 'Complete sign up details',
+            message
+        });
+    };
 
     const handleSendOtp = async () => {
         setError('');
         setNotice('');
 
+        if (!name.trim()) {
+            showFormError('Please enter your name before requesting OTP.');
+            return;
+        }
+
         if (!email.trim()) {
-            setError('Please enter your email before requesting OTP.');
+            showFormError('Please enter your email before requesting OTP.');
+            return;
+        }
+
+        if (getTenDigitPhone(phone).length !== 10) {
+            showFormError('Mobile number must be exactly 10 digits before sending OTP.');
             return;
         }
 
@@ -34,7 +56,7 @@ const Register = () => {
             setOtpSent(true);
             setNotice(data.message || 'OTP sent to your email address.');
         } catch (err) {
-            setError(err.response?.data?.message || 'Could not send OTP. Please try again.');
+            showFormError(err.response?.data?.message || 'Could not send OTP. Please try again.');
         } finally {
             setIsSendingOtp(false);
         }
@@ -44,8 +66,18 @@ const Register = () => {
         e.preventDefault();
         setError('');
 
+        if (!name.trim() || !email.trim() || !password || !otp) {
+            showFormError('Please fill all required fields.');
+            return;
+        }
+
+        if (getTenDigitPhone(phone).length !== 10) {
+            showFormError('Mobile number must be exactly 10 digits.');
+            return;
+        }
+
         if (!otpSent) {
-            setError('Please send and enter the email OTP before signing up.');
+            showFormError('Please send and enter the email OTP before signing up.');
             return;
         }
 
@@ -54,7 +86,7 @@ const Register = () => {
             await register(name, email, phone, password, otp);
             navigate('/');
         } catch (err) {
-            setError(err.response?.data?.message || 'Registration failed');
+            showFormError(err.response?.data?.message || 'Registration failed');
         } finally {
             setIsRegistering(false);
         }
@@ -72,7 +104,7 @@ const Register = () => {
                 {error && <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
                 {notice && <div className="mb-4 rounded-xl border border-[#d9c18e] bg-[#fff4d7] p-3 text-sm text-[#6d4d1f]">{notice}</div>}
 
-                <form onSubmit={handleSubmit} className="space-y-5">
+                <form onSubmit={handleSubmit} noValidate className="space-y-5">
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <div>
                             <label className="mb-1 block text-sm font-semibold text-[#3a2b1e]">Name</label>
@@ -91,10 +123,19 @@ const Register = () => {
                                 type="tel"
                                 className="w-full rounded-xl border border-[#e3cfac] bg-white p-3 text-[#211b14] outline-none transition focus:border-[#7a5527] focus:ring-2 focus:ring-[#d6a23d]/30"
                                 value={phone}
-                                onChange={(e) => setPhone(e.target.value)}
+                                onChange={(e) => {
+                                    setError('');
+                                    setPhone(getTenDigitPhone(e.target.value));
+                                }}
                                 autoComplete="tel"
+                                inputMode="numeric"
+                                pattern="[0-9]{10}"
+                                maxLength="10"
                                 required
                             />
+                            {phone && phone.length < 10 && (
+                                <p className="mt-1 text-xs font-semibold text-red-600">Enter exactly 10 digits.</p>
+                            )}
                         </div>
                     </div>
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -145,7 +186,7 @@ const Register = () => {
                         <button
                             type="button"
                             onClick={handleSendOtp}
-                            disabled={isSendingOtp || !email.trim()}
+                            disabled={isSendingOtp || !email.trim() || phone.length !== 10}
                             className="h-12 rounded-xl border border-[#7a5527] px-6 font-bold text-[#7a5527] transition hover:bg-[#7a5527] hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
                         >
                             {isSendingOtp ? 'Sending...' : otpSent ? 'Resend OTP' : 'Send OTP'}

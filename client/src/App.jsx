@@ -5,6 +5,7 @@ import { Instagram, Mail, MessageCircle, Youtube, X, Facebook, Phone, MapPin } f
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { CartProvider } from './context/CartContext';
+import { ToastProvider } from './context/ToastContext';
 import Navbar from './components/Navbar';
 import LoadingSpinner from './components/LoadingSpinner';
 import ScrollToTop from './components/ScrollToTop';
@@ -457,18 +458,20 @@ function App() {
     <ThemeProvider>
       <AuthProvider>
         <CartProvider>
-          <Router>
-            <ScrollToTop />
-            <div className="min-h-screen overflow-x-hidden bg-background text-text-primary dark:bg-[#111611] dark:text-[#f7f0e4] flex flex-col transition-colors duration-200">
-              <Navbar />
-              <main className="flex-grow container mx-auto w-full px-3 py-6 sm:px-4 sm:py-8">
-                <Suspense fallback={<LoadingSpinner />}>
-                  <AnimatedRoutes />
-                </Suspense>
-              </main>
-              <Footer />
-            </div>
-          </Router>
+          <ToastProvider>
+            <Router>
+              <ScrollToTop />
+              <div className="min-h-screen overflow-x-hidden bg-background text-text-primary dark:bg-[#111611] dark:text-[#f7f0e4] flex flex-col transition-colors duration-200">
+                <Navbar />
+                <main className="flex-grow container mx-auto w-full px-3 py-6 sm:px-4 sm:py-8">
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <AnimatedRoutes />
+                  </Suspense>
+                </main>
+                <Footer />
+              </div>
+            </Router>
+          </ToastProvider>
         </CartProvider>
       </AuthProvider>
     </ThemeProvider>

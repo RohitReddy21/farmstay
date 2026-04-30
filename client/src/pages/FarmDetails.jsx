@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
+import { useToast } from '../context/ToastContext';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -44,12 +45,14 @@ import ReviewList from '../components/ReviewList';
 import ReviewForm from '../components/ReviewForm';
 import StarRating from '../components/StarRating';
 import BookingConfirmationModal from '../components/BookingConfirmationModal';
+import LazySection from '../components/LazySection';
 
 const FarmDetails = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const { user } = useAuth();
     const { addToCart } = useCart();
+    const { showToast } = useToast();
     const [farm, setFarm] = useState(null);
     const [loading, setLoading] = useState(true);
     const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
@@ -68,6 +71,7 @@ const FarmDetails = () => {
     const [isVariationSelectorOpen, setIsVariationSelectorOpen] = useState(false);
     const [weekendDateConflict, setWeekendDateConflict] = useState(null);
     const [showRetreatPrompt, setShowRetreatPrompt] = useState(false);
+    const [bookingError, setBookingError] = useState('');
     const [dateSelection, setDateSelection] = useState([
         {
             startDate: new Date(),
@@ -83,7 +87,21 @@ const FarmDetails = () => {
     const [selectedVariation, setSelectedVariation] = useState(null);
     const [selectedCottage, setSelectedCottage] = useState(null);
 
-    const hasVariations = farm?.variations?.length > 0;
+    const wholeMudCottageVariation = {
+        type: 'Whole Mud Cottage',
+        label: 'Whole Mud Cottage - All 4 Cottages',
+        price: 19996,
+        capacity: 8,
+        amenities: ["Whole Mud Cottage Booking", "Shared Accommodation", "Couple Accommodation", "Traditional Mud Cottage", "Earthy Living", "Farm Experience", "Wifi", "AC", "Firepit", "Breakfast Included", "Free Parking", "Bonfire Nights", "Farm Activities"],
+        availableCottages: ["Traditional Mud Cottage - 1", "Traditional Mud Cottage - 2", "Traditional Mud Cottage - 3", "Traditional Mud Cottage - 4"]
+    };
+    const farmVariations = (() => {
+        const variations = farm?.variations || [];
+        const isMudCottageFarm = farm?.title?.toLowerCase().includes('traditional mud cottage');
+        const hasWholeOption = variations.some((variation) => variation.type === wholeMudCottageVariation.type);
+        return isMudCottageFarm && !hasWholeOption ? [wholeMudCottageVariation, ...variations] : variations;
+    })();
+    const hasVariations = farmVariations.length > 0;
     const nightlyPrice = selectedVariation?.price || farm?.price || 0;
     const guestLimit = selectedVariation?.capacity || farm?.capacity || 1;
 
@@ -96,6 +114,20 @@ const FarmDetails = () => {
             guests: Math.min(Number(current.guests) || 1, variation.capacity || farm?.capacity || 1)
         }));
         setIsVariationSelectorOpen(false);
+    };
+
+    const handleVariationSelect = (type) => {
+        const variation = farmVariations.find((item) => item.type === type);
+        selectVariation(variation);
+    };
+
+    const showBookingValidationError = (message) => {
+        setBookingError(message);
+        showToast({
+            type: 'error',
+            title: 'Complete booking details',
+            message
+        });
     };
 
     // Combine images and videos into a single media array
@@ -183,6 +215,41 @@ const FarmDetails = () => {
 
     const displayedAmenities = selectedVariation?.amenities?.length ? selectedVariation.amenities : farm?.amenities || [];
     const isWeekdayOnlyFarm = farm?.availability === 'Monday to Friday';
+    const getTenDigitPhone = (value = '') => value.replace(/\D/g, '').slice(0, 10);
+    const unavailableRanges = useMemo(() => unavailableDates.map((booking) => ({
+        ...booking,
+        rangeStart: new Date(booking.startDate),
+        rangeEnd: new Date(booking.endDate)
+    })), [unavailableDates]);
+    const mediaThumbnails = useMemo(() => allMedia.slice(0, 8), [allMedia]);
+
+    const rangesOverlap = (startDate, endDate, booking) => {
+        const bookingStart = booking.rangeStart || new Date(booking.startDate);
+        const bookingEnd = booking.rangeEnd || new Date(booking.endDate);
+        return startDate <= bookingEnd && endDate >= bookingStart;
+    };
+
+    const getVariationCottages = (variation) => {
+        if (variation?.availableCottages?.length) return variation.availableCottages;
+        return variation?.type ? [variation.type] : [];
+    };
+
+    const getVariationCottage = (variation) => getVariationCottages(variation)[0] || variation?.type;
+
+    const bookingMatchesVariation = (booking, variation = selectedVariation) => {
+        if (!hasVariations) return true;
+        if (!booking?.variation?.cottage && !booking?.variation?.cottages?.length) return true;
+        const cottages = getVariationCottages(variation);
+        const bookedCottages = booking?.variation?.cottages?.length
+            ? booking.variation.cottages
+            : [booking?.variation?.cottage].filter(Boolean);
+        return cottages.some((cottage) => bookedCottages.includes(cottage));
+    };
+
+    const variationHasDateConflict = (variation, startDate = dateSelection[0].startDate, endDate = dateSelection[0].endDate) => {
+        if (!startDate || !endDate) return false;
+        return unavailableRanges.some((booking) => bookingMatchesVariation(booking, variation) && rangesOverlap(startDate, endDate, booking));
+    };
 
     const formatDateForDisplay = (date) => date.toLocaleDateString('en-US', {
         month: 'short',
@@ -234,11 +301,7 @@ const FarmDetails = () => {
         const startDate = new Date(start);
         const endDate = new Date(end);
 
-        const conflict = unavailableDates.find(booking => {
-            const bookingStart = new Date(booking.startDate);
-            const bookingEnd = new Date(booking.endDate);
-            return (startDate <= bookingEnd && endDate >= bookingStart);
-        });
+        const conflict = unavailableRanges.find(booking => bookingMatchesVariation(booking) && rangesOverlap(startDate, endDate, booking));
 
         if (conflict) {
             setDateConflict({
@@ -259,11 +322,7 @@ const FarmDetails = () => {
         if (date < today) return true;
 
         // Disable unavailable dates from bookings
-        const isBooked = unavailableDates.some(booking => {
-            const start = new Date(booking.startDate);
-            const end = new Date(booking.endDate);
-            return date >= start && date <= end;
-        });
+        const isBooked = unavailableRanges.some(booking => bookingMatchesVariation(booking) && rangesOverlap(date, date, booking));
         if (isBooked) return true;
 
         // Disable based on farm availability rules
@@ -277,6 +336,7 @@ const FarmDetails = () => {
 
     const handleDateChange = (item) => {
         setDateSelection([item.selection]);
+        setBookingError('');
         
         const startStr = item.selection.startDate.toLocaleDateString('en-CA');
         const endStr = item.selection.endDate.toLocaleDateString('en-CA');
@@ -353,8 +413,16 @@ const FarmDetails = () => {
         checkReviewEligibility();
     }, [id, user]);
 
+    useEffect(() => {
+        if (!farm) return;
+        const startStr = dateSelection[0].startDate.toLocaleDateString('en-CA');
+        const endStr = dateSelection[0].endDate.toLocaleDateString('en-CA');
+        checkDateConflict(startStr, endStr);
+    }, [selectedVariation, selectedCottage, unavailableRanges, farm]);
+
     const handleBooking = async (e) => {
         e.preventDefault();
+        setBookingError('');
 
         if (!user) {
             alert('Please log in to make a booking');
@@ -366,16 +434,22 @@ const FarmDetails = () => {
         const endStr = dateSelection[0].endDate.toLocaleDateString('en-CA');
 
         if (startStr === endStr) {
-            alert('Please select a valid date range (minimum 1 night).');
+            showBookingValidationError('Please select a valid date range with at least 1 night.');
             return;
         }
 
         if (checkWeekendConflict(dateSelection[0].startDate, dateSelection[0].endDate)) {
+            showBookingValidationError('This farm stay is not available on Saturday or Sunday. Please choose weekdays or join the Learning Retreat.');
             return;
         }
 
         if (!bookingData.guestName || !bookingData.guestPhone) {
-            alert('Please enter your name and mobile number');
+            showBookingValidationError('Please enter your full name and mobile number.');
+            return;
+        }
+
+        if (getTenDigitPhone(bookingData.guestPhone).length !== 10) {
+            showBookingValidationError('Mobile number must be exactly 10 digits.');
             return;
         }
 
@@ -386,14 +460,10 @@ const FarmDetails = () => {
             const endDate = dateSelection[0].endDate;
 
             // Client-side validation: Check for overlaps
-            const hasConflict = unavailableDates.some(booking => {
-                const bookingStart = new Date(booking.startDate);
-                const bookingEnd = new Date(booking.endDate);
-                return (startDate <= bookingEnd && endDate >= bookingStart);
-            });
+            const hasConflict = unavailableRanges.some(booking => bookingMatchesVariation(booking) && rangesOverlap(startDate, endDate, booking));
 
             if (hasConflict) {
-                alert('❌ Booking Failed\n\nThe selected dates overlap with an existing booking.\n\nPlease choose different dates.');
+                showBookingValidationError('The selected dates overlap with an existing booking. Please choose different dates.');
                 return;
             }
 
@@ -404,7 +474,14 @@ const FarmDetails = () => {
 
             // Set Cart Data and Navigate to Cart
             addToCart({
-                property: farm,
+                property: {
+                    _id: farm._id,
+                    title: farm.title,
+                    location: farm.location,
+                    price: farm.price,
+                    capacity: farm.capacity,
+                    images: farm.images?.length ? [farm.images[0]] : []
+                },
                 propertyId: id,
                 startDate: startStr,
                 endDate: endStr,
@@ -416,7 +493,8 @@ const FarmDetails = () => {
                 variation: selectedVariation ? {
                     type: selectedVariation.type,
                     label: selectedVariation.label,
-                    cottage: selectedCottage
+                    cottage: selectedCottage,
+                    cottages: getVariationCottages(selectedVariation)
                 } : null,
                 pricing: {
                     basePrice,
@@ -432,9 +510,9 @@ const FarmDetails = () => {
         } catch (error) {
             console.error('Booking error:', error);
             if (error.response?.status === 409) {
-                alert(`❌ Booking Failed\n\n${error.response.data.message}\n\nPlease select different dates.`);
+                showBookingValidationError(`${error.response.data.message} Please select different dates.`);
             } else {
-                alert('❌ Booking Failed\n\nSomething went wrong. Please try again or contact support.');
+                showBookingValidationError('Something went wrong. Please try again or contact support.');
             }
         }
     };
@@ -455,6 +533,7 @@ const FarmDetails = () => {
     if (!farm) return <div className="text-center py-20">Farm not found</div>;
 
     const isBookingBlocked = Boolean(dateConflict || weekendDateConflict);
+    const selectedIsBookedForDates = selectedVariation && variationHasDateConflict(selectedVariation);
 
     return (
         <div className="space-y-6 md:space-y-8">
@@ -601,7 +680,7 @@ const FarmDetails = () => {
                         {/* Thumbnail Gallery */}
                         {allMedia.length > 1 && (
                             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
-                                {allMedia.map((media, index) => (
+                                {mediaThumbnails.map((media, index) => (
                                     <button
                                         key={index}
                                         onClick={() => setCurrentMediaIndex(index)}
@@ -614,31 +693,31 @@ const FarmDetails = () => {
                                             <img
                                                 src={media.url}
                                                 alt={`Thumbnail ${index + 1}`}
+                                                loading="lazy"
+                                                decoding="async"
                                                 className="w-full h-full object-cover"
                                             />
                                         ) : (
                                             <div className="w-full h-full bg-gray-800 flex items-center justify-center relative">
                                                 {isVideoFileUrl(media.url) ? (
-                                                    <video
-                                                        src={media.url}
-                                                        className="w-full h-full object-cover opacity-70"
-                                                        muted
-                                                        playsInline
-                                                    />
+                                                    <div className="h-full w-full bg-gradient-to-br from-gray-900 to-gray-700" />
                                                 ) : (
-                                                    <iframe
-                                                        src={buildEmbedSrc(media.url, false)}
-                                                        className="w-full h-full"
-                                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                                        allowFullScreen
-                                                        title={`Video Thumbnail ${index + 1}`}
-                                                    />
+                                                    <div className="h-full w-full bg-gradient-to-br from-gray-900 to-gray-700" />
                                                 )}
-                                                <Play className="absolute w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                <Play className="absolute w-6 h-6 text-white" />
                                             </div>
                                         )}
                                     </button>
                                 ))}
+                                {allMedia.length > mediaThumbnails.length && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowLightbox(true)}
+                                        className="rounded-lg bg-[#211b14] text-sm font-bold text-white"
+                                    >
+                                        +{allMedia.length - mediaThumbnails.length} more
+                                    </button>
+                                )}
                             </div>
                         )}
                     </div>
@@ -666,89 +745,41 @@ const FarmDetails = () => {
                                         Max {guestLimit} guests
                                     </span>
                                 </div>
-                                <div className="relative">
-                                    <button
-                                        type="button"
-                                        onClick={() => setIsVariationSelectorOpen((current) => !current)}
-                                        className="group w-full overflow-hidden rounded-3xl border-2 border-primary/20 bg-gradient-to-br from-white via-[#fffaf4] to-[#fff2df] p-4 text-left shadow-[0_14px_35px_rgba(122,85,39,0.12)] outline-none transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-[0_18px_45px_rgba(122,85,39,0.18)] focus:border-primary focus:ring-4 focus:ring-primary/20"
-                                        aria-expanded={isVariationSelectorOpen}
-                                    >
-                                        <div className="flex items-center justify-between gap-4">
-                                            <div className="min-w-0">
-                                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">
-                                                    Selected cottage
-                                                </p>
-                                                <p className="mt-1 truncate text-sm font-black text-gray-900 md:text-base">
-                                                    {selectedVariation?.label || 'Choose a cottage'}
-                                                </p>
-                                                <div className="mt-3 flex flex-wrap gap-2">
-                                                    <span className="rounded-full bg-primary/10 px-3 py-1 text-[11px] font-black text-primary">
-                                                        Rs {nightlyPrice} / night
-                                                    </span>
-                                                    <span className="rounded-full bg-white px-3 py-1 text-[11px] font-black text-gray-600 shadow-sm">
-                                                        Max {guestLimit} guests
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary text-white shadow-lg transition-transform group-hover:scale-105">
-                                                <ChevronDown size={22} className={`transition-transform ${isVariationSelectorOpen ? 'rotate-180' : ''}`} />
-                                            </div>
+                                <div className="rounded-3xl border border-primary/20 bg-gradient-to-br from-[#fffaf4] via-white to-[#fff3df] p-3 shadow-[0_12px_30px_rgba(122,85,39,0.10)]">
+                                    <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] text-primary">
+                                        Select cottage
+                                    </label>
+                                    <div className="relative">
+                                        <select
+                                            value={selectedVariation?.type || ''}
+                                            onChange={(e) => handleVariationSelect(e.target.value)}
+                                            className="w-full appearance-none rounded-2xl border-2 border-[#e2c99e] bg-white px-4 py-4 pr-12 text-sm font-black text-gray-900 outline-none transition-all hover:border-primary/50 focus:border-primary focus:ring-4 focus:ring-primary/15 md:text-base"
+                                        >
+                                            {farmVariations.map((variation) => (
+                                                <option key={variation.type} value={variation.type}>
+                                                    {variation.label} - Rs {variation.price} - Max {variation.capacity} guests
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <div className="pointer-events-none absolute right-4 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-primary text-white shadow-md">
+                                            <ChevronDown size={18} />
                                         </div>
-                                    </button>
-
-                                    <AnimatePresence>
-                                        {isVariationSelectorOpen && (
-                                            <motion.div
-                                                initial={{ opacity: 0, y: -8, scale: 0.98 }}
-                                                animate={{ opacity: 1, y: 8, scale: 1 }}
-                                                exit={{ opacity: 0, y: -8, scale: 0.98 }}
-                                                transition={{ duration: 0.18 }}
-                                                className="absolute left-0 right-0 top-full z-40 overflow-hidden rounded-3xl border border-primary/20 bg-[#fffaf4] p-2 shadow-[0_22px_55px_rgba(68,45,19,0.22)]"
-                                            >
-                                                <div className="max-h-80 space-y-2 overflow-y-auto pr-1">
-                                                    {farm.variations.map((variation) => {
-                                                        const isSelected = selectedVariation?.type === variation.type;
-                                                        const stayLabel = variation.label?.toLowerCase().includes('couple') ? 'Couple stay' : 'Shared stay';
-                                                        return (
-                                                            <button
-                                                                key={variation.type}
-                                                                type="button"
-                                                                onClick={() => selectVariation(variation)}
-                                                                className={`w-full rounded-2xl border p-3 text-left transition-all ${
-                                                                    isSelected
-                                                                        ? 'border-primary bg-primary text-white shadow-md'
-                                                                        : 'border-primary/10 bg-white text-gray-900 hover:border-primary/40 hover:bg-[#fff8ed]'
-                                                                }`}
-                                                            >
-                                                                <div className="flex items-start justify-between gap-3">
-                                                                    <div className="min-w-0">
-                                                                        <p className="text-sm font-black leading-tight md:text-base">{variation.label}</p>
-                                                                        <p className={`mt-1 text-xs font-semibold ${isSelected ? 'text-white/80' : 'text-gray-500'}`}>
-                                                                            {variation.availableCottages?.[0] || variation.type}
-                                                                        </p>
-                                                                        <div className="mt-2 flex flex-wrap gap-1.5">
-                                                                            <span className={`rounded-full px-2.5 py-1 text-[11px] font-black ${isSelected ? 'bg-white/15 text-white' : 'bg-gray-100 text-gray-600'}`}>
-                                                                                {variation.capacity} guests
-                                                                            </span>
-                                                                            <span className={`rounded-full px-2.5 py-1 text-[11px] font-black ${isSelected ? 'bg-white/15 text-white' : 'bg-gray-100 text-gray-600'}`}>
-                                                                                {stayLabel}
-                                                                            </span>
-                                                                        </div>
-                                                                    </div>
-                                                                    <div className="flex shrink-0 items-center gap-2">
-                                                                        <span className={`rounded-full px-3 py-1 text-xs font-black ${isSelected ? 'bg-white/15 text-white' : 'bg-primary/10 text-primary'}`}>
-                                                                            Rs {variation.price}
-                                                                        </span>
-                                                                        {isSelected && <Check size={18} />}
-                                                                    </div>
-                                                                </div>
-                                                            </button>
-                                                        );
-                                                    })}
-                                                </div>
-                                            </motion.div>
-                                        )}
-                                    </AnimatePresence>
+                                    </div>
+                                    {selectedVariation && (
+                                        <div className="mt-3 rounded-2xl bg-white/75 p-3">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-black text-primary">
+                                                    Rs {nightlyPrice} / night
+                                                </span>
+                                                <span className="rounded-full bg-[#f0dfc5] px-3 py-1 text-xs font-black text-[#7a5527]">
+                                                    Max {guestLimit} guests
+                                                </span>
+                                            </div>
+                                            <p className="mt-2 text-xs font-semibold leading-relaxed text-gray-500">
+                                                {selectedVariation.availableCottages?.join(', ') || selectedVariation.type}
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
                                 {false && selectedVariation && (
                                     <div className="mt-3 rounded-2xl border border-primary/20 bg-[#fff8ed] p-3">
@@ -763,7 +794,7 @@ const FarmDetails = () => {
                                         </div>
                                     </div>
                                 )}
-                                <div className="hidden">
+                                {false && <div className="hidden">
                                     {farm.variations.map((variation, index) => (
                                         <button
                                             key={index}
@@ -810,10 +841,10 @@ const FarmDetails = () => {
                                             </div>
                                         </button>
                                     ))}
-                                </div>
+                                </div>}
 
                                 {/* Cottage Selection */}
-                                {selectedVariation?.availableCottages && selectedVariation.availableCottages.length > 1 && (
+                                {false && selectedVariation?.availableCottages && selectedVariation.availableCottages.length > 1 && (
                                     <div className="mt-4">
                                         <label className="block text-sm font-medium text-gray-700 mb-2">Select Cottage</label>
                                         <select
@@ -951,7 +982,17 @@ const FarmDetails = () => {
                             </AnimatePresence>
                         </div>
 
-                        <form onSubmit={handleBooking} className="space-y-3 md:space-y-4">
+                        <form onSubmit={handleBooking} noValidate className="space-y-3 md:space-y-4">
+                            {bookingError && (
+                                <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700">
+                                    {bookingError}
+                                </div>
+                            )}
+                            {selectedIsBookedForDates && (
+                                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-800">
+                                    This cottage is booked for the selected dates. Please choose another available option from the dropdown.
+                                </div>
+                            )}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
                                 <input
@@ -960,7 +1001,10 @@ const FarmDetails = () => {
                                     placeholder="Enter your full name"
                                     className="w-full p-2.5 md:p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all text-sm md:text-base"
                                     value={bookingData.guestName}
-                                    onChange={(e) => setBookingData({ ...bookingData, guestName: e.target.value })}
+                                    onChange={(e) => {
+                                        setBookingError('');
+                                        setBookingData({ ...bookingData, guestName: e.target.value });
+                                    }}
                                 />
                             </div>
                             <div>
@@ -971,7 +1015,13 @@ const FarmDetails = () => {
                                     placeholder="Enter mobile number"
                                     className="w-full p-2.5 md:p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all text-sm md:text-base"
                                     value={bookingData.guestPhone}
-                                    onChange={(e) => setBookingData({ ...bookingData, guestPhone: e.target.value })}
+                                    onChange={(e) => {
+                                        setBookingError('');
+                                        setBookingData({ ...bookingData, guestPhone: getTenDigitPhone(e.target.value) });
+                                    }}
+                                    inputMode="numeric"
+                                    pattern="[0-9]{10}"
+                                    maxLength="10"
                                 />
                             </div>
                             <div>
@@ -1012,6 +1062,7 @@ const FarmDetails = () => {
             </div>
 
             {/* Full Width Content Section */}
+            <LazySection placeholderClassName="min-h-[720px] rounded-2xl md:rounded-3xl bg-white/50">
             <div className="bg-white rounded-2xl md:rounded-3xl shadow-lg border border-gray-100 p-6 md:p-8 lg:p-10">
                 {/* Title and Meta Info */}
                 <div className="border-b border-gray-200 pb-6 mb-8">
@@ -1074,6 +1125,8 @@ const FarmDetails = () => {
                             <img
                                 src="/images/host-kusuma.png?v=20260429"
                                 alt="Host"
+                                loading="lazy"
+                                decoding="async"
                                 className="w-16 h-16 md:w-20 md:h-20 rounded-full object-cover shadow-md ring-4 ring-white group-hover:ring-primary/20 transition-all"
                             />
                             <div className="absolute -bottom-1 -right-1 bg-primary text-white p-1 rounded-full shadow-sm">
@@ -1147,6 +1200,7 @@ const FarmDetails = () => {
                     </div>
                 </div>
             </div>
+            </LazySection>
 
             {/* Reviews Section */}
             {/* <div className="bg-white rounded-2xl md:rounded-3xl shadow-lg border border-gray-100 p-6 md:p-8 lg:p-10">
@@ -1283,7 +1337,7 @@ const FarmDetails = () => {
                                             }`}
                                     >
                                         {media.type === 'image' ? (
-                                            <img src={media.url} alt={`Thumbnail ${idx + 1}`} className="w-full h-full object-cover" />
+                                            <img src={media.url} alt={`Thumbnail ${idx + 1}`} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                                         ) : (
                                             <div className="w-full h-full bg-gray-800 flex items-center justify-center">
                                                 <Play className="w-4 h-4 text-white" />

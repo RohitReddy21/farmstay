@@ -5,6 +5,8 @@ const Booking = require('../models/Booking');
 const bcrypt = require('bcryptjs');
 const { verifyToken } = require('../middleware/authMiddleware');
 
+const getPhoneDigits = (phone = '') => String(phone).replace(/\D/g, '');
+
 // @route   GET /api/users/profile
 // @desc    Get user profile
 // @access  Private
@@ -27,10 +29,15 @@ router.get('/profile', verifyToken, async (req, res) => {
 router.put('/profile', verifyToken, async (req, res) => {
     try {
         const { name, email, phone } = req.body;
+        const phoneDigits = getPhoneDigits(phone);
 
         const user = await User.findById(req.user._id);
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
+        }
+
+        if (phoneDigits.length !== 10) {
+            return res.status(400).json({ message: 'Phone number must be exactly 10 digits.' });
         }
 
         // Check if email is already taken by another user
@@ -43,7 +50,7 @@ router.put('/profile', verifyToken, async (req, res) => {
 
         user.name = name || user.name;
         user.email = email || user.email;
-        user.phone = phone || user.phone;
+        user.phone = phoneDigits || user.phone;
 
         await user.save();
 

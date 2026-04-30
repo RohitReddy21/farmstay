@@ -15,13 +15,13 @@ import {
     ChevronDown,
     ChevronLeft,
     ChevronRight,
-    Check,
     X,
     Mail,
     Phone,
     User
 } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
+import { useToast } from '../../context/ToastContext';
 
 const BookingPanel = ({
     experience,
@@ -61,8 +61,9 @@ const BookingPanel = ({
     guestExperienceTotal = 0,
     dayExperiencePrice = 0
 }) => {
+    const { showToast } = useToast();
+    const getTenDigitPhone = (value = '') => value.replace(/\D/g, '').slice(0, 10);
     const [showConfirmation, setShowConfirmation] = useState(false);
-    const [isStaySelectorOpen, setIsStaySelectorOpen] = useState(false);
     const [formErrors, setFormErrors] = useState({});
     const [confirmationForm, setConfirmationForm] = useState({
         name: '',
@@ -169,15 +170,10 @@ const BookingPanel = ({
         }));
     }, [guests, maxGuests]);
 
-    useEffect(() => {
-        setIsStaySelectorOpen(false);
-    }, [stayType, experience]);
-
     const selectStayVariation = (variation) => {
         setSelectedStayVariation(variation);
         setGuests((current) => Math.min(Math.max(current, 1), variation.capacity || selectedStay.maxGuests));
         setCalendarError('');
-        setIsStaySelectorOpen(false);
     };
 
     const validateConfirmationForm = () => {
@@ -195,8 +191,8 @@ const BookingPanel = ({
         
         if (!confirmationForm.phone.trim()) {
             errors.phone = 'Phone is required';
-        } else if (!/^\+?[\d\s\-\(\)]+$/.test(confirmationForm.phone)) {
-            errors.phone = 'Phone is invalid';
+        } else if (getTenDigitPhone(confirmationForm.phone).length !== 10) {
+            errors.phone = 'Phone must be exactly 10 digits';
         }
         
         if (confirmationForm.guests < 1) {
@@ -204,6 +200,14 @@ const BookingPanel = ({
         }
         
         setFormErrors(errors);
+        const firstError = Object.values(errors)[0];
+        if (firstError) {
+            showToast({
+                type: 'error',
+                title: 'Complete contact details',
+                message: firstError
+            });
+        }
         return Object.keys(errors).length === 0;
     };
 
@@ -331,80 +335,36 @@ const BookingPanel = ({
                                     Select {accommodationLabel}
                                     <div className="h-1 w-4 rounded-full bg-gradient-to-r from-[#d6a23d] to-[#7a5527]"></div>
                                 </label>
-                                <div className="relative">
-                                    <button
-                                        type="button"
-                                        onClick={() => setIsStaySelectorOpen((current) => !current)}
-                                        className="group w-full overflow-hidden rounded-3xl border-2 border-[#dfd1bb] bg-gradient-to-br from-white via-[#fff9f0] to-[#f7ead5] p-4 text-left shadow-[0_14px_35px_rgba(122,85,39,0.12)] outline-none transition-all duration-300 hover:-translate-y-0.5 hover:border-[#d6a23d] hover:shadow-[0_18px_45px_rgba(122,85,39,0.18)] focus:border-[#7a5527] focus:ring-4 focus:ring-[#7a5527]/20 dark:border-[#31392f] dark:from-[#1a211a] dark:via-[#20271f] dark:to-[#2b2a20] dark:focus:border-[#e7c678] dark:focus:ring-[#e7c678]/20"
-                                        aria-expanded={isStaySelectorOpen}
-                                    >
-                                        <div className="flex items-center justify-between gap-4">
-                                            <div className="min-w-0">
-                                                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#8b5f25] dark:text-[#e7c678]">
-                                                    Selected {accommodationLabel}
-                                                </p>
-                                                <p className="mt-1 truncate text-sm font-black text-[#211b14] dark:text-[#fff8ea]">
-                                                    {selectedStayVariation?.label || `Choose ${accommodationLabel}`}
-                                                </p>
-                                                <div className="mt-3 flex flex-wrap gap-2">
-                                                    <span className="rounded-full bg-[#f0dfc5] px-3 py-1 text-[11px] font-black text-[#7a5527] dark:bg-[#2a2519] dark:text-[#e7c678]">
-                                                        {formatMoney(stayPricePerGuest)} / {stayPriceLabel}
-                                                    </span>
-                                                    <span className="rounded-full bg-white px-3 py-1 text-[11px] font-black text-[#6b5d4c] dark:bg-[#232823] dark:text-[#d5c9b7]">
-                                                        Max {selectedStayVariation?.capacity || selectedStay.maxGuests} guests
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#7a5527] text-white shadow-lg transition-transform duration-300 group-hover:scale-105">
-                                                <ChevronDown size={22} className={`transition-transform duration-300 ${isStaySelectorOpen ? 'rotate-180' : ''}`} />
-                                            </div>
+                                <div className="rounded-3xl border border-[#dfd1bb] bg-gradient-to-br from-white via-[#fff9f0] to-[#f7ead5] p-3 shadow-[0_14px_35px_rgba(122,85,39,0.12)] dark:border-[#31392f] dark:from-[#1a211a] dark:via-[#20271f] dark:to-[#2b2a20]">
+                                    <div className="relative">
+                                        <select
+                                            value={selectedStayVariation?.type || ''}
+                                            onChange={(event) => {
+                                                const variation = stayVariations.find((item) => item.type === event.target.value);
+                                                if (variation) selectStayVariation(variation);
+                                            }}
+                                            className="w-full appearance-none rounded-2xl border-2 border-[#dfd1bb] bg-white px-4 py-4 pr-12 text-sm font-black text-[#211b14] outline-none transition-all hover:border-[#d6a23d] focus:border-[#7a5527] focus:ring-4 focus:ring-[#7a5527]/20 dark:border-[#31392f] dark:bg-[#232823] dark:text-[#fff8ea] dark:focus:border-[#e7c678] dark:focus:ring-[#e7c678]/20 sm:text-base"
+                                        >
+                                            {stayVariations.map((variation) => (
+                                                <option key={variation.type} value={variation.type}>
+                                                    {variation.label} - {formatMoney(variation.price || stayPricePerGuest)} - Max {variation.capacity || selectedStay.maxGuests} guests
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <div className="pointer-events-none absolute right-4 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-[#7a5527] text-white shadow-md">
+                                            <ChevronDown size={18} />
                                         </div>
-                                    </button>
-
-                                    <AnimatePresence>
-                                        {isStaySelectorOpen && (
-                                            <motion.div
-                                                initial={{ opacity: 0, y: -8, scale: 0.98 }}
-                                                animate={{ opacity: 1, y: 8, scale: 1 }}
-                                                exit={{ opacity: 0, y: -8, scale: 0.98 }}
-                                                transition={{ duration: 0.18 }}
-                                                className="absolute left-0 right-0 top-full z-30 overflow-hidden rounded-3xl border border-[#d9bf8d] bg-[#fffaf1] p-2 shadow-[0_22px_55px_rgba(68,45,19,0.24)] dark:border-[#31392f] dark:bg-[#171d17]"
-                                            >
-                                                <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
-                                                    {stayVariations.map((variation) => {
-                                                        const isSelected = selectedStayVariation?.type === variation.type;
-                                                        return (
-                                                            <button
-                                                                key={variation.type}
-                                                                type="button"
-                                                                onClick={() => selectStayVariation(variation)}
-                                                                className={`w-full rounded-2xl border p-3 text-left transition-all duration-200 ${
-                                                                    isSelected
-                                                                        ? 'border-[#7a5527] bg-[#7a5527] text-white shadow-md'
-                                                                        : 'border-[#ead8b9] bg-white text-[#211b14] hover:border-[#d6a23d] hover:bg-[#fff4df] dark:border-[#31392f] dark:bg-[#232823] dark:text-[#fff8ea] dark:hover:border-[#e7c678]'
-                                                                }`}
-                                                            >
-                                                                <div className="flex items-start justify-between gap-3">
-                                                                    <div className="min-w-0">
-                                                                        <p className="text-sm font-black leading-tight">{variation.label}</p>
-                                                                        <p className={`mt-1 text-xs font-semibold ${isSelected ? 'text-white/80' : 'text-[#6b5d4c] dark:text-[#cfc2b2]'}`}>
-                                                                            {variation.availableCottages?.[0] || variation.type}
-                                                                        </p>
-                                                                    </div>
-                                                                    <div className="flex shrink-0 items-center gap-2">
-                                                                        <span className={`rounded-full px-2.5 py-1 text-xs font-black ${isSelected ? 'bg-white/15 text-white' : 'bg-[#f3e5cc] text-[#7a5527] dark:bg-[#1a211a] dark:text-[#e7c678]'}`}>
-                                                                            {variation.capacity || selectedStay.maxGuests} guests
-                                                                        </span>
-                                                                        {isSelected && <Check size={18} />}
-                                                                    </div>
-                                                                </div>
-                                                            </button>
-                                                        );
-                                                    })}
-                                                </div>
-                                            </motion.div>
-                                        )}
-                                    </AnimatePresence>
+                                    </div>
+                                    {selectedStayVariation && (
+                                        <div className="mt-3 flex flex-wrap gap-2 rounded-2xl bg-white/70 p-3 dark:bg-[#1a211a]/70">
+                                            <span className="rounded-full bg-[#f0dfc5] px-3 py-1 text-[11px] font-black text-[#7a5527] dark:bg-[#2a2519] dark:text-[#e7c678]">
+                                                {formatMoney(stayPricePerGuest)} / {stayPriceLabel}
+                                            </span>
+                                            <span className="rounded-full bg-white px-3 py-1 text-[11px] font-black text-[#6b5d4c] dark:bg-[#232823] dark:text-[#d5c9b7]">
+                                                Max {selectedStayVariation.capacity || selectedStay.maxGuests} guests
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         )}
@@ -652,8 +612,11 @@ const BookingPanel = ({
                                                     <input
                                                         type="tel"
                                                         value={confirmationForm.phone}
-                                                        onChange={(e) => setConfirmationForm({ ...confirmationForm, phone: e.target.value })}
+                                                        onChange={(e) => setConfirmationForm({ ...confirmationForm, phone: getTenDigitPhone(e.target.value) })}
                                                         placeholder="Enter your phone number"
+                                                        inputMode="numeric"
+                                                        pattern="[0-9]{10}"
+                                                        maxLength="10"
                                                         className="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-[#dfd1bb] bg-gradient-to-r from-white to-[#fff9f0] dark:from-[#1a211a] dark:to-[#232823] dark:border-[#31392f] text-[#211b14] dark:text-[#fff8ea] placeholder-[#a8a096] focus:border-[#7a5527] focus:ring-4 focus:ring-[#7a5527]/20 outline-none transition-all duration-300 hover:border-[#d6a23d] hover:shadow-lg dark:focus:border-[#e7c678] dark:focus:ring-[#e7c678]/20 dark:hover:border-[#e7c678] text-sm"
                                                     />
                                                     <div className="absolute -bottom-0.5 left-0 h-0.5 w-full rounded-full bg-gradient-to-r from-[#7a5527]/20 via-[#d6a23d]/30 to-[#7a5527]/20 opacity-0 transition-opacity duration-300 group-focus-within:opacity-100"></div>

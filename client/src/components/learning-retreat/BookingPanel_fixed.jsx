@@ -16,6 +16,7 @@ import {
     User
 } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
+import { useToast } from '../../context/ToastContext';
 
 const BookingPanel = ({
     experience,
@@ -48,6 +49,8 @@ const BookingPanel = ({
     setGuestDetails,
     isSubmitting
 }) => {
+    const { showToast } = useToast();
+    const getTenDigitPhone = (value = '') => value.replace(/\D/g, '').slice(0, 10);
     const [showConfirmation, setShowConfirmation] = useState(false);
     const [formErrors, setFormErrors] = useState({});
     const [confirmationForm, setConfirmationForm] = useState({
@@ -113,8 +116,8 @@ const BookingPanel = ({
         
         if (!confirmationForm.phone.trim()) {
             errors.phone = 'Phone is required';
-        } else if (!/^\+?[\d\s\-\(\)]+$/.test(confirmationForm.phone)) {
-            errors.phone = 'Phone is invalid';
+        } else if (getTenDigitPhone(confirmationForm.phone).length !== 10) {
+            errors.phone = 'Phone must be exactly 10 digits';
         }
         
         if (!confirmationForm.guests || confirmationForm.guests < 1) {
@@ -122,6 +125,14 @@ const BookingPanel = ({
         }
         
         setFormErrors(errors);
+        const firstError = Object.values(errors)[0];
+        if (firstError) {
+            showToast({
+                type: 'error',
+                title: 'Complete contact details',
+                message: firstError
+            });
+        }
         return Object.keys(errors).length === 0;
     };
 
@@ -347,8 +358,11 @@ const BookingPanel = ({
                                                     <input
                                                         type="tel"
                                                         value={confirmationForm.phone}
-                                                        onChange={(e) => setConfirmationForm({ ...confirmationForm, phone: e.target.value })}
+                                                        onChange={(e) => setConfirmationForm({ ...confirmationForm, phone: getTenDigitPhone(e.target.value) })}
                                                         placeholder="Enter your phone number"
+                                                        inputMode="numeric"
+                                                        pattern="[0-9]{10}"
+                                                        maxLength="10"
                                                         className="w-full pl-10 pr-4 py-2.5 rounded-xl border-2 border-[#dfd1bb] bg-white dark:bg-[#1a211a] dark:border-[#31392f] text-[#211b14] dark:text-[#fff8ea] placeholder-[#a8a096] focus:border-[#7a5527] focus:ring-2 focus:ring-[#7a5527]/20 outline-none transition-all text-sm"
                                                     />
                                                 </div>

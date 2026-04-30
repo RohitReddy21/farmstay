@@ -3,6 +3,7 @@ const nodemailer = require('nodemailer');
 const Lead = require('../models/Lead');
 
 const router = express.Router();
+const getPhoneDigits = (phone = '') => String(phone).replace(/\D/g, '');
 
 const sendLeadEmail = async (lead) => {
     const to = process.env.OWNER_EMAIL || process.env.EMAIL_FROM;
@@ -60,10 +61,15 @@ router.post('/', async (req, res) => {
             return res.status(400).json({ message: 'Name, email, and phone are required.' });
         }
 
+        const phoneDigits = getPhoneDigits(phone);
+        if (phoneDigits.length !== 10) {
+            return res.status(400).json({ message: 'Phone number must be exactly 10 digits.' });
+        }
+
         const lead = await Lead.create({
             name,
             email,
-            phone,
+            phone: phoneDigits,
             guests: Math.max(1, Number(guests) || 1),
             source,
             retreatName

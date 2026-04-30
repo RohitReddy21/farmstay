@@ -22,6 +22,8 @@ const Lightbox = ({ index, images, onClose, onPrev, onNext }) => (
                     <img
                         src={images[index]}
                         alt={`Gallery image ${index + 1}`}
+                        loading="lazy"
+                        decoding="async"
                         className="h-full w-full rounded-2xl object-contain"
                     />
                     

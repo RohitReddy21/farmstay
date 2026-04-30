@@ -23,7 +23,8 @@ const bookingSchema = new mongoose.Schema({
     variation: {
         type: { type: String },
         label: { type: String },
-        cottage: { type: String }
+        cottage: { type: String },
+        cottages: [{ type: String }]
     },
     retreatMeta: {
         package: { type: String },
