@@ -1,9 +1,7 @@
 import { useState } from 'react';
-import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
-import API_URL from '../config';
 import { useToast } from '../context/ToastContext';
 
 const Register = () => {
@@ -11,11 +9,7 @@ const Register = () => {
     const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
     const [password, setPassword] = useState('');
-    const [otp, setOtp] = useState('');
-    const [otpSent, setOtpSent] = useState(false);
-    const [notice, setNotice] = useState('');
     const [error, setError] = useState('');
-    const [isSendingOtp, setIsSendingOtp] = useState(false);
     const [isRegistering, setIsRegistering] = useState(false);
     const { register, googleLogin } = useAuth();
     const navigate = useNavigate();
@@ -31,42 +25,11 @@ const Register = () => {
         });
     };
 
-    const handleSendOtp = async () => {
-        setError('');
-        setNotice('');
-
-        if (!name.trim()) {
-            showFormError('Please enter your name before requesting OTP.');
-            return;
-        }
-
-        if (!email.trim()) {
-            showFormError('Please enter your email before requesting OTP.');
-            return;
-        }
-
-        if (getTenDigitPhone(phone).length !== 10) {
-            showFormError('Mobile number must be exactly 10 digits before sending OTP.');
-            return;
-        }
-
-        setIsSendingOtp(true);
-        try {
-            const { data } = await axios.post(`${API_URL}/api/auth/send-otp`, { email });
-            setOtpSent(true);
-            setNotice(data.message || 'OTP sent to your email address.');
-        } catch (err) {
-            showFormError(err.response?.data?.message || 'Could not send OTP. Please try again.');
-        } finally {
-            setIsSendingOtp(false);
-        }
-    };
-
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
 
-        if (!name.trim() || !email.trim() || !password || !otp) {
+        if (!name.trim() || !email.trim() || !password) {
             showFormError('Please fill all required fields.');
             return;
         }
@@ -76,14 +39,9 @@ const Register = () => {
             return;
         }
 
-        if (!otpSent) {
-            showFormError('Please send and enter the email OTP before signing up.');
-            return;
-        }
-
         setIsRegistering(true);
         try {
-            await register(name, email, phone, password, otp);
+            await register(name, email, phone, password);
             navigate('/');
         } catch (err) {
             showFormError(err.response?.data?.message || 'Registration failed');
@@ -102,7 +60,44 @@ const Register = () => {
                 </div>
 
                 {error && <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
-                {notice && <div className="mb-4 rounded-xl border border-[#d9c18e] bg-[#fff4d7] p-3 text-sm text-[#6d4d1f]">{notice}</div>}
+
+                <div className="mb-6">
+                    <div className="flex justify-center">
+                        {import.meta.env.VITE_GOOGLE_CLIENT_ID && import.meta.env.VITE_GOOGLE_CLIENT_ID !== "YOUR_GOOGLE_CLIENT_ID_HERE" ? (
+                            <GoogleLogin
+                                onSuccess={async (credentialResponse) => {
+                                    try {
+                                        await googleLogin(credentialResponse.credential);
+                                        navigate('/');
+                                    } catch (err) {
+                                        setError('Google Sign-Up Failed');
+                                    }
+                                }}
+                                onError={() => {
+                                    setError('Google Sign-Up Failed');
+                                }}
+                                theme="filled_blue"
+                                shape="pill"
+                                text="signup_with"
+                            />
+                        ) : (
+                            <div className="text-center text-xs italic text-[#8b7a66]">
+                                Google signup is currently unavailable.
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                <div className="mb-6">
+                    <div className="relative">
+                        <div className="absolute inset-0 flex items-center">
+                            <div className="w-full border-t border-[#ead7b8]"></div>
+                        </div>
+                        <div className="relative flex justify-center text-sm">
+                            <span className="bg-[#fffaf1] px-2 text-[#8b7a66]">Or sign up with details</span>
+                        </div>
+                    </div>
+                </div>
 
                 <form onSubmit={handleSubmit} noValidate className="space-y-5">
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -145,12 +140,7 @@ const Register = () => {
                                 type="email"
                                 className="w-full rounded-xl border border-[#e3cfac] bg-white p-3 text-[#211b14] outline-none transition focus:border-[#7a5527] focus:ring-2 focus:ring-[#d6a23d]/30"
                                 value={email}
-                                onChange={(e) => {
-                                    setEmail(e.target.value);
-                                    setOtp('');
-                                    setOtpSent(false);
-                                    setNotice('');
-                                }}
+                                onChange={(e) => setEmail(e.target.value)}
                                 autoComplete="email"
                                 required
                             />
@@ -167,78 +157,14 @@ const Register = () => {
                             />
                         </div>
                     </div>
-                <div className="rounded-2xl border border-[#ead7b8] bg-white/75 p-4">
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto] md:items-end">
-                        <div>
-                            <label className="mb-1 block text-sm font-semibold text-[#3a2b1e]">Email OTP</label>
-                            <input
-                                type="text"
-                                inputMode="numeric"
-                                maxLength="6"
-                                className="w-full rounded-xl border border-[#e3cfac] bg-white p-3 text-[#211b14] outline-none transition focus:border-[#7a5527] focus:ring-2 focus:ring-[#d6a23d]/30"
-                                value={otp}
-                                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                                placeholder={otpSent ? 'Enter 6-digit OTP' : 'Send OTP first'}
-                                autoComplete="one-time-code"
-                                required
-                            />
-                        </div>
-                        <button
-                            type="button"
-                            onClick={handleSendOtp}
-                            disabled={isSendingOtp || !email.trim() || phone.length !== 10}
-                            className="h-12 rounded-xl border border-[#7a5527] px-6 font-bold text-[#7a5527] transition hover:bg-[#7a5527] hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                            {isSendingOtp ? 'Sending...' : otpSent ? 'Resend OTP' : 'Send OTP'}
-                        </button>
-                    </div>
-                    <p className="mt-2 text-xs text-[#8b7a66]">We will send a 6-digit verification code to your email.</p>
-                </div>
-
                 <button
                     type="submit"
-                    disabled={isRegistering || !otpSent}
+                    disabled={isRegistering}
                     className="w-full rounded-xl bg-primary py-3 font-bold text-white shadow-lg transition hover:bg-primary-800 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                    {isRegistering ? 'Verifying...' : 'Verify & Sign Up'}
+                    {isRegistering ? 'Creating account...' : 'Sign Up'}
                 </button>
             </form>
-
-            <div className="mt-6">
-                <div className="relative">
-                    <div className="absolute inset-0 flex items-center">
-                        <div className="w-full border-t border-[#ead7b8]"></div>
-                    </div>
-                    <div className="relative flex justify-center text-sm">
-                        <span className="bg-[#fffaf1] px-2 text-[#8b7a66]">Or sign up with</span>
-                    </div>
-                </div>
-
-                <div className="mt-6 flex justify-center">
-                    {import.meta.env.VITE_GOOGLE_CLIENT_ID && import.meta.env.VITE_GOOGLE_CLIENT_ID !== "YOUR_GOOGLE_CLIENT_ID_HERE" ? (
-                        <GoogleLogin
-                            onSuccess={async (credentialResponse) => {
-                                try {
-                                    await googleLogin(credentialResponse.credential);
-                                    navigate('/');
-                                } catch (err) {
-                                    setError('Google Sign-Up Failed');
-                                }
-                            }}
-                            onError={() => {
-                                setError('Google Sign-Up Failed');
-                            }}
-                            theme="filled_blue"
-                            shape="pill"
-                            text="signup_with"
-                        />
-                    ) : (
-                        <div className="text-center text-xs italic text-[#8b7a66]">
-                            Google signup is currently unavailable.
-                        </div>
-                    )}
-                </div>
-            </div>
 
                 <p className="mt-6 text-center text-[#645747]">
                     Already have an account? <Link to="/login" className="font-bold text-primary hover:underline">Login</Link>

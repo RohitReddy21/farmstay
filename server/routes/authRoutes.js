@@ -42,12 +42,106 @@ const authPayload = (user, token) => ({
 
 let cachedTransporter = null;
 
+const buildOtpEmail = (otp) => ({
+    subject: 'Your Brown Cows Dairy signup OTP',
+    html: `
+            <div style="font-family:Arial,sans-serif;color:#211b14;line-height:1.6;max-width:600px;margin:0 auto;padding:20px;border:1px solid #eee;border-radius:10px">
+                <h2 style="color:#7a5527;text-align:center">Brown Cows Dairy</h2>
+                <p>Hello,</p>
+                <p>To complete your signup, please use the following One-Time Password (OTP):</p>
+                <div style="background:#f9f9f9;padding:20px;text-align:center;border-radius:5px;margin:20px 0">
+                    <span style="font-size:32px;font-weight:bold;letter-spacing:8px;color:#7a5527">${otp}</span>
+                </div>
+                <p>This code is valid for 10 minutes. Please do not share it with anyone.</p>
+                <hr style="border:none;border-top:1px solid #eee;margin:20px 0">
+                <p style="font-size:12px;color:#888;text-align:center">If you didn't request this, you can safely ignore this email.</p>
+            </div>
+        `,
+    text: `Your Brown Cows Dairy signup OTP is ${otp}. This code is valid for 10 minutes.`
+});
+
+const getEmailProvider = () => {
+    if (getEnv('RESEND_API_KEY')) return 'resend-api';
+    if (getEnv('SENDGRID_API_KEY', 'SENDGRID_KEY')) return 'sendgrid-api';
+    if (getEnv('SMTP_HOST') && getEnv('SMTP_USER') && getEnv('SMTP_PASS')) return 'smtp';
+    if (getEnv('EMAIL_USER', 'EMAIL_ID', 'Email_id', 'email_id') && getEnv('EMAIL_PASS', 'EMAIL_PASSWORD', 'Email_pass', 'email_pass')) return 'gmail-smtp';
+    return null;
+};
+
+const extractEmailAddress = (value = '') => {
+    const match = String(value).match(/<([^>]+)>/);
+    return (match?.[1] || value).trim();
+};
+
+const emailHttpPost = async (url, options, providerName) => {
+    if (typeof fetch !== 'function') {
+        const fetchError = new Error(`${providerName} requires Node 18+ fetch support on the server.`);
+        fetchError.statusCode = 500;
+        fetchError.code = 'FETCH_UNAVAILABLE';
+        throw fetchError;
+    }
+
+    const response = await fetch(url, options);
+    if (!response.ok) {
+        const body = await response.text();
+        const error = new Error(`${providerName} email API failed with status ${response.status}: ${body.slice(0, 300)}`);
+        error.statusCode = response.status >= 500 ? 502 : 400;
+        error.code = `${providerName.toUpperCase().replace(/\s+/g, '_')}_API_ERROR`;
+        throw error;
+    }
+};
+
+const sendEmailViaResend = async ({ fromAddress, to, subject, html, text }) => {
+    const apiKey = getEnv('RESEND_API_KEY');
+    if (!apiKey) return false;
+
+    await emailHttpPost('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            from: `"Brown Cows Farm Stay" <${fromAddress}>`,
+            to: [to],
+            subject,
+            html,
+            text
+        })
+    }, 'Resend');
+
+    return true;
+};
+
+const sendEmailViaSendGrid = async ({ fromAddress, to, subject, html, text }) => {
+    const apiKey = getEnv('SENDGRID_API_KEY', 'SENDGRID_KEY');
+    if (!apiKey) return false;
+
+    await emailHttpPost('https://api.sendgrid.com/v3/mail/send', {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            personalizations: [{ to: [{ email: to }] }],
+            from: { email: extractEmailAddress(fromAddress), name: 'Brown Cows Farm Stay' },
+            subject,
+            content: [
+                { type: 'text/plain', value: text },
+                { type: 'text/html', value: html }
+            ]
+        })
+    }, 'SendGrid');
+
+    return true;
+};
+
 const createEmailTransporter = () => {
     if (cachedTransporter) {
         return cachedTransporter;
     }
 
-    const sendgridApiKey = getEnv('SENDGRID_API_KEY', 'SENDGRID_KEY');
     const smtpHost = getEnv('SMTP_HOST');
     const smtpUser = getEnv('SMTP_USER');
     const smtpPass = getEnv('SMTP_PASS');
@@ -72,19 +166,6 @@ const createEmailTransporter = () => {
         return cachedTransporter;
     }
 
-    const effectiveSendgridKey = sendgridApiKey || (emailPass?.startsWith('SG.') ? emailPass : undefined);
-
-    if (effectiveSendgridKey) {
-        cachedTransporter = nodemailer.createTransport({
-            service: 'SendGrid',
-            auth: {
-                user: 'apikey',
-                pass: effectiveSendgridKey
-            }
-        });
-        return cachedTransporter;
-    }
-
     if (smtpHost && smtpUser && smtpPass) {
         cachedTransporter = nodemailer.createTransport({
             host: smtpHost,
@@ -102,14 +183,6 @@ const createEmailTransporter = () => {
 };
 
 const sendEmailOtp = async (email, otp) => {
-    const transporter = createEmailTransporter();
-
-    if (!transporter) {
-        const configError = new Error('Email OTP is not configured. Add SENDGRID_API_KEY, SMTP settings, or EMAIL_USER/EMAIL_PASS on the server.');
-        configError.statusCode = 503;
-        throw configError;
-    }
-
     const fromAddress = getEnv(
         'EMAIL_FROM',
         'SMTP_FROM',
@@ -123,26 +196,34 @@ const sendEmailOtp = async (email, otp) => {
     if (!fromAddress) {
         const fromError = new Error('Email sender is not configured. Set EMAIL_FROM or EMAIL_USER on the server.');
         fromError.statusCode = 503;
+        fromError.code = 'EMAIL_FROM_MISSING';
         throw fromError;
+    }
+
+    const emailContent = buildOtpEmail(otp);
+
+    if (await sendEmailViaResend({ fromAddress, to: email, ...emailContent })) {
+        return;
+    }
+
+    if (await sendEmailViaSendGrid({ fromAddress, to: email, ...emailContent })) {
+        return;
+    }
+
+    const transporter = createEmailTransporter();
+    if (!transporter) {
+        const configError = new Error('Email OTP is not configured. Add RESEND_API_KEY, SENDGRID_API_KEY, SMTP settings, or EMAIL_USER/EMAIL_PASS on the server.');
+        configError.statusCode = 503;
+        configError.code = 'EMAIL_CONFIG_MISSING';
+        throw configError;
     }
 
     await transporter.sendMail({
         from: `"Brown Cows Farm Stay" <${fromAddress}>`,
         to: email,
-        subject: 'Your Brown Cows Dairy signup OTP',
-        html: `
-            <div style="font-family:Arial,sans-serif;color:#211b14;line-height:1.6;max-width:600px;margin:0 auto;padding:20px;border:1px solid #eee;border-radius:10px">
-                <h2 style="color:#7a5527;text-align:center">Brown Cows Dairy</h2>
-                <p>Hello,</p>
-                <p>To complete your signup, please use the following One-Time Password (OTP):</p>
-                <div style="background:#f9f9f9;padding:20px;text-align:center;border-radius:5px;margin:20px 0">
-                    <span style="font-size:32px;font-weight:bold;letter-spacing:8px;color:#7a5527">${otp}</span>
-                </div>
-                <p>This code is valid for 10 minutes. Please do not share it with anyone.</p>
-                <hr style="border:none;border-top:1px solid #eee;margin:20px 0">
-                <p style="font-size:12px;color:#888;text-align:center">If you didn't request this, you can safely ignore this email.</p>
-            </div>
-        `
+        subject: emailContent.subject,
+        html: emailContent.html,
+        text: emailContent.text
     });
 };
 
@@ -152,7 +233,9 @@ router.get('/health', (req, res) => {
     res.json({
         message: 'Auth routes are working',
         timestamp: new Date().toISOString(),
-        emailConfigured: !!createEmailTransporter(),
+        emailConfigured: !!getEmailProvider(),
+        emailProvider: getEmailProvider(),
+        emailFromConfigured: !!getEnv('EMAIL_FROM', 'SMTP_FROM', 'EMAIL_USER', 'EMAIL_ID', 'Email_id', 'email_id', 'SMTP_USER'),
         env: process.env.NODE_ENV
     });
 });
@@ -161,15 +244,26 @@ router.get('/health', (req, res) => {
 // @desc    Test email configuration (Diagnostics)
 router.get('/test-email', async (req, res) => {
     try {
-        const transporter = createEmailTransporter();
-        if (!transporter) {
+        const provider = getEmailProvider();
+        if (!provider) {
             return res.status(503).json({ 
                 success: false, 
                 message: 'No email transporter configured. Check environment variables.' 
             });
         }
 
-        const fromAddress = getEnv('EMAIL_FROM', 'EMAIL_USER');
+        if (provider === 'resend-api' || provider === 'sendgrid-api') {
+            return res.json({
+                success: true,
+                message: 'HTTP email API configuration detected.',
+                from: getEnv('EMAIL_FROM', 'SMTP_FROM', 'EMAIL_USER', 'EMAIL_ID', 'Email_id', 'email_id', 'SMTP_USER'),
+                transporterType: provider
+            });
+        }
+
+        const transporter = createEmailTransporter();
+
+        const fromAddress = getEnv('EMAIL_FROM', 'SMTP_FROM', 'EMAIL_USER', 'SMTP_USER');
         
         // Try to verify connection
         await transporter.verify();
@@ -296,7 +390,7 @@ router.post('/send-otp', async (req, res) => {
         if (error.statusCode === 503) {
             return res.status(503).json({
                 message: error.message,
-                code: 'EMAIL_CONFIG_MISSING'
+                code: error.code || 'EMAIL_CONFIG_MISSING'
             });
         }
 
@@ -310,19 +404,19 @@ router.post('/send-otp', async (req, res) => {
 });
 
 // @route   POST /api/auth/register
-// @desc    Register user after email OTP verification
+// @desc    Register user
 router.post('/register', async (req, res) => {
     try {
         if (!isDatabaseConnected()) {
             return res.status(503).json({ message: 'Database is still connecting. Please try again in a few seconds.' });
         }
 
-        const { name, email, phone, password, otp } = req.body;
+        const { name, email, phone, password } = req.body;
         const normalizedEmail = normalizeEmail(email);
         const normalizedPhone = normalizePhone(phone);
 
-        if (!name?.trim() || !normalizedEmail || !normalizedPhone || !password || !otp) {
-            return res.status(400).json({ message: 'Name, email, mobile number, password, and OTP are required.' });
+        if (!name?.trim() || !normalizedEmail || !normalizedPhone || !password) {
+            return res.status(400).json({ message: 'Name, email, mobile number, and password are required.' });
         }
 
         if (getPhoneDigits(normalizedPhone).length !== 10) {
@@ -337,22 +431,6 @@ router.post('/register', async (req, res) => {
         });
         if (userExists) {
             return res.status(400).json({ message: 'An account already exists with this email or mobile number.' });
-        }
-
-        const otpRecord = await OtpVerification.findOne({ email: normalizedEmail }).sort({ createdAt: -1 });
-        if (!otpRecord || otpRecord.expiresAt < new Date()) {
-            return res.status(400).json({ message: 'OTP is invalid or expired. Please request a new OTP.' });
-        }
-
-        if (otpRecord.attempts >= 5) {
-            await OtpVerification.deleteOne({ _id: otpRecord._id });
-            return res.status(429).json({ message: 'Too many invalid OTP attempts. Please request a new OTP.' });
-        }
-
-        if (hashOtp(otp) !== otpRecord.otpHash) {
-            otpRecord.attempts += 1;
-            await otpRecord.save();
-            return res.status(400).json({ message: 'Invalid OTP. Please check the code and try again.' });
         }
 
         const user = await User.create({

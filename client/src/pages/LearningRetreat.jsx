@@ -45,6 +45,57 @@ const isSaturday = (dateValue) => {
     return new Date(`${dateValue}T00:00:00`).getDay() === 6;
 };
 
+const RETREAT_STAY_SLOT_LIMITS = {
+    shared: 4,
+    couple: 2,
+    group: 2
+};
+
+const normalizeRetreatStayType = (value = '') => {
+    const text = String(value).toLowerCase();
+    if (text.includes('couple')) return 'couple';
+    if (text.includes('group') || text.includes('villa')) return 'group';
+    return 'shared';
+};
+
+const getRetreatWeekendStart = (dateValue) => {
+    if (!dateValue) return '';
+    const date = new Date(`${dateValue}T00:00:00`);
+    if (date.getDay() === 0) {
+        date.setDate(date.getDate() - 1);
+    }
+    return toDateValue(date);
+};
+
+const getSlotLabel = (stayType) => {
+    const slotType = normalizeRetreatStayType(stayType);
+    if (slotType === 'couple') return 'Couple';
+    if (slotType === 'group') return 'Group';
+    return 'Single/Shared';
+};
+
+const getSlotUnitLabel = (stayType) => {
+    return normalizeRetreatStayType(stayType) === 'shared' ? 'guest slots' : 'stay slots';
+};
+
+const getAlternativeStayRecommendation = (availability = {}, currentSlotType = 'shared') => {
+    const options = [
+        ['shared', 'Single/Shared stay'],
+        ['couple', 'Couple cottage'],
+        ['group', 'Group villa']
+    ];
+
+    const availableOptions = options
+        .filter(([type]) => type !== currentSlotType && (availability[type]?.available ?? RETREAT_STAY_SLOT_LIMITS[type]) > 0)
+        .map(([, label]) => label);
+
+    if (!availableOptions.length) {
+        return 'Please choose another weekend.';
+    }
+
+    return `You can also try ${availableOptions.join(' or ')} for this weekend.`;
+};
+
 // Floating WhatsApp Component
 const FloatingWhatsApp = ({ phone }) => (
     <a
@@ -150,6 +201,7 @@ const LearningRetreat = () => {
     const [guestDetails, setGuestDetails] = useState({ name: '', email: '', phone: '' });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [bookingSuccess, setBookingSuccess] = useState(null);
+    const [retreatAvailability, setRetreatAvailability] = useState({});
 
     const selectedStay = useMemo(
         () => retreatContent.packages.stays.find((item) => item.type === stayType) || retreatContent.packages.stays[0],
@@ -233,6 +285,34 @@ const LearningRetreat = () => {
     }, [selectedMonth]);
 
     const monthLabel = selectedMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    const selectedSlotType = normalizeRetreatStayType(stayType);
+    const selectedSlotLabel = getSlotLabel(stayType);
+    const selectedSlotUnitLabel = getSlotUnitLabel(stayType);
+    const selectedStayAvailability = useMemo(() => {
+        if (experience !== 'stay' || !selectedDate) return null;
+
+        const weekendKey = getRetreatWeekendStart(selectedDate);
+        return retreatAvailability[weekendKey]?.[selectedSlotType] || {
+            booked: 0,
+            limit: RETREAT_STAY_SLOT_LIMITS[selectedSlotType],
+            available: RETREAT_STAY_SLOT_LIMITS[selectedSlotType]
+        };
+    }, [experience, retreatAvailability, selectedDate, selectedSlotType]);
+    const selectedWeekendAvailability = selectedDate
+        ? retreatAvailability[getRetreatWeekendStart(selectedDate)] || {}
+        : {};
+    const selectedAlternativeRecommendation = getAlternativeStayRecommendation(selectedWeekendAvailability, selectedSlotType);
+    const fullyBookedStayDates = useMemo(() => {
+        if (experience !== 'stay') return [];
+
+        return Object.entries(retreatAvailability)
+            .filter(([, slots]) => (slots?.[selectedSlotType]?.available ?? RETREAT_STAY_SLOT_LIMITS[selectedSlotType]) <= 0)
+            .flatMap(([weekendStart]) => [weekendStart, addDays(weekendStart, 1)]);
+    }, [experience, retreatAvailability, selectedSlotType]);
+    const visibleBlockedDates = useMemo(
+        () => Array.from(new Set([...retreatContent.blockedDates, ...fullyBookedStayDates])),
+        [fullyBookedStayDates]
+    );
 
     useEffect(() => {
         document.title = `${retreatContent.retreatName} | Brown Cows Organic Dairy`;
@@ -286,6 +366,16 @@ const LearningRetreat = () => {
     }, []);
 
     useEffect(() => {
+        if (!monthDates.length) return;
+
+        const start = toDateValue(monthDates[0]);
+        const end = toDateValue(monthDates[monthDates.length - 1]);
+        axios.get(`${API_URL}/api/bookings/retreat/availability`, { params: { start, end } })
+            .then(({ data }) => setRetreatAvailability(data && typeof data === 'object' ? data : {}))
+            .catch(() => setRetreatAvailability({}));
+    }, [monthDates]);
+
+    useEffect(() => {
         if (experience === 'stay') {
             setGuests((current) => Math.min(Math.max(current, 1), selectedStayCapacity));
         }
@@ -304,6 +394,14 @@ const LearningRetreat = () => {
             return stayVariations[0];
         });
     }, [experience, stayVariations]);
+
+    useEffect(() => {
+        if (experience !== 'stay' || !selectedDate || !visibleBlockedDates.includes(selectedDate)) return;
+
+        setSelectedDate('');
+        const weekendAvailability = retreatAvailability[getRetreatWeekendStart(selectedDate)] || {};
+        setCalendarError(`${selectedSlotLabel} ${selectedSlotUnitLabel} are full for that weekend. ${getAlternativeStayRecommendation(weekendAvailability, selectedSlotType)}`);
+    }, [experience, retreatAvailability, selectedDate, selectedSlotLabel, selectedSlotType, selectedSlotUnitLabel, visibleBlockedDates]);
 
     const resolveFarmForBooking = () => {
         if (selectedStayVariation?.farmId) {
@@ -375,6 +473,30 @@ const LearningRetreat = () => {
                 return;
             }
 
+            if (experience === 'stay' && selectedStayAvailability?.available <= 0) {
+                const message = `${selectedSlotLabel} ${selectedSlotUnitLabel} are full for this weekend. ${selectedAlternativeRecommendation}`;
+                setCalendarError(message);
+                showToast({
+                    type: 'error',
+                    title: 'Retreat slots unavailable',
+                    message
+                });
+                setIsSubmitting(false);
+                return;
+            }
+
+            if (experience === 'stay' && selectedSlotType === 'shared' && bookingGuests > selectedStayAvailability?.available) {
+                const message = `Only ${selectedStayAvailability.available} of 4 Single/Shared guest slots are available for this weekend. Reduce guests or try another stay type.`;
+                setCalendarError(message);
+                showToast({
+                    type: 'error',
+                    title: 'Retreat slots unavailable',
+                    message
+                });
+                setIsSubmitting(false);
+                return;
+            }
+
             const linkedFarm = resolveFarmForBooking();
             if (!linkedFarm?._id) {
                 setCalendarError('Booking data is still loading. Please try again in a moment.');
@@ -382,8 +504,10 @@ const LearningRetreat = () => {
                 return;
             }
 
-            const endDate = experience === 'day' ? addDays(selectedDate, 1) : addDays(selectedDate, 2);
+            const bookingStartDate = experience === 'day' ? selectedDate : getRetreatWeekendStart(selectedDate);
+            const endDate = experience === 'day' ? selectedDate : addDays(bookingStartDate, 1);
             const packageLabel = experience === 'day' ? 'Day Experience' : `${selectedStayVariation?.label || stayType} 2-Day Farm Stay`;
+            const isDayExperience = experience === 'day';
 
             // Match the farmstay flow: add selection to cart, then checkout creates the booking/payment order.
             addToCart({
@@ -396,7 +520,7 @@ const LearningRetreat = () => {
                     capacity: linkedFarm.capacity,
                     images: [retreatContent.heroImage]
                 },
-                startDate: selectedDate,
+                startDate: bookingStartDate,
                 endDate,
                 guests: bookingGuests,
                 guestDetails: {
@@ -407,12 +531,15 @@ const LearningRetreat = () => {
                 },
                 pricing: {
                     basePrice: Math.round(bookingBaseTotal),
-                    nights: experience === 'day' ? 1 : 2,
+                    nights: isDayExperience ? 0 : 2,
                     totalPrice: Math.round(bookingBaseTotal),
                     tax: bookingTax,
                     grandTotal: bookingGrandTotal,
                     addOns: [],
-                    status: 'Pending Approval'
+                    status: 'Pending Approval',
+                    priceLabel: isDayExperience
+                        ? `${dayExperiencePrice} x ${bookingGuests} guests`
+                        : `${Math.round(bookingBaseTotal)} for 2-day retreat`
                 },
                 variation: selectedStayVariation ? {
                     type: selectedStayVariation.type,
@@ -420,6 +547,7 @@ const LearningRetreat = () => {
                     cottage: selectedStayVariation.availableCottages?.[0] || selectedStayVariation.type
                 } : null,
                 retreatMeta: {
+                    experience,
                     package: packageLabel,
                     stayType: experience === 'day' ? null : stayType,
                     cottage: selectedStayVariation?.availableCottages?.[0] || selectedStayVariation?.type || null,
@@ -543,6 +671,9 @@ const LearningRetreat = () => {
                             seasonalPricing={retreatContent.seasonalPricing}
                             calendarError={calendarError}
                             setCalendarError={setCalendarError}
+                            slotAvailability={selectedStayAvailability}
+                            slotLabel={selectedSlotLabel}
+                            slotUnitLabel={selectedSlotUnitLabel}
                             baseTotal={baseTotal}
                             tax={tax}
                             grandTotal={grandTotal}
@@ -680,7 +811,7 @@ const LearningRetreat = () => {
                                     setSelectedMonth={setSelectedMonth}
                                     monthDates={monthDates}
                                     monthLabel={monthLabel}
-                                    blockedDates={retreatContent.blockedDates}
+                                    blockedDates={visibleBlockedDates}
                                     setCalendarError={setCalendarError}
                                     onClose={() => setIsCalendarOpen(false)}
                                 />

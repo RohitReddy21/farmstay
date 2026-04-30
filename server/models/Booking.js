@@ -27,6 +27,7 @@ const bookingSchema = new mongoose.Schema({
         cottages: [{ type: String }]
     },
     retreatMeta: {
+        experience: { type: String },
         package: { type: String },
         stayType: { type: String },
         cottage: { type: String },

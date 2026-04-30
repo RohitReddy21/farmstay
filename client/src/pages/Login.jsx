@@ -29,6 +29,44 @@ const Login = () => {
                     <p className="mt-2 text-sm text-[#645747]">Login to continue your farm stay booking.</p>
                 </div>
             {error && <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+
+            <div className="mb-6">
+                <div className="flex justify-center">
+                    {import.meta.env.VITE_GOOGLE_CLIENT_ID && import.meta.env.VITE_GOOGLE_CLIENT_ID !== "YOUR_GOOGLE_CLIENT_ID_HERE" ? (
+                        <GoogleLogin
+                            onSuccess={async (credentialResponse) => {
+                                try {
+                                    await googleLogin(credentialResponse.credential);
+                                    navigate('/');
+                                } catch (err) {
+                                    setError('Google Login Failed');
+                                }
+                            }}
+                            onError={() => {
+                                setError('Google Login Failed');
+                            }}
+                            theme="filled_blue"
+                            shape="pill"
+                        />
+                    ) : (
+                        <div className="text-center text-xs italic text-[#8b7a66]">
+                            Google Login is currently disabled.
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            <div className="mb-6">
+                <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                        <div className="w-full border-t border-[#ead7b8]"></div>
+                    </div>
+                    <div className="relative flex justify-center text-sm">
+                        <span className="bg-[#fffaf1] px-2 text-[#8b7a66]">Or login with email</span>
+                    </div>
+                </div>
+            </div>
+
             <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
                     <label className="mb-1 block text-sm font-semibold text-[#3a2b1e]">Email</label>
@@ -59,41 +97,6 @@ const Login = () => {
                     Login
                 </button>
             </form>
-
-            <div className="mt-6">
-                <div className="relative">
-                    <div className="absolute inset-0 flex items-center">
-                        <div className="w-full border-t border-[#ead7b8]"></div>
-                    </div>
-                    <div className="relative flex justify-center text-sm">
-                        <span className="bg-[#fffaf1] px-2 text-[#8b7a66]">Or continue with</span>
-                    </div>
-                </div>
-
-                <div className="mt-6 flex justify-center">
-                    {import.meta.env.VITE_GOOGLE_CLIENT_ID && import.meta.env.VITE_GOOGLE_CLIENT_ID !== "YOUR_GOOGLE_CLIENT_ID_HERE" ? (
-                        <GoogleLogin
-                            onSuccess={async (credentialResponse) => {
-                                try {
-                                    await googleLogin(credentialResponse.credential);
-                                    navigate('/');
-                                } catch (err) {
-                                    setError('Google Login Failed');
-                                }
-                            }}
-                            onError={() => {
-                                setError('Google Login Failed');
-                            }}
-                            theme="filled_blue"
-                            shape="pill"
-                        />
-                    ) : (
-                        <div className="text-center text-xs italic text-[#8b7a66]">
-                            Google Login is currently disabled.
-                        </div>
-                    )}
-                </div>
-            </div>
                 <p className="mt-6 text-center text-[#645747]">
                     Don't have an account? <Link to="/register" className="font-bold text-primary hover:underline">Sign up</Link>
                 </p>

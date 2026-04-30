@@ -44,6 +44,9 @@ const BookingPanel = ({
     seasonalPricing,
     calendarError,
     setCalendarError,
+    slotAvailability,
+    slotLabel,
+    slotUnitLabel = 'stay slots',
     baseTotal,
     tax,
     grandTotal,
@@ -407,6 +410,13 @@ const BookingPanel = ({
                         <p className="mt-2 text-xs text-[#6b5d4c] dark:text-[#cfc2b2]">
                             {experience === 'stay' ? `Maximum ${maxGuests} guests for ${selectedStay.type}.` : 'Type a guest count or use the controls.'}
                         </p>
+                        {experience === 'stay' && slotAvailability && (
+                            <p className={`mt-2 text-xs font-bold ${slotAvailability.available > 0 ? 'text-[#527b52]' : 'text-red-600'}`}>
+                                {slotAvailability.available > 0
+                                    ? `${slotAvailability.available} of ${slotAvailability.limit} ${slotLabel} ${slotUnitLabel} available for this weekend.`
+                                    : `${slotLabel} ${slotUnitLabel} are full for this weekend.`}
+                            </p>
+                        )}
                     </div>
 
                 {/* Calendar Button */}
@@ -472,6 +482,11 @@ const BookingPanel = ({
                             <span className="font-bold text-[#7a5527] dark:text-[#e7c678]">Choose a date</span>
                         )}
                     </button>
+                    {calendarError && (
+                        <p className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
+                            {calendarError}
+                        </p>
+                    )}
                 </div>
 
                 {/* Pricing Summary */}

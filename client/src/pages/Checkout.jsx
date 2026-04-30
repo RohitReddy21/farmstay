@@ -34,13 +34,21 @@ const Checkout = () => {
     }
 
     const propertyTitle = cartItem?.property?.title || completedBooking?.propertyTitle || 'Brown Cows Dairy Stay';
+    const isDayExperience = cartItem?.retreatMeta?.experience === 'day'
+        || cartItem?.retreatMeta?.package === 'Day Experience'
+        || cartItem?.pricing?.nights === 0;
+    const bookingTypeLabel = isDayExperience ? 'Experience' : 'Stay';
+    const lineItemLabel = isDayExperience
+        ? `Farm experience only (${cartItem?.guests} guests)`
+        : propertyTitle;
     const token = localStorage.getItem('token');
 
     const finishCheckout = (message) => {
         setCompletedBooking({
             propertyTitle,
             total: cartItem?.pricing?.grandTotal,
-            paymentMethod
+            paymentMethod,
+            bookingTypeLabel
         });
         setIsCheckoutComplete(true);
         setConfirmationMessage(message);
@@ -71,7 +79,8 @@ const Checkout = () => {
         setError(null);
 
         try {
-            const { data: orderData } = await axios.post(`${API_URL}/api/bookings/create-order`, buildBookingPayload(), {
+            const bookingPayload = buildBookingPayload();
+            const { data: orderData } = await axios.post(`${API_URL}/api/bookings/create-order`, bookingPayload, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
@@ -98,7 +107,7 @@ const Checkout = () => {
                             razorpay_order_id: response.razorpay_order_id,
                             razorpay_payment_id: response.razorpay_payment_id,
                             razorpay_signature: response.razorpay_signature,
-                            bookingId: orderData.bookingId
+                            bookingDetails: bookingPayload
                         }, {
                             headers: { Authorization: `Bearer ${token}` }
                         });
@@ -182,7 +191,7 @@ const Checkout = () => {
 
                     <div className="mt-8 rounded-2xl border border-[#ead7b8] bg-[#f8efdf] p-5 text-left">
                         <div className="flex items-center justify-between gap-4">
-                            <span className="text-sm text-[#645747]">Stay</span>
+                            <span className="text-sm text-[#645747]">{completedBooking?.bookingTypeLabel || bookingTypeLabel}</span>
                             <span className="text-right font-bold text-[#211b14]">{completedBooking?.propertyTitle || propertyTitle}</span>
                         </div>
                         {completedBooking?.total ? (
@@ -241,7 +250,7 @@ const Checkout = () => {
                         <h1 className="mb-2 text-3xl font-bold text-[#211b14]">Secure Checkout</h1>
                         <p className="flex items-center gap-2 text-[#645747]">
                             <ShieldCheck size={18} className="text-[#527b52]" />
-                            Choose online payment or COD with pending admin approval.
+                            Complete online payment or place a COD booking.
                         </p>
                     </div>
                 </div>
@@ -275,7 +284,7 @@ const Checkout = () => {
                     <div className="mb-8 rounded-2xl border border-[#ead7b8] bg-gradient-to-br from-[#fffaf1] to-[#f4ead8] p-6">
                         <h3 className="mb-4 text-lg font-bold text-[#211b14]">Final Summary</h3>
                         <div className="mb-2 flex items-center justify-between">
-                            <span className="text-[#645747]">{propertyTitle}</span>
+                            <span className="text-[#645747]">{lineItemLabel}</span>
                             <span className="font-semibold text-[#211b14]">Rs {cartItem.pricing.totalPrice}</span>
                         </div>
                         <div className="mb-4 flex items-center justify-between border-b border-[#ead7b8] pb-4">
@@ -297,8 +306,8 @@ const Checkout = () => {
                                 type="button"
                                 onClick={() => setPaymentMethod('razorpay')}
                                 className={`rounded-2xl border p-4 text-left transition ${paymentMethod === 'razorpay'
-                                        ? 'border-[#7a5527] bg-[#f8efdf] shadow-md'
-                                        : 'border-[#ead7b8] bg-white hover:border-[#cfa86b]'
+                                    ? 'border-[#7a5527] bg-[#f8efdf] shadow-md'
+                                    : 'border-[#ead7b8] bg-white hover:border-[#cfa86b]'
                                     }`}
                             >
                                 <div className="mb-2 flex items-center gap-2 font-bold text-[#211b14]">
@@ -308,12 +317,12 @@ const Checkout = () => {
                                 <p className="text-sm text-[#645747]">Pay now with UPI, cards, wallets, or net banking.</p>
                             </button>
 
-                            {/* <button
+                            <button
                                 type="button"
                                 onClick={() => setPaymentMethod('cod')}
                                 className={`rounded-2xl border p-4 text-left transition ${paymentMethod === 'cod'
-                                        ? 'border-[#7a5527] bg-[#f8efdf] shadow-md'
-                                        : 'border-[#ead7b8] bg-white hover:border-[#cfa86b]'
+                                    ? 'border-[#7a5527] bg-[#f8efdf] shadow-md'
+                                    : 'border-[#ead7b8] bg-white hover:border-[#cfa86b]'
                                     }`}
                             >
                                 <div className="mb-2 flex items-center gap-2 font-bold text-[#211b14]">
@@ -321,7 +330,7 @@ const Checkout = () => {
                                     COD / Pay at Farm
                                 </div>
                                 <p className="text-sm text-[#645747]">Place the booking now and pay after admin approval.</p>
-                            </button> */}
+                            </button>
                         </div>
 
                         <div className="overflow-hidden rounded-xl border-2 border-[#d6a23d]/60 bg-[#fffaf1]">
@@ -341,7 +350,7 @@ const Checkout = () => {
                                     </div>
                                     <div className="flex flex-col items-center bg-[#f8efdf] p-8 text-center text-sm text-[#645747]">
                                         <ShieldCheck className="mb-4 h-12 w-12 text-[#c8a978]" strokeWidth={1.5} />
-                                        You will be redirected to Razorpay Secure to complete your payment. The booking remains pending until admin approval.
+                                        You will be redirected to Razorpay Secure to complete your payment. Your booking is sent for host review only after payment succeeds.
                                     </div>
                                 </>
                             ) : (
@@ -358,8 +367,8 @@ const Checkout = () => {
                             onClick={handleSubmitPayment}
                             disabled={isProcessing || isCheckoutComplete}
                             className={`flex w-full items-center justify-center gap-3 rounded-xl py-4 text-lg font-bold text-white shadow-lg transition-all ${isProcessing || isCheckoutComplete
-                                    ? 'cursor-not-allowed bg-[#b7aa98]'
-                                    : 'bg-primary hover:bg-primary-800 active:scale-[0.98]'
+                                ? 'cursor-not-allowed bg-[#b7aa98]'
+                                : 'bg-primary hover:bg-primary-800 active:scale-[0.98]'
                                 }`}
                         >
                             {isCheckoutComplete ? (
@@ -378,7 +387,7 @@ const Checkout = () => {
 
                         <p className="mt-4 text-center text-xs text-[#8b7a66]">
                             By continuing, you agree to the terms, conditions, and cancellation policy of Brown Cows Dairy.
-                            Your booking will stay in "Pending Approval" until confirmed by the host.
+                            Online bookings are submitted to the host after successful payment.
                         </p>
                     </div>
                 </div>

@@ -26,6 +26,15 @@ const Cart = () => {
         );
     }
 
+    const isDayExperience = cartItem.retreatMeta?.experience === 'day'
+        || cartItem.retreatMeta?.package === 'Day Experience'
+        || cartItem.pricing?.nights === 0;
+    const dateLabel = isDayExperience ? 'Experience Date' : 'Check-in';
+    const endDateLabel = isDayExperience ? 'Program Ends' : 'Check-out';
+    const priceLabel = isDayExperience
+        ? `Farm experience only (${cartItem.guests} guests)`
+        : `Rs ${cartItem.pricing.basePrice} x ${cartItem.pricing.nights} nights`;
+
     return (
         <div className="mx-auto w-full max-w-5xl px-2 py-5 sm:px-4 sm:py-8">
             <button
@@ -65,15 +74,17 @@ const Cart = () => {
 
                         <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 md:mb-8">
                             <div className="rounded-xl border border-[#ead7b8] bg-[#f8efdf] p-4">
-                                <p className="mb-2 text-xs font-semibold uppercase text-[#8b7a66]">Check-in</p>
+                                <p className="mb-2 text-xs font-semibold uppercase text-[#8b7a66]">{dateLabel}</p>
                                 <p className="text-lg font-bold text-[#211b14]">
                                     {new Date(cartItem.startDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                                 </p>
                             </div>
                             <div className="rounded-xl border border-[#ead7b8] bg-[#f8efdf] p-4">
-                                <p className="mb-2 text-xs font-semibold uppercase text-[#8b7a66]">Check-out</p>
+                                <p className="mb-2 text-xs font-semibold uppercase text-[#8b7a66]">{endDateLabel}</p>
                                 <p className="text-lg font-bold text-[#211b14]">
-                                    {new Date(cartItem.endDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                                    {isDayExperience
+                                        ? 'Same day'
+                                        : new Date(cartItem.endDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                                 </p>
                             </div>
                         </div>
@@ -100,18 +111,18 @@ const Cart = () => {
 
                         <div className="mb-6 space-y-4 border-b border-[#ead7b8] pb-6">
                             <div className="flex justify-between gap-4 text-sm text-[#645747] sm:text-base">
-                                <span>₹{cartItem.pricing.basePrice} x {cartItem.pricing.nights} nights</span>
-                                <span>₹{cartItem.pricing.totalPrice}</span>
+                                <span>{priceLabel}</span>
+                                <span>Rs {cartItem.pricing.totalPrice}</span>
                             </div>
                             <div className="flex justify-between gap-4 text-sm text-[#645747] sm:text-base">
                                 <span>Taxes</span>
-                                <span>₹{cartItem.pricing.tax}</span>
+                                <span>Rs {cartItem.pricing.tax}</span>
                             </div>
                         </div>
 
                         <div className="mb-8 flex items-center justify-between gap-4">
                             <span className="text-lg font-bold text-[#211b14]">Total (INR)</span>
-                            <span className="text-2xl font-bold text-primary">₹{cartItem.pricing.grandTotal}</span>
+                            <span className="text-2xl font-bold text-primary">Rs {cartItem.pricing.grandTotal}</span>
                         </div>
 
                         <button
