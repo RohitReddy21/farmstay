@@ -40,7 +40,13 @@ const authPayload = (user, token) => ({
     token
 });
 
+let cachedTransporter = null;
+
 const createEmailTransporter = () => {
+    if (cachedTransporter) {
+        return cachedTransporter;
+    }
+
     const sendgridApiKey = getEnv('SENDGRID_API_KEY', 'SENDGRID_KEY');
     const smtpHost = getEnv('SMTP_HOST');
     const smtpUser = getEnv('SMTP_USER');
@@ -49,7 +55,7 @@ const createEmailTransporter = () => {
     const emailPass = getEnv('EMAIL_PASS', 'EMAIL_PASSWORD', 'Email_pass', 'email_pass');
 
     if (emailUser && emailPass) {
-        return nodemailer.createTransport({
+        cachedTransporter = nodemailer.createTransport({
             host: 'smtp.gmail.com',
             port: 465,
             secure: true,
@@ -58,22 +64,24 @@ const createEmailTransporter = () => {
                 pass: emailPass
             }
         });
+        return cachedTransporter;
     }
 
     const effectiveSendgridKey = sendgridApiKey || (emailPass?.startsWith('SG.') ? emailPass : undefined);
 
     if (effectiveSendgridKey) {
-        return nodemailer.createTransport({
+        cachedTransporter = nodemailer.createTransport({
             service: 'SendGrid',
             auth: {
                 user: 'apikey',
                 pass: effectiveSendgridKey
             }
         });
+        return cachedTransporter;
     }
 
     if (smtpHost && smtpUser && smtpPass) {
-        return nodemailer.createTransport({
+        cachedTransporter = nodemailer.createTransport({
             host: smtpHost,
             port: Number(process.env.SMTP_PORT || 587),
             secure: process.env.SMTP_SECURE === 'true',
@@ -82,6 +90,7 @@ const createEmailTransporter = () => {
                 pass: smtpPass
             }
         });
+        return cachedTransporter;
     }
 
     return null;
@@ -91,12 +100,29 @@ const sendEmailOtp = async (email, otp) => {
     const transporter = createEmailTransporter();
 
     if (!transporter) {
-        throw new Error('Email OTP is not configured. Add SENDGRID_API_KEY, SMTP settings, or EMAIL_USER/EMAIL_PASS on the server.');
+        const configError = new Error('Email OTP is not configured. Add SENDGRID_API_KEY, SMTP settings, or EMAIL_USER/EMAIL_PASS on the server.');
+        configError.statusCode = 503;
+        throw configError;
     }
 
-    await transporter.verify();
+    const fromAddress = getEnv(
+        'EMAIL_FROM',
+        'SMTP_FROM',
+        'EMAIL_USER',
+        'EMAIL_ID',
+        'Email_id',
+        'email_id',
+        'SMTP_USER'
+    );
+
+    if (!fromAddress) {
+        const fromError = new Error('Email sender is not configured. Set EMAIL_FROM or EMAIL_USER on the server.');
+        fromError.statusCode = 503;
+        throw fromError;
+    }
+
     await transporter.sendMail({
-        from: getEnv('EMAIL_FROM', 'SMTP_FROM', 'EMAIL_USER', 'EMAIL_ID', 'Email_id', 'email_id', 'SMTP_USER'),
+        from: fromAddress,
         to: email,
         subject: 'Your Brown Cows Dairy signup OTP',
         html: `
@@ -219,6 +245,13 @@ router.post('/send-otp', async (req, res) => {
         console.error('Send OTP Error:', error);
         if (error.name?.includes('Mongo') || error.message?.includes('buffering timed out')) {
             return res.status(503).json({ message: 'Database is not connected. Please restart the server or check MONGO_URI.' });
+        }
+
+        if (error.statusCode === 503) {
+            return res.status(503).json({
+                message: error.message,
+                code: 'EMAIL_CONFIG_MISSING'
+            });
         }
 
         res.status(500).json({

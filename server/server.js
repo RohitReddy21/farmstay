@@ -15,6 +15,10 @@ if (!process.env.JWT_SECRET) {
 }
 
 const app = express();
+
+// Trust proxy for Render deployment (1 for single proxy)
+app.set('trust proxy', 1);
+
 app.use(compression());
 app.use(helmet());
 
@@ -82,8 +86,11 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // Rate Limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 500, // Limit each IP to 500 requests per windowMs (dev friendly)
-  message: 'Too many requests from this IP, please try again later.'
+  max: process.env.NODE_ENV === 'production' ? 100 : 500, // Production: 100, Dev: 500
+  message: 'Too many requests from this IP, please try again later.',
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  validate: { trustProxy: false }, // Disable internal validation as Express handles trust proxy
 });
 app.use('/api/', limiter);
 const PORT = process.env.PORT || 5001;
