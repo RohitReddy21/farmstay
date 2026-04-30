@@ -1,21 +1,15 @@
 import { useState } from 'react';
-import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import { useToast } from '../context/ToastContext';
-import API_URL from '../config';
 
 const Register = () => {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
     const [password, setPassword] = useState('');
-    const [otp, setOtp] = useState('');
-    const [otpSent, setOtpSent] = useState(false);
     const [error, setError] = useState('');
-    const [otpMessage, setOtpMessage] = useState('');
-    const [isSendingOtp, setIsSendingOtp] = useState(false);
     const [isRegistering, setIsRegistering] = useState(false);
     const { register, googleLogin } = useAuth();
     const navigate = useNavigate();
@@ -29,33 +23,6 @@ const Register = () => {
             title: 'Complete sign up details',
             message
         });
-    };
-
-    const handleSendOtp = async () => {
-        setError('');
-        setOtpMessage('');
-
-        if (!email.trim()) {
-            showFormError('Please enter your email before sending OTP.');
-            return;
-        }
-
-        setIsSendingOtp(true);
-        try {
-            const { data } = await axios.post(`${API_URL}/api/auth/send-otp`, { email });
-            setOtpSent(true);
-            setOtp('');
-            setOtpMessage(data.message || 'OTP sent to your email address.');
-            showToast({
-                type: 'success',
-                title: 'OTP sent',
-                message: 'Check your email for the 6 digit OTP.'
-            });
-        } catch (err) {
-            showFormError(err.response?.data?.message || 'Unable to send OTP. Please check the email sender configuration.');
-        } finally {
-            setIsSendingOtp(false);
-        }
     };
 
     const handleSubmit = async (e) => {
@@ -72,14 +39,9 @@ const Register = () => {
             return;
         }
 
-        if (!otpSent || otp.trim().length !== 6) {
-            showFormError('Please send and enter the 6 digit email OTP.');
-            return;
-        }
-
         setIsRegistering(true);
         try {
-            await register(name, email, phone, password, otp);
+            await register(name, email, phone, password);
             navigate('/');
         } catch (err) {
             showFormError(err.response?.data?.message || 'Registration failed');
@@ -178,12 +140,7 @@ const Register = () => {
                                 type="email"
                                 className="w-full rounded-xl border border-[#e3cfac] bg-white p-3 text-[#211b14] outline-none transition focus:border-[#7a5527] focus:ring-2 focus:ring-[#d6a23d]/30"
                                 value={email}
-                                onChange={(e) => {
-                                    setEmail(e.target.value);
-                                    setOtpSent(false);
-                                    setOtp('');
-                                    setOtpMessage('');
-                                }}
+                                onChange={(e) => setEmail(e.target.value)}
                                 autoComplete="email"
                                 required
                             />
@@ -199,36 +156,6 @@ const Register = () => {
                                 required
                             />
                         </div>
-                    </div>
-                    <div className="rounded-2xl border border-[#ead7b8] bg-[#fffaf1] p-4">
-                        <label className="mb-2 block text-sm font-semibold text-[#3a2b1e]">Email OTP</label>
-                        <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto]">
-                            <input
-                                type="text"
-                                className="w-full rounded-xl border border-[#e3cfac] bg-white p-3 text-[#211b14] outline-none transition focus:border-[#7a5527] focus:ring-2 focus:ring-[#d6a23d]/30 disabled:bg-[#f7efe2]"
-                                value={otp}
-                                onChange={(e) => {
-                                    setError('');
-                                    setOtp(e.target.value.replace(/\D/g, '').slice(0, 6));
-                                }}
-                                placeholder={otpSent ? 'Enter 6 digit OTP' : 'Send OTP first'}
-                                autoComplete="one-time-code"
-                                inputMode="numeric"
-                                pattern="[0-9]{6}"
-                                maxLength="6"
-                                disabled={!otpSent}
-                                required
-                            />
-                            <button
-                                type="button"
-                                onClick={handleSendOtp}
-                                disabled={isSendingOtp || !email.trim()}
-                                className="rounded-xl border border-[#7a5527] px-5 py-3 font-bold text-[#7a5527] transition hover:bg-[#f8efdf] disabled:cursor-not-allowed disabled:border-[#d8c8ae] disabled:text-[#9b8a73]"
-                            >
-                                {isSendingOtp ? 'Sending...' : otpSent ? 'Resend OTP' : 'Send OTP'}
-                            </button>
-                        </div>
-                        {otpMessage && <p className="mt-2 text-sm font-semibold text-green-700">{otpMessage}</p>}
                     </div>
                     <button
                         type="submit"
