@@ -151,8 +151,44 @@ const sendEmailOtp = async (email, otp) => {
 router.get('/health', (req, res) => {
     res.json({
         message: 'Auth routes are working',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        emailConfigured: !!createEmailTransporter(),
+        env: process.env.NODE_ENV
     });
+});
+
+// @route   GET /api/auth/test-email
+// @desc    Test email configuration (Diagnostics)
+router.get('/test-email', async (req, res) => {
+    try {
+        const transporter = createEmailTransporter();
+        if (!transporter) {
+            return res.status(503).json({ 
+                success: false, 
+                message: 'No email transporter configured. Check environment variables.' 
+            });
+        }
+
+        const fromAddress = getEnv('EMAIL_FROM', 'EMAIL_USER');
+        
+        // Try to verify connection
+        await transporter.verify();
+        
+        res.json({ 
+            success: true, 
+            message: 'Email transporter is connected and verified!',
+            from: fromAddress,
+            transporterType: transporter.options.service || 'SMTP'
+        });
+    } catch (error) {
+        console.error('Email Test Failed:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Email verification failed', 
+            error: error.message,
+            code: error.code
+        });
+    }
 });
 
 // @route   POST /api/auth/google
