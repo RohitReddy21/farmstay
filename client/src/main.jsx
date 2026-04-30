@@ -1,4 +1,3 @@
-import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import './index.css'
@@ -20,17 +19,15 @@ if (!rootElement) {
 } else {
   const root = createRoot(rootElement);
   root.render(
-    <StrictMode>
-      <GlobalErrorBoundary>
-        {GOOGLE_CLIENT_ID && GOOGLE_CLIENT_ID !== "YOUR_GOOGLE_CLIENT_ID_HERE" ? (
-          <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-            <App />
-          </GoogleOAuthProvider>
-        ) : (
+    <GlobalErrorBoundary>
+      {GOOGLE_CLIENT_ID && GOOGLE_CLIENT_ID !== "YOUR_GOOGLE_CLIENT_ID_HERE" ? (
+        <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
           <App />
-        )}
-      </GlobalErrorBoundary>
-    </StrictMode>,
+        </GoogleOAuthProvider>
+      ) : (
+        <App />
+      )}
+    </GlobalErrorBoundary>,
   );
   console.log('App mounted.');
 }
