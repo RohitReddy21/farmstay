@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 
 const Login = () => {
@@ -8,13 +8,18 @@ const Login = () => {
     const [password, setPassword] = useState('');
     const { login, googleLogin } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
     const [error, setError] = useState('');
+    const redirectTo = location.state?.from || '/';
+    const redirectState = location.state?.bookingDraft
+        ? { bookingDraft: location.state.bookingDraft }
+        : undefined;
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
             await login(email, password);
-            navigate('/');
+            navigate(redirectTo, { replace: true, state: redirectState });
         } catch (err) {
             setError(err.response?.data?.message || 'Invalid credentials');
         }
@@ -37,7 +42,7 @@ const Login = () => {
                             onSuccess={async (credentialResponse) => {
                                 try {
                                     await googleLogin(credentialResponse.credential);
-                                    navigate('/');
+                                    navigate(redirectTo, { replace: true, state: redirectState });
                                 } catch (err) {
                                     setError('Google Login Failed');
                                 }
@@ -98,7 +103,7 @@ const Login = () => {
                 </button>
             </form>
                 <p className="mt-6 text-center text-[#645747]">
-                    Don't have an account? <Link to="/register" className="font-bold text-primary hover:underline">Sign up</Link>
+                    Don't have an account? <Link to="/register" state={location.state} className="font-bold text-primary hover:underline">Sign up</Link>
                 </p>
             </div>
         </div>

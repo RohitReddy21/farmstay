@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
@@ -10,6 +10,7 @@ const Checkout = () => {
     const { cartItem, clearCart } = useCart();
     const { user } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
     const [isProcessing, setIsProcessing] = useState(false);
     const [error, setError] = useState(null);
     const [paymentMethod, setPaymentMethod] = useState('razorpay');
@@ -25,9 +26,13 @@ const Checkout = () => {
         if (!cartItem) {
             navigate('/farms');
         } else if (!user) {
-            navigate('/login');
+            navigate('/login', {
+                state: {
+                    from: `${location.pathname}${location.search}`
+                }
+            });
         }
-    }, [cartItem, user, navigate, isCheckoutComplete]);
+    }, [cartItem, user, navigate, isCheckoutComplete, location.pathname, location.search]);
 
     if (!user || (!cartItem && !isCheckoutComplete)) {
         return null;
@@ -113,7 +118,7 @@ const Checkout = () => {
                         });
 
                         if (verifyRes.data.success) {
-                            finishCheckout('Payment received. Your booking is pending admin approval.');
+                            finishCheckout('Payment received. We will notify you after admin review.');
                         }
                     } catch (err) {
                         setError('Payment verification failed. Please contact support.');
@@ -159,7 +164,7 @@ const Checkout = () => {
                 throw new Error('Failed to create COD booking');
             }
 
-            finishCheckout('COD booking placed. Your booking is pending admin approval.');
+            finishCheckout('COD booking placed. We will notify you after admin review.');
         } catch (err) {
             console.error('COD checkout error:', err);
             setError(err.response?.data?.message || 'Could not place COD booking. Please try again.');
@@ -186,7 +191,7 @@ const Checkout = () => {
                     <p className="mb-2 text-xs font-bold uppercase tracking-[0.28em] text-[#8a642d]">Booking Received</p>
                     <h1 className="text-3xl font-bold text-[#211b14]">Your booking is pending approval</h1>
                     <p className="mx-auto mt-3 max-w-lg text-[#645747]">
-                        {confirmationMessage || 'Your booking has been received and is waiting for admin approval.'}
+                        {confirmationMessage || 'We will notify you after admin review.'}
                     </p>
 
                     <div className="mt-8 rounded-2xl border border-[#ead7b8] bg-[#f8efdf] p-5 text-left">

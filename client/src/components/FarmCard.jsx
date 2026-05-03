@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { MapPin, Users } from 'lucide-react';
+import { ChevronLeft, ChevronRight, MapPin, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useState, useEffect, useRef } from 'react';
 import FavoriteButton from './FavoriteButton';
@@ -9,6 +9,7 @@ const FarmCard = ({ farm }) => {
     const [isInView, setIsInView] = useState(false);
     const cardRef = useRef(null);
     const images = farm.images || [];
+    const showImageControls = images.length > 1;
 
     useEffect(() => {
         const node = cardRef.current;
@@ -38,6 +39,18 @@ const FarmCard = ({ farm }) => {
         return () => clearInterval(interval);
     }, [images.length, isInView]);
 
+    const goToPreviousImage = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
+    };
+
+    const goToNextImage = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        setCurrentImageIndex((prev) => (prev + 1) % images.length);
+    };
+
     const variations = farm.variations || [];
     const hasVariations = variations.length > 0;
     const variationPrices = variations.map((variation) => Number(variation.price)).filter(Boolean);
@@ -55,9 +68,9 @@ const FarmCard = ({ farm }) => {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             whileHover={{ y: -5 }}
-            className="flex h-full flex-col overflow-hidden rounded-xl border border-gray-100 bg-white shadow-lg transition-colors duration-200 dark:border-gray-700 dark:bg-gray-800 md:rounded-2xl"
+            className="group flex h-full flex-col overflow-hidden rounded-xl border border-gray-100 bg-white shadow-lg transition-colors duration-200 dark:border-gray-700 dark:bg-gray-800 md:rounded-2xl"
         >
-            <div className="relative overflow-hidden bg-gray-100 dark:bg-gray-700">
+            <div className="relative aspect-[4/3] overflow-hidden bg-gray-100 dark:bg-gray-700">
                 <motion.img
                     key={currentImageIndex}
                     src={images[currentImageIndex] || 'https://via.placeholder.com/400'}
@@ -65,17 +78,41 @@ const FarmCard = ({ farm }) => {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    transition={{ duration: 0.5 }}
-                    className="h-44 w-full object-cover md:h-48"
+                    transition={{ duration: 0.08 }}
+                    className="h-full w-full object-cover"
                     loading="lazy"
                     decoding="async"
                 />
-                {images.length > 1 && (
+                {showImageControls && (
+                    <>
+                        <button
+                            type="button"
+                            onClick={goToPreviousImage}
+                            className="absolute left-2 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-gray-900 shadow-md transition hover:bg-white md:opacity-0 md:group-hover:opacity-100"
+                            aria-label="Previous farm image"
+                        >
+                            <ChevronLeft size={20} />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={goToNextImage}
+                            className="absolute right-2 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-gray-900 shadow-md transition hover:bg-white md:opacity-0 md:group-hover:opacity-100"
+                            aria-label="Next farm image"
+                        >
+                            <ChevronRight size={20} />
+                        </button>
+                    </>
+                )}
+                {showImageControls && (
                     <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 gap-1">
                         {images.map((_, index) => (
                             <button
                                 key={index}
-                                onClick={() => setCurrentImageIndex(index)}
+                                onClick={(event) => {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                    setCurrentImageIndex(index);
+                                }}
                                 className={`h-1.5 rounded-full transition-all ${
                                     index === currentImageIndex
                                         ? 'w-4 bg-white'

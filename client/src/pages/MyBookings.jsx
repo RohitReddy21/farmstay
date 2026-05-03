@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
-import { Calendar, Download, MapPin } from 'lucide-react';
+import { Calendar, MapPin } from 'lucide-react';
 import API_URL from '../config';
 
 const formatDate = (date) => date ? new Date(date).toLocaleDateString('en-IN') : '-';
@@ -34,8 +34,6 @@ const getStatusBadge = (status = 'Pending') => {
         </span>
     );
 };
-
-const csvEscape = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`;
 
 const MyBookings = () => {
     const { user } = useAuth();
@@ -84,75 +82,18 @@ const MyBookings = () => {
 
     const filteredBookings = getFilteredBookings();
 
-    const downloadBookings = () => {
-        const headers = [
-            'Booking ID',
-            'Property',
-            'Location',
-            'Guest Name',
-            'Guest Phone',
-            'Guest Email',
-            'Check-in',
-            'Check-out',
-            'Guests',
-            'Base Price',
-            'Tax',
-            'Total',
-            'Payment Status',
-            'Booking Status',
-            'Booked On'
-        ];
-
-        const rows = filteredBookings.map((booking) => [
-            booking._id,
-            booking.property?.title || booking.propertyTitle || booking.farm?.title || 'Unknown Property',
-            booking.property?.location || booking.propertyLocation || booking.farm?.location || '',
-            booking.guestDetails?.name || user?.name || '',
-            booking.guestDetails?.phone || user?.phone || '',
-            booking.guestDetails?.email || user?.email || '',
-            formatDate(booking.startDate),
-            formatDate(booking.endDate),
-            getGuestCount(booking.guests),
-            booking.totalPrice || 0,
-            booking.tax || 0,
-            Number(booking.totalPrice || 0) + Number(booking.tax || 0),
-            booking.paymentStatus || 'Pending',
-            booking.status || 'Pending',
-            formatDate(booking.createdAt)
-        ]);
-
-        const csv = [headers, ...rows].map((row) => row.map(csvEscape).join(',')).join('\n');
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `brown-cows-bookings-${filter}.csv`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-    };
-
     if (loading) {
         return <div className="py-20 text-center text-[#645747]">Loading bookings...</div>;
     }
 
     return (
         <div className="mx-auto max-w-7xl px-4 py-8">
-            <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end">
+            <div className="mb-8">
                 <div>
                     <p className="mb-2 text-xs font-bold uppercase tracking-[0.28em] text-[#8a642d]">Brown Cows Dairy</p>
                     <h1 className="text-3xl font-bold text-[#211b14]">My Bookings</h1>
                     <p className="mt-2 text-[#645747]">Track every booking, approval status, guest detail, and payment status in one table.</p>
                 </div>
-                <button
-                    onClick={downloadBookings}
-                    disabled={filteredBookings.length === 0}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 font-bold text-white shadow-lg transition hover:bg-primary-800 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                    <Download size={18} />
-                    Download CSV
-                </button>
             </div>
 
             {location.state?.bookingSuccess && (

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useToast } from '../context/ToastContext';
@@ -50,6 +50,7 @@ import LazySection from '../components/LazySection';
 const FarmDetails = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const location = useLocation();
     const { user } = useAuth();
     const { addToCart } = useCart();
     const { showToast } = useToast();
@@ -72,6 +73,7 @@ const FarmDetails = () => {
     const [weekendDateConflict, setWeekendDateConflict] = useState(null);
     const [showRetreatPrompt, setShowRetreatPrompt] = useState(false);
     const [bookingError, setBookingError] = useState('');
+    const [guestCountError, setGuestCountError] = useState('');
     const [dateSelection, setDateSelection] = useState([
         {
             startDate: new Date(),
@@ -128,6 +130,20 @@ const FarmDetails = () => {
             title: 'Complete booking details',
             message
         });
+    };
+
+    const validateGuestCount = (value) => {
+        const count = Number(value);
+
+        if (!value || Number.isNaN(count) || count < 1) {
+            return 'Please enter at least 1 guest.';
+        }
+
+        if (count > guestLimit) {
+            return `This stay allows a maximum of ${guestLimit} guests. Please reduce the guest count.`;
+        }
+
+        return '';
     };
 
     // Combine images and videos into a single media array
@@ -345,14 +361,62 @@ const FarmDetails = () => {
         checkWeekendConflict(item.selection.startDate, item.selection.endDate);
     };
 
+    const buildBookingDraft = () => ({
+        farmId: id,
+        bookingData,
+        startDate: dateSelection[0].startDate.toISOString(),
+        endDate: dateSelection[0].endDate.toISOString(),
+        variationType: selectedVariation?.type || '',
+        selectedCottage
+    });
+
+    const restoreBookingDraft = (draft, farmData) => {
+        if (!draft || draft.farmId !== id) return;
+
+        const restoredStartDate = draft.startDate ? new Date(draft.startDate) : null;
+        const restoredEndDate = draft.endDate ? new Date(draft.endDate) : null;
+        const restoredVariation = farmData.variations?.find((variation) => variation.type === draft.variationType);
+
+        if (draft.bookingData) {
+            setBookingData({
+                guests: draft.bookingData.guests || 1,
+                guestName: draft.bookingData.guestName || '',
+                guestPhone: getTenDigitPhone(draft.bookingData.guestPhone || '')
+            });
+        }
+
+        if (
+            restoredStartDate &&
+            restoredEndDate &&
+            !Number.isNaN(restoredStartDate.getTime()) &&
+            !Number.isNaN(restoredEndDate.getTime())
+        ) {
+            setDateSelection([{
+                startDate: restoredStartDate,
+                endDate: restoredEndDate,
+                key: 'selection'
+            }]);
+        }
+
+        if (restoredVariation) {
+            setSelectedVariation(restoredVariation);
+            setSelectedCottage(draft.selectedCottage || restoredVariation.availableCottages?.[0] || null);
+        }
+
+        window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+    };
+
     useEffect(() => {
         const fetchFarmDetails = async () => {
             try {
                 const { data } = await axios.get(`${API_URL}/api/farms/${id}`);
                 setFarm(data);
                 setAllMedia(combineMedia(data));
-                // Set first variation as selected if variations exist
-                if (data.variations?.length > 0) {
+                const bookingDraft = location.state?.bookingDraft;
+
+                if (bookingDraft?.farmId === id) {
+                    restoreBookingDraft(bookingDraft, data);
+                } else if (data.variations?.length > 0) {
                     setSelectedVariation(data.variations[0]);
                     setSelectedCottage(data.variations[0].availableCottages?.[0] || null);
                 } else {
@@ -425,8 +489,17 @@ const FarmDetails = () => {
         setBookingError('');
 
         if (!user) {
-            alert('Please log in to make a booking');
-            navigate('/login');
+            showToast({
+                type: 'info',
+                title: 'Login required',
+                message: 'Please log in to continue your booking.'
+            });
+            navigate('/login', {
+                state: {
+                    from: `${location.pathname}${location.search}`,
+                    bookingDraft: buildBookingDraft()
+                }
+            });
             return;
         }
 
@@ -453,7 +526,14 @@ const FarmDetails = () => {
             return;
         }
 
-        const guestCount = Math.min(Math.max(Number(bookingData.guests) || 1, 1), guestLimit);
+        const guestError = validateGuestCount(bookingData.guests);
+        if (guestError) {
+            setGuestCountError(guestError);
+            showBookingValidationError(guestError);
+            return;
+        }
+
+        const guestCount = Number(bookingData.guests);
 
         try {
             const startDate = dateSelection[0].startDate;
@@ -598,7 +678,7 @@ const FarmDetails = () => {
                     <div className="space-y-3 md:space-y-4">
                         {/* Main Media Display */}
                         <div
-                            className="relative rounded-2xl md:rounded-3xl overflow-hidden shadow-xl h-[300px] sm:h-[400px] md:h-[500px] group cursor-zoom-in bg-black"
+                            className="relative h-[300px] w-full rounded-2xl bg-black shadow-xl group cursor-zoom-in overflow-hidden sm:h-[400px] md:h-[500px] md:rounded-3xl"
                             onClick={() => setShowLightbox(true)}
                         >
                             <AnimatePresence mode="wait">
@@ -611,7 +691,7 @@ const FarmDetails = () => {
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 1 }}
                                         exit={{ opacity: 0 }}
-                                        transition={{ duration: 0.3 }}
+                                        transition={{ duration: 0.08 }}
                                     />
                                 ) : allMedia.length > 0 && allMedia[currentMediaIndex]?.type === 'video' ? (
                                     isVideoFileUrl(allMedia[currentMediaIndex].url) ? (
@@ -619,13 +699,13 @@ const FarmDetails = () => {
                                             key={currentMediaIndex}
                                             src={allMedia[currentMediaIndex].url}
                                             title={`${farm.title} - Video ${currentMediaIndex + 1}`}
-                                            className="w-full h-full"
+                                            className="w-full h-full object-cover"
                                             controls
                                             playsInline
                                             initial={{ opacity: 0 }}
                                             animate={{ opacity: 1 }}
                                             exit={{ opacity: 0 }}
-                                            transition={{ duration: 0.3 }}
+                                            transition={{ duration: 0.08 }}
                                         />
                                     ) : (
                                         <motion.iframe
@@ -638,7 +718,7 @@ const FarmDetails = () => {
                                             initial={{ opacity: 0 }}
                                             animate={{ opacity: 1 }}
                                             exit={{ opacity: 0 }}
-                                            transition={{ duration: 0.3 }}
+                                            transition={{ duration: 0.08 }}
                                         />
                                     )
                                 ) : (
@@ -651,13 +731,15 @@ const FarmDetails = () => {
                                 <>
                                     <button
                                         onClick={(e) => { e.stopPropagation(); prevMedia(); }}
-                                        className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white p-2 md:p-3 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                                        className="absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-white/90 p-2 shadow-lg transition-opacity hover:bg-white md:left-4 md:p-3 md:opacity-0 md:group-hover:opacity-100"
+                                        aria-label="Previous image"
                                     >
                                         <ChevronLeft className="w-5 h-5 md:w-6 md:h-6" />
                                     </button>
                                     <button
                                         onClick={(e) => { e.stopPropagation(); nextMedia(); }}
-                                        className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white p-2 md:p-3 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                                        className="absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-white/90 p-2 shadow-lg transition-opacity hover:bg-white md:right-4 md:p-3 md:opacity-0 md:group-hover:opacity-100"
+                                        aria-label="Next image"
                                     >
                                         <ChevronRight className="w-5 h-5 md:w-6 md:h-6" />
                                     </button>
@@ -999,7 +1081,7 @@ const FarmDetails = () => {
                                     type="text"
                                     required
                                     placeholder="Enter your full name"
-                                    className="w-full p-2.5 md:p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all text-sm md:text-base"
+                                    className="w-full p-2.5 md:p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all text-base"
                                     value={bookingData.guestName}
                                     onChange={(e) => {
                                         setBookingError('');
@@ -1013,7 +1095,7 @@ const FarmDetails = () => {
                                     type="tel"
                                     required
                                     placeholder="Enter mobile number"
-                                    className="w-full p-2.5 md:p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all text-sm md:text-base"
+                                    className="w-full p-2.5 md:p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all text-base"
                                     value={bookingData.guestPhone}
                                     onChange={(e) => {
                                         setBookingError('');
@@ -1032,17 +1114,30 @@ const FarmDetails = () => {
                                     required
                                     value={bookingData.guests}
                                     placeholder="Enter number of guests"
-                                    className="w-full p-2.5 md:p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all text-sm md:text-base"
+                                    aria-invalid={Boolean(guestCountError)}
+                                    className={`w-full p-2.5 md:p-3 border-2 rounded-lg outline-none transition-all text-base ${
+                                        guestCountError
+                                            ? 'border-red-400 bg-red-50 text-red-900 focus:ring-2 focus:ring-red-300 focus:border-red-500'
+                                            : 'border-gray-200 focus:ring-2 focus:ring-primary focus:border-primary'
+                                    }`}
                                     onChange={(e) => {
                                         const value = e.target.value.replace(/\D/g, '');
+                                        const error = validateGuestCount(value);
+                                        setGuestCountError(error);
+                                        setBookingError(error);
                                         setBookingData({ ...bookingData, guests: value });
                                     }}
                                     onBlur={() => {
-                                        const guests = Math.min(Math.max(Number(bookingData.guests) || 1, 1), guestLimit);
-                                        setBookingData({ ...bookingData, guests });
+                                        if (!bookingData.guests) {
+                                            setBookingData({ ...bookingData, guests: 1 });
+                                            setGuestCountError('');
+                                            setBookingError('');
+                                        }
                                     }}
                                 />
-                                <p className="text-xs text-gray-500 mt-1">Maximum {guestLimit} guests</p>
+                                <p className={`mt-1 text-xs ${guestCountError ? 'font-semibold text-red-600' : 'text-gray-500'}`}>
+                                    {guestCountError || `Maximum ${guestLimit} guests`}
+                                </p>
                             </div>
 
                             <button
@@ -1096,7 +1191,7 @@ const FarmDetails = () => {
                             <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
                                 <Users size={20} className="text-primary" />
                             </div>
-                            <span className="text-base md:text-lg">Up to <span className="font-semibold">{farm.capacity}</span> guests</span>
+                            <span className="text-base md:text-lg">Up to <span className="font-semibold">{guestLimit}</span> guests</span>
                         </div>
                         {totalReviews > 0 && (
                             <div className="flex items-center gap-2">
@@ -1246,24 +1341,24 @@ const FarmDetails = () => {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-sm p-4"
+                        className="fixed inset-0 z-50 flex h-[100dvh] items-center justify-center bg-black/95 p-0 backdrop-blur-sm sm:p-4"
                         onClick={() => setShowLightbox(false)}
                     >
                         <button
                             onClick={() => setShowLightbox(false)}
-                            className="absolute top-4 right-4 text-white/70 hover:text-white p-2 transition-colors z-[60]"
+                            className="absolute right-3 top-[max(1rem,env(safe-area-inset-top))] text-white/70 hover:text-white p-2 transition-colors z-[60]"
                         >
                             <X size={32} />
                         </button>
 
-                        <div className="relative w-full max-w-6xl max-h-screen flex items-center justify-center p-2" onClick={e => e.stopPropagation()}>
+                        <div className="relative flex h-full w-full max-w-6xl items-center justify-center px-3 pb-24 pt-16 sm:max-h-screen sm:p-2" onClick={e => e.stopPropagation()}>
                             <AnimatePresence mode="wait">
                                 {allMedia[currentMediaIndex]?.type === 'image' ? (
                                     <motion.img
                                         key={currentMediaIndex}
                                         src={allMedia[currentMediaIndex]?.url}
                                         alt="Full screen view"
-                                        className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl"
+                                        className="h-auto max-h-[70dvh] w-full object-contain rounded-lg shadow-2xl sm:max-h-[85vh]"
                                         initial={{ y: 20, opacity: 0 }}
                                         animate={{ y: 0, opacity: 1 }}
                                         exit={{ y: -20, opacity: 0 }}
@@ -1274,7 +1369,7 @@ const FarmDetails = () => {
                                         <motion.video
                                             key={currentMediaIndex}
                                             src={allMedia[currentMediaIndex]?.url}
-                                            className="max-w-full max-h-[85vh] rounded-lg shadow-2xl"
+                                            className="h-auto max-h-[70dvh] w-full rounded-lg shadow-2xl sm:max-h-[85vh]"
                                             controls
                                             playsInline
                                             title="Video Lightbox"
@@ -1287,7 +1382,7 @@ const FarmDetails = () => {
                                         <motion.iframe
                                             key={currentMediaIndex}
                                             src={buildEmbedSrc(allMedia[currentMediaIndex]?.url, true)}
-                                            className="max-w-full max-h-[85vh] rounded-lg shadow-2xl"
+                                            className="aspect-video h-auto max-h-[70dvh] w-full rounded-lg shadow-2xl sm:max-h-[85vh]"
                                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                             allowFullScreen
                                             title="Video Lightbox"
@@ -1305,13 +1400,13 @@ const FarmDetails = () => {
                                 <>
                                     <button
                                         onClick={(e) => { e.stopPropagation(); prevMedia(); }}
-                                        className="absolute left-2 md:left-8 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white p-3 md:p-4 rounded-full transition-all backdrop-blur-md z-20"
+                                        className="absolute left-3 top-1/2 z-20 -translate-y-1/2 rounded-full bg-white/20 p-3 text-white backdrop-blur-md transition-all hover:bg-white/30 md:left-8 md:p-4"
                                     >
                                         <ChevronLeft size={32} />
                                     </button>
                                     <button
                                         onClick={(e) => { e.stopPropagation(); nextMedia(); }}
-                                        className="absolute right-2 md:right-8 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white p-3 md:p-4 rounded-full transition-all backdrop-blur-md z-20"
+                                        className="absolute right-3 top-1/2 z-20 -translate-y-1/2 rounded-full bg-white/20 p-3 text-white backdrop-blur-md transition-all hover:bg-white/30 md:right-8 md:p-4"
                                     >
                                         <ChevronRight size={32} />
                                     </button>
@@ -1320,14 +1415,14 @@ const FarmDetails = () => {
 
                             {/* Media Counter */}
                             {allMedia.length > 1 && (
-                                <div className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-white/20 text-white px-3 py-1 rounded-full text-sm backdrop-blur-md z-20">
+                                <div className="absolute bottom-28 left-1/2 z-20 -translate-x-1/2 rounded-full bg-white/20 px-3 py-1 text-sm text-white backdrop-blur-md sm:bottom-20">
                                     {currentMediaIndex + 1} / {allMedia.length}
                                 </div>
                             )}
                         </div>
 
                         {/* Lightbox Thumbnails */}
-                        <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 px-4 overflow-x-auto" onClick={e => e.stopPropagation()}>
+                        <div className="absolute bottom-[max(1rem,env(safe-area-inset-bottom))] left-0 right-0 flex justify-start gap-2 overflow-x-auto px-3 sm:justify-center sm:px-4" onClick={e => e.stopPropagation()}>
                             <div className="flex gap-2 p-2">
                                 {allMedia.map((media, idx) => (
                                     <button
@@ -1369,7 +1464,7 @@ const FarmDetails = () => {
                     }}
                     className="bg-primary text-white px-6 py-3 rounded-xl font-bold hover:bg-primary-800 transition-all shadow-lg active:scale-95"
                 >
-                    Reserve
+                    Book Now
                 </button>
             </div>
         </div>

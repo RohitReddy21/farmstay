@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import { useToast } from '../context/ToastContext';
 
@@ -13,8 +13,13 @@ const Register = () => {
     const [isRegistering, setIsRegistering] = useState(false);
     const { register, googleLogin } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
     const { showToast } = useToast();
     const getTenDigitPhone = (value = '') => value.replace(/\D/g, '').slice(0, 10);
+    const redirectTo = location.state?.from || '/';
+    const redirectState = location.state?.bookingDraft
+        ? { bookingDraft: location.state.bookingDraft }
+        : undefined;
 
     const showFormError = (message) => {
         setError(message);
@@ -42,7 +47,7 @@ const Register = () => {
         setIsRegistering(true);
         try {
             await register(name, email, phone, password);
-            navigate('/');
+            navigate(redirectTo, { replace: true, state: redirectState });
         } catch (err) {
             showFormError(err.response?.data?.message || 'Registration failed');
         } finally {
@@ -68,7 +73,7 @@ const Register = () => {
                                 onSuccess={async (credentialResponse) => {
                                     try {
                                         await googleLogin(credentialResponse.credential);
-                                        navigate('/');
+                                        navigate(redirectTo, { replace: true, state: redirectState });
                                     } catch (err) {
                                         setError('Google Sign-Up Failed');
                                     }
@@ -167,7 +172,7 @@ const Register = () => {
                 </form>
 
                 <p className="mt-6 text-center text-[#645747]">
-                    Already have an account? <Link to="/login" className="font-bold text-primary hover:underline">Login</Link>
+                    Already have an account? <Link to="/login" state={location.state} className="font-bold text-primary hover:underline">Login</Link>
                 </p>
             </div>
         </div>

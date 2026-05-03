@@ -83,6 +83,31 @@ app.use((req, res, next) => {
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+const sendHealthResponse = (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.status(200).json({
+    status: 'ok',
+    message: 'Server running',
+    uptime: process.uptime(),
+    startedAt: serverStartedAt
+  });
+};
+
+// Lightweight uptime checks. No auth, no DB calls, no heavy work.
+app.get('/', (req, res) => {
+  res.status(200).send('Server is alive');
+});
+
+app.get('/health', sendHealthResponse);
+
+app.get('/ping', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.status(200).send('pong');
+});
+
+// Backward-compatible health route for existing checks.
+app.get('/api/health', sendHealthResponse);
+
 // Rate Limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -157,19 +182,6 @@ app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/favorites', require('./routes/favoriteRoutes'));
 app.use('/api/reviews', require('./routes/reviewRoutes'));
 app.use('/api/analytics', require('./routes/analyticsRoutes'));
-
-// Basic Route
-app.get('/', (req, res) => {
-  res.send('FarmStay API is running');
-});
-
-app.get('/api/health', (req, res) => {
-  res.json({
-    ok: true,
-    startedAt: serverStartedAt,
-    nodeEnv: process.env.NODE_ENV || 'undefined'
-  });
-});
 
 // Error Handling Middleware
 app.use((err, req, res, next) => {

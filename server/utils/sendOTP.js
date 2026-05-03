@@ -6,7 +6,7 @@ const transporter = require('../config/mail.js');
  * @param {string} otp - One-time password code
  * @returns {Promise<boolean>} - Returns true if email sent successfully, false otherwise
  */
-export const sendOTP = async (email, otp) => {
+const sendOTP = async (email, otp) => {
     try {
         // Validate inputs
         if (!email || !otp) {

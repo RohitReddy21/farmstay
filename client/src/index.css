@@ -98,6 +98,14 @@
 
 
 @layer base {
+  html,
+  body,
+  #root {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
   body {
     @apply bg-background text-text-primary font-sans antialiased;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
@@ -126,6 +134,15 @@
   select,
   textarea {
     @apply transition-colors duration-150;
+  }
+
+  @media (max-width: 767px) {
+    input,
+    select,
+    textarea,
+    .rdrDateInput input {
+      font-size: 16px !important;
+    }
   }
 }
 
