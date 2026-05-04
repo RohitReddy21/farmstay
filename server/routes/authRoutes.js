@@ -83,14 +83,19 @@ const generateOtp = () => crypto.randomInt(100000, 999999).toString();
 
 const sendOtpEmail = async (email, otp) => {
     const transporter = createEmailTransporter();
-    const fromAddress = getEnv('EMAIL_FROM', 'EMAIL_USER', 'EMAIL_ID', 'Email_id', 'email_id');
+    const emailUser = getEnv('EMAIL_USER', 'EMAIL_ID', 'Email_id', 'email_id');
+    const replyToAddress = getEnv('EMAIL_FROM');
 
-    if (!transporter || !fromAddress) {
+    if (!transporter || !emailUser) {
         throw new Error('Email is not configured. Check EMAIL_USER, EMAIL_PASS, and EMAIL_FROM.');
     }
 
     await transporter.sendMail({
-        from: fromAddress,
+        from: {
+            name: 'Brown Cows Organic Dairy',
+            address: emailUser
+        },
+        replyTo: replyToAddress || emailUser,
         to: email,
         subject: 'Your Brown Cows verification code',
         text: [
@@ -120,14 +125,19 @@ const createAndSendEmailOtp = async (email) => {
     const otp = generateOtp();
 
     await OtpVerification.deleteMany({ email: normalizedEmail });
-    await OtpVerification.create({
+    const otpRecord = await OtpVerification.create({
         email: normalizedEmail,
         otpHash: hashOtp(normalizedEmail, otp),
         attempts: 0,
         expiresAt: new Date(Date.now() + 10 * 60 * 1000)
     });
 
-    await sendOtpEmail(normalizedEmail, otp);
+    try {
+        await sendOtpEmail(normalizedEmail, otp);
+    } catch (error) {
+        await OtpVerification.deleteOne({ _id: otpRecord._id });
+        throw error;
+    }
 };
 
 // @route   GET /api/auth/health
@@ -157,7 +167,7 @@ router.get('/test-email', async (req, res) => {
 
         const transporter = createEmailTransporter();
 
-        const fromAddress = getEnv('EMAIL_FROM', 'EMAIL_USER', 'EMAIL_ID', 'Email_id', 'email_id');
+        const fromAddress = getEnv('EMAIL_USER', 'EMAIL_ID', 'Email_id', 'email_id');
         
         // Try to verify connection
         await transporter.verify();

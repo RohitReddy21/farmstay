@@ -27,7 +27,7 @@ const createEmailTransporter = () => {
 
 const sendBookingStatusEmail = async (booking, status, rejectionReason = '') => {
     const to = booking.guestDetails?.email || booking.user?.email;
-    const from = process.env.EMAIL_FROM || process.env.EMAIL_USER;
+    const from = process.env.EMAIL_USER;
     const transporter = createEmailTransporter();
 
     if (!to || !from || !transporter) {

@@ -2,7 +2,7 @@ const nodemailer = require('nodemailer');
 const twilio = require('twilio');
 
 const sendBookingNotification = async (booking) => {
-    if (process.env.EMAIL_USER && process.env.EMAIL_PASS && process.env.EMAIL_FROM && process.env.OWNER_EMAIL) {
+    if (process.env.EMAIL_USER && process.env.EMAIL_PASS && process.env.OWNER_EMAIL) {
         const transporter = nodemailer.createTransport({
             service: 'gmail',
             host: 'smtp.gmail.com',
@@ -15,7 +15,7 @@ const sendBookingNotification = async (booking) => {
         });
 
         const mailOptions = {
-            from: process.env.EMAIL_FROM,
+            from: process.env.EMAIL_USER,
             to: process.env.OWNER_EMAIL, // Notify owner
             subject: 'New Farm Booking Confirmed!',
             text: `New booking for farm ID: ${booking.farm} from ${booking.startDate} to ${booking.endDate}. Total: $${booking.totalPrice}`

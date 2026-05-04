@@ -6,8 +6,8 @@ const router = express.Router();
 const getPhoneDigits = (phone = '') => String(phone).replace(/\D/g, '');
 
 const sendLeadEmail = async (lead) => {
-    const to = process.env.OWNER_EMAIL || process.env.EMAIL_FROM;
-    if (!to || !process.env.EMAIL_FROM) {
+    const to = process.env.OWNER_EMAIL || process.env.EMAIL_USER;
+    if (!to || !process.env.EMAIL_USER) {
         console.log('Lead email notification skipped:', lead.email);
         return;
     }
@@ -31,7 +31,8 @@ const sendLeadEmail = async (lead) => {
     }
 
     await transporter.sendMail({
-        from: process.env.EMAIL_FROM,
+        from: process.env.EMAIL_USER,
+        replyTo: lead.email,
         to,
         subject: `New retreat brochure lead - ${lead.name}`,
         text: [
