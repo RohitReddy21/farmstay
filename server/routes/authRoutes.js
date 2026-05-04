@@ -7,6 +7,7 @@ const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const { verifyToken } = require('../middleware/authMiddleware');
 const { OAuth2Client } = require('google-auth-library');
+const OtpVerification = require('../models/OtpVerification');
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -41,7 +42,6 @@ const authPayload = (user, token) => ({
 let cachedTransporter = null;
 
 const getEmailProvider = () => {
-    if (getEnv('SMTP_HOST') && getEnv('SMTP_USER') && getEnv('SMTP_PASS')) return 'smtp';
     if (getEnv('EMAIL_USER', 'EMAIL_ID', 'Email_id', 'email_id') && getEnv('EMAIL_PASS', 'EMAIL_PASSWORD', 'Email_pass', 'email_pass')) return 'gmail-smtp';
     return null;
 };
@@ -51,18 +51,14 @@ const createEmailTransporter = () => {
         return cachedTransporter;
     }
 
-    const smtpHost = getEnv('SMTP_HOST');
-    const smtpUser = getEnv('SMTP_USER');
-    const smtpPass = getEnv('SMTP_PASS');
     const emailUser = getEnv('EMAIL_USER', 'EMAIL_ID', 'Email_id', 'email_id');
     const emailPass = getEnv('EMAIL_PASS', 'EMAIL_PASSWORD', 'Email_pass', 'email_pass');
 
     if (emailUser && emailPass) {
-        const isGmail = emailUser.includes('gmail.com') || !smtpHost;
         cachedTransporter = nodemailer.createTransport({
-            service: isGmail ? 'gmail' : undefined,
-            host: isGmail ? 'smtp.gmail.com' : (smtpHost || 'smtp.gmail.com'),
-            port: isGmail ? 465 : (Number(process.env.SMTP_PORT) || 465),
+            service: 'gmail',
+            host: 'smtp.gmail.com',
+            port: 465,
             secure: true,
             auth: {
                 user: emailUser,
@@ -75,20 +71,63 @@ const createEmailTransporter = () => {
         return cachedTransporter;
     }
 
-    if (smtpHost && smtpUser && smtpPass) {
-        cachedTransporter = nodemailer.createTransport({
-            host: smtpHost,
-            port: Number(process.env.SMTP_PORT || 587),
-            secure: process.env.SMTP_SECURE === 'true',
-            auth: {
-                user: smtpUser,
-                pass: smtpPass
-            }
-        });
-        return cachedTransporter;
+    return null;
+};
+
+const hashOtp = (email, otp) => crypto
+    .createHash('sha256')
+    .update(`${normalizeEmail(email)}:${otp}:${process.env.JWT_SECRET}`)
+    .digest('hex');
+
+const generateOtp = () => crypto.randomInt(100000, 999999).toString();
+
+const sendOtpEmail = async (email, otp) => {
+    const transporter = createEmailTransporter();
+    const fromAddress = getEnv('EMAIL_FROM', 'EMAIL_USER', 'EMAIL_ID', 'Email_id', 'email_id');
+
+    if (!transporter || !fromAddress) {
+        throw new Error('Email is not configured. Check EMAIL_USER, EMAIL_PASS, and EMAIL_FROM.');
     }
 
-    return null;
+    await transporter.sendMail({
+        from: fromAddress,
+        to: email,
+        subject: 'Your Brown Cows verification code',
+        text: [
+            'Hi,',
+            '',
+            `Your Brown Cows verification code is ${otp}.`,
+            'This code expires in 10 minutes.',
+            '',
+            'If you did not request this, you can ignore this email.',
+            '',
+            'Brown Cows Organic Dairy'
+        ].join('\n'),
+        html: `
+            <div style="font-family:Arial,sans-serif;line-height:1.5;color:#211b14">
+                <h2>Brown Cows Organic Dairy</h2>
+                <p>Your verification code is:</p>
+                <p style="font-size:32px;font-weight:700;letter-spacing:6px;color:#7a5527">${otp}</p>
+                <p>This code expires in 10 minutes.</p>
+                <p>If you did not request this, you can ignore this email.</p>
+            </div>
+        `
+    });
+};
+
+const createAndSendEmailOtp = async (email) => {
+    const normalizedEmail = normalizeEmail(email);
+    const otp = generateOtp();
+
+    await OtpVerification.deleteMany({ email: normalizedEmail });
+    await OtpVerification.create({
+        email: normalizedEmail,
+        otpHash: hashOtp(normalizedEmail, otp),
+        attempts: 0,
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000)
+    });
+
+    await sendOtpEmail(normalizedEmail, otp);
 };
 
 // @route   GET /api/auth/health
@@ -99,7 +138,7 @@ router.get('/health', (req, res) => {
         timestamp: new Date().toISOString(),
         emailConfigured: !!getEmailProvider(),
         emailProvider: getEmailProvider(),
-        emailFromConfigured: !!getEnv('EMAIL_FROM', 'SMTP_FROM', 'EMAIL_USER', 'EMAIL_ID', 'Email_id', 'email_id', 'SMTP_USER'),
+        emailFromConfigured: !!getEnv('EMAIL_FROM', 'EMAIL_USER', 'EMAIL_ID', 'Email_id', 'email_id'),
         env: process.env.NODE_ENV
     });
 });
@@ -118,7 +157,7 @@ router.get('/test-email', async (req, res) => {
 
         const transporter = createEmailTransporter();
 
-        const fromAddress = getEnv('EMAIL_FROM', 'SMTP_FROM', 'EMAIL_USER', 'SMTP_USER');
+        const fromAddress = getEnv('EMAIL_FROM', 'EMAIL_USER', 'EMAIL_ID', 'Email_id', 'email_id');
         
         // Try to verify connection
         await transporter.verify();
@@ -127,7 +166,7 @@ router.get('/test-email', async (req, res) => {
             success: true, 
             message: 'Email transporter is connected and verified!',
             from: fromAddress,
-            transporterType: transporter.options.service || 'SMTP'
+            transporterType: transporter.options.service || 'gmail-smtp'
         });
     } catch (error) {
         console.error('Email Test Failed:', error);
@@ -227,6 +266,15 @@ router.post('/register', async (req, res) => {
             ]
         });
         if (userExists) {
+            if (userExists.email === normalizedEmail && userExists.isEmailVerified === false) {
+                await createAndSendEmailOtp(normalizedEmail);
+                return res.status(200).json({
+                    requiresOtp: true,
+                    email: normalizedEmail,
+                    message: 'This account is not verified yet. We sent a new OTP to your email.'
+                });
+            }
+
             return res.status(400).json({ message: 'An account already exists with this email or mobile number.' });
         }
 
@@ -235,13 +283,98 @@ router.post('/register', async (req, res) => {
             email: normalizedEmail,
             phone: normalizedPhone,
             password,
-            isEmailVerified: true
+            isEmailVerified: false
         });
 
-        const token = createToken(user);
-        res.status(201).json(authPayload(user, token));
+        try {
+            await createAndSendEmailOtp(normalizedEmail);
+        } catch (emailError) {
+            await User.deleteOne({ _id: user._id });
+            throw emailError;
+        }
+
+        res.status(201).json({
+            requiresOtp: true,
+            email: normalizedEmail,
+            message: 'Account created. Enter the OTP sent to your email.'
+        });
     } catch (error) {
+        console.error('Register Error:', error);
         res.status(500).json({ message: error.message });
+    }
+});
+
+// @route   POST /api/auth/verify-email-otp
+// @desc    Verify registration email OTP and log user in
+router.post('/verify-email-otp', async (req, res) => {
+    try {
+        const normalizedEmail = normalizeEmail(req.body.email);
+        const otp = String(req.body.otp || '').trim();
+
+        if (!normalizedEmail || !/^\d{6}$/.test(otp)) {
+            return res.status(400).json({ message: 'Enter the 6-digit OTP sent to your email.' });
+        }
+
+        const user = await User.findOne({ email: normalizedEmail });
+        if (!user) {
+            return res.status(404).json({ message: 'No account found for this email.' });
+        }
+
+        if (user.isEmailVerified) {
+            const token = createToken(user);
+            return res.json(authPayload(user, token));
+        }
+
+        const otpRecord = await OtpVerification.findOne({ email: normalizedEmail }).sort({ createdAt: -1 });
+        if (!otpRecord || otpRecord.expiresAt < new Date()) {
+            await OtpVerification.deleteMany({ email: normalizedEmail });
+            return res.status(400).json({ message: 'OTP expired. Please request a new OTP.' });
+        }
+
+        if (otpRecord.attempts >= 3) {
+            await OtpVerification.deleteMany({ email: normalizedEmail });
+            return res.status(429).json({ message: 'Maximum attempts exceeded. Please request a new OTP.' });
+        }
+
+        if (otpRecord.otpHash !== hashOtp(normalizedEmail, otp)) {
+            otpRecord.attempts += 1;
+            await otpRecord.save();
+            const remaining = Math.max(0, 3 - otpRecord.attempts);
+            return res.status(400).json({ message: `Invalid OTP. ${remaining} attempts remaining.` });
+        }
+
+        user.isEmailVerified = true;
+        await user.save();
+        await OtpVerification.deleteMany({ email: normalizedEmail });
+
+        const token = createToken(user);
+        res.json(authPayload(user, token));
+    } catch (error) {
+        console.error('Verify OTP Error:', error);
+        res.status(500).json({ message: error.message || 'Failed to verify OTP.' });
+    }
+});
+
+// @route   POST /api/auth/resend-email-otp
+// @desc    Resend registration email OTP
+router.post('/resend-email-otp', async (req, res) => {
+    try {
+        const normalizedEmail = normalizeEmail(req.body.email);
+
+        const user = await User.findOne({ email: normalizedEmail });
+        if (!user) {
+            return res.status(404).json({ message: 'No account found for this email.' });
+        }
+
+        if (user.isEmailVerified) {
+            return res.json({ message: 'Email is already verified.' });
+        }
+
+        await createAndSendEmailOtp(normalizedEmail);
+        res.json({ message: 'A new OTP has been sent to your email.' });
+    } catch (error) {
+        console.error('Resend OTP Error:', error);
+        res.status(500).json({ message: error.message || 'Failed to resend OTP.' });
     }
 });
 
@@ -263,7 +396,12 @@ router.post('/login', async (req, res) => {
         }
 
         if (user.isEmailVerified === false) {
-            return res.status(403).json({ message: 'Please verify your email before logging in.' });
+            await createAndSendEmailOtp(normalizedEmail);
+            return res.status(403).json({
+                requiresOtp: true,
+                email: normalizedEmail,
+                message: 'Please verify your email. We sent a new OTP.'
+            });
         }
 
         const token = createToken(user);

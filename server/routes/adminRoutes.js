@@ -9,30 +9,9 @@ const { verifyAdmin, verifyToken } = require('../middleware/authMiddleware');
 const upload = require('../middleware/uploadMiddleware');
 
 const createEmailTransporter = () => {
-    if (process.env.SENDGRID_API_KEY) {
-        return nodemailer.createTransport({
-            service: 'SendGrid',
-            auth: {
-                user: 'apikey',
-                pass: process.env.SENDGRID_API_KEY
-            }
-        });
-    }
-
-    if (process.env.SMTP_HOST) {
-        return nodemailer.createTransport({
-            host: process.env.SMTP_HOST,
-            port: Number(process.env.SMTP_PORT || 587),
-            secure: process.env.SMTP_SECURE === 'true',
-            auth: process.env.SMTP_USER && process.env.SMTP_PASS ? {
-                user: process.env.SMTP_USER,
-                pass: process.env.SMTP_PASS
-            } : undefined
-        });
-    }
-
     if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
         return nodemailer.createTransport({
+            service: 'gmail',
             host: 'smtp.gmail.com',
             port: 465,
             secure: true,
@@ -48,7 +27,7 @@ const createEmailTransporter = () => {
 
 const sendBookingStatusEmail = async (booking, status, rejectionReason = '') => {
     const to = booking.guestDetails?.email || booking.user?.email;
-    const from = process.env.EMAIL_FROM || process.env.SMTP_FROM || process.env.EMAIL_USER;
+    const from = process.env.EMAIL_FROM || process.env.EMAIL_USER;
     const transporter = createEmailTransporter();
 
     if (!to || !from || !transporter) {

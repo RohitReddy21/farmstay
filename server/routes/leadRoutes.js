@@ -12,26 +12,18 @@ const sendLeadEmail = async (lead) => {
         return;
     }
 
-    let transporter;
-    if (process.env.SENDGRID_API_KEY) {
-        transporter = nodemailer.createTransport({
-            service: 'SendGrid',
+    const transporter = process.env.EMAIL_USER && process.env.EMAIL_PASS
+        ? nodemailer.createTransport({
+            service: 'gmail',
+            host: 'smtp.gmail.com',
+            port: 465,
+            secure: true,
             auth: {
-                user: 'apikey',
-                pass: process.env.SENDGRID_API_KEY
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS
             }
-        });
-    } else if (process.env.SMTP_HOST) {
-        transporter = nodemailer.createTransport({
-            host: process.env.SMTP_HOST,
-            port: Number(process.env.SMTP_PORT || 587),
-            secure: process.env.SMTP_SECURE === 'true',
-            auth: process.env.SMTP_USER && process.env.SMTP_PASS ? {
-                user: process.env.SMTP_USER,
-                pass: process.env.SMTP_PASS
-            } : undefined
-        });
-    }
+        })
+        : null;
 
     if (!transporter) {
         console.log('No email transport configured for lead:', lead.email);

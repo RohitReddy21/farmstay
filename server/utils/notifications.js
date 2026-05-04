@@ -2,14 +2,15 @@ const nodemailer = require('nodemailer');
 const twilio = require('twilio');
 
 const sendBookingNotification = async (booking) => {
-    // Email Setup (using Nodemailer with SendGrid or Gmail)
-    // For now, we'll log it if keys are missing
-    if (process.env.SENDGRID_API_KEY) {
+    if (process.env.EMAIL_USER && process.env.EMAIL_PASS && process.env.EMAIL_FROM && process.env.OWNER_EMAIL) {
         const transporter = nodemailer.createTransport({
-            service: 'SendGrid',
+            service: 'gmail',
+            host: 'smtp.gmail.com',
+            port: 465,
+            secure: true,
             auth: {
-                user: 'apikey',
-                pass: process.env.SENDGRID_API_KEY
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS
             }
         });
 
