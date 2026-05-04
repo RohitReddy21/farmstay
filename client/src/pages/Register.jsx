@@ -9,15 +9,10 @@ const Register = () => {
     const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
     const [password, setPassword] = useState('');
-    const [otp, setOtp] = useState('');
-    const [pendingEmail, setPendingEmail] = useState('');
-    const [isOtpStep, setIsOtpStep] = useState(false);
     const [error, setError] = useState('');
     const [message, setMessage] = useState('');
     const [isRegistering, setIsRegistering] = useState(false);
-    const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
-    const [isResendingOtp, setIsResendingOtp] = useState(false);
-    const { register, verifyEmailOtp, resendEmailOtp, googleLogin } = useAuth();
+    const { register, googleLogin } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
     const { showToast } = useToast();
@@ -54,55 +49,12 @@ const Register = () => {
 
         setIsRegistering(true);
         try {
-            const data = await register(name, email, phone, password);
-            if (data?.requiresOtp) {
-                setPendingEmail(data.email || email);
-                setIsOtpStep(true);
-                setMessage(data.message || 'Enter the OTP sent to your email.');
-                return;
-            }
+            await register(name, email, phone, password);
             navigate(redirectTo, { replace: true, state: redirectState });
         } catch (err) {
             showFormError(err.response?.data?.message || 'Registration failed');
         } finally {
             setIsRegistering(false);
-        }
-    };
-
-    const handleVerifyOtp = async (e) => {
-        e.preventDefault();
-        setError('');
-        setMessage('');
-
-        if (!/^\d{6}$/.test(otp)) {
-            showFormError('Enter the 6-digit OTP sent to your email.');
-            return;
-        }
-
-        setIsVerifyingOtp(true);
-        try {
-            await verifyEmailOtp(pendingEmail, otp);
-            navigate(redirectTo, { replace: true, state: redirectState });
-        } catch (err) {
-            showFormError(err.response?.data?.message || 'OTP verification failed');
-        } finally {
-            setIsVerifyingOtp(false);
-        }
-    };
-
-    const handleResendOtp = async () => {
-        setError('');
-        setMessage('');
-        setIsResendingOtp(true);
-
-        try {
-            const data = await resendEmailOtp(pendingEmail);
-            setMessage(data.message || 'A new OTP has been sent to your email.');
-            setOtp('');
-        } catch (err) {
-            showFormError(err.response?.data?.message || 'Failed to resend OTP');
-        } finally {
-            setIsResendingOtp(false);
         }
     };
 
@@ -112,62 +64,11 @@ const Register = () => {
                 <div className="mb-8 text-center">
                     <p className="mb-2 text-xs font-bold uppercase tracking-[0.28em] text-[#8a642d]">Brown Cows Dairy</p>
                     <h2 className="text-3xl font-bold text-[#211b14] sm:text-4xl">Create Account</h2>
-                    <p className="mt-2 text-sm text-[#645747]">Sign up with your details, then verify your email with an OTP.</p>
+                    <p className="mt-2 text-sm text-[#645747]">Sign up with your details to continue your farm stay booking.</p>
                 </div>
 
                 {error && <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
                 {message && <div className="mb-4 rounded-xl border border-[#cfe4c8] bg-[#f1f8ec] p-3 text-sm text-[#3f6b3f]">{message}</div>}
-
-                {isOtpStep ? (
-                    <form onSubmit={handleVerifyOtp} className="space-y-5">
-                        <div className="rounded-2xl border border-[#ead7b8] bg-[#f8efdf] p-4 text-sm text-[#645747]">
-                            We sent a 6-digit OTP to <span className="font-bold text-[#211b14]">{pendingEmail}</span>.
-                        </div>
-                        <div>
-                            <label className="mb-1 block text-sm font-semibold text-[#3a2b1e]">Email OTP</label>
-                            <input
-                                type="text"
-                                inputMode="numeric"
-                                pattern="[0-9]{6}"
-                                maxLength="6"
-                                className="w-full rounded-xl border border-[#e3cfac] bg-white p-3 text-center text-2xl font-bold tracking-[0.4em] text-[#211b14] outline-none transition focus:border-[#7a5527] focus:ring-2 focus:ring-[#d6a23d]/30"
-                                value={otp}
-                                onChange={(e) => {
-                                    setError('');
-                                    setOtp(e.target.value.replace(/\D/g, '').slice(0, 6));
-                                }}
-                                required
-                            />
-                        </div>
-                        <button
-                            type="submit"
-                            disabled={isVerifyingOtp}
-                            className="w-full rounded-xl bg-primary py-3 font-bold text-white shadow-lg transition hover:bg-primary-800 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                            {isVerifyingOtp ? 'Verifying...' : 'Verify Email'}
-                        </button>
-                        <button
-                            type="button"
-                            onClick={handleResendOtp}
-                            disabled={isResendingOtp}
-                            className="w-full rounded-xl border border-[#7a5527] py-3 font-bold text-[#7a5527] transition hover:bg-[#7a5527] hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                            {isResendingOtp ? 'Sending...' : 'Resend OTP'}
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setIsOtpStep(false);
-                                setOtp('');
-                                setMessage('');
-                            }}
-                            className="w-full py-2 text-sm font-semibold text-[#645747] hover:text-[#211b14]"
-                        >
-                            Edit signup details
-                        </button>
-                    </form>
-                ) : (
-                    <>
 
                 <div className="mb-6">
                     <div className="flex justify-center">
@@ -270,15 +171,13 @@ const Register = () => {
                         disabled={isRegistering}
                         className="w-full rounded-xl bg-primary py-3 font-bold text-white shadow-lg transition hover:bg-primary-800 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                        {isRegistering ? 'Sending OTP...' : 'Send OTP'}
+                        {isRegistering ? 'Signing up...' : 'Sign Up'}
                     </button>
                 </form>
 
                 <p className="mt-6 text-center text-[#645747]">
                     Already have an account? <Link to="/login" state={location.state} className="font-bold text-primary hover:underline">Login</Link>
                 </p>
-                    </>
-                )}
             </div>
         </div>
     );

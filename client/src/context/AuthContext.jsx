@@ -60,18 +60,6 @@ export const AuthProvider = ({ children }) => {
         return data;
     };
 
-    const verifyEmailOtp = async (email, otp) => {
-        const { data } = await axios.post(`${API_URL}/api/auth/verify-email-otp`, { email, otp });
-        localStorage.setItem('token', data.token);
-        setUser(data);
-        return data;
-    };
-
-    const resendEmailOtp = async (email) => {
-        const { data } = await axios.post(`${API_URL}/api/auth/resend-email-otp`, { email });
-        return data;
-    };
-
     const googleLogin = async (credential) => {
         const { data } = await axios.post(`${API_URL}/api/auth/google`, { token: credential });
         localStorage.setItem('token', data.token);
@@ -84,7 +72,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ user, login, register, verifyEmailOtp, resendEmailOtp, googleLogin, logout, loading }}>
+        <AuthContext.Provider value={{ user, login, register, googleLogin, logout, loading }}>
             {!loading && children}
         </AuthContext.Provider>
     );

@@ -7,7 +7,6 @@ const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const { verifyToken } = require('../middleware/authMiddleware');
 const { OAuth2Client } = require('google-auth-library');
-const OtpVerification = require('../models/OtpVerification');
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -72,72 +71,6 @@ const createEmailTransporter = () => {
     }
 
     return null;
-};
-
-const hashOtp = (email, otp) => crypto
-    .createHash('sha256')
-    .update(`${normalizeEmail(email)}:${otp}:${process.env.JWT_SECRET}`)
-    .digest('hex');
-
-const generateOtp = () => crypto.randomInt(100000, 999999).toString();
-
-const sendOtpEmail = async (email, otp) => {
-    const transporter = createEmailTransporter();
-    const emailUser = getEnv('EMAIL_USER', 'EMAIL_ID', 'Email_id', 'email_id');
-    const replyToAddress = getEnv('EMAIL_FROM');
-
-    if (!transporter || !emailUser) {
-        throw new Error('Email is not configured. Check EMAIL_USER, EMAIL_PASS, and EMAIL_FROM.');
-    }
-
-    await transporter.sendMail({
-        from: {
-            name: 'Brown Cows Organic Dairy',
-            address: emailUser
-        },
-        replyTo: replyToAddress || emailUser,
-        to: email,
-        subject: 'Your Brown Cows verification code',
-        text: [
-            'Hi,',
-            '',
-            `Your Brown Cows verification code is ${otp}.`,
-            'This code expires in 10 minutes.',
-            '',
-            'If you did not request this, you can ignore this email.',
-            '',
-            'Brown Cows Organic Dairy'
-        ].join('\n'),
-        html: `
-            <div style="font-family:Arial,sans-serif;line-height:1.5;color:#211b14">
-                <h2>Brown Cows Organic Dairy</h2>
-                <p>Your verification code is:</p>
-                <p style="font-size:32px;font-weight:700;letter-spacing:6px;color:#7a5527">${otp}</p>
-                <p>This code expires in 10 minutes.</p>
-                <p>If you did not request this, you can ignore this email.</p>
-            </div>
-        `
-    });
-};
-
-const createAndSendEmailOtp = async (email) => {
-    const normalizedEmail = normalizeEmail(email);
-    const otp = generateOtp();
-
-    await OtpVerification.deleteMany({ email: normalizedEmail });
-    const otpRecord = await OtpVerification.create({
-        email: normalizedEmail,
-        otpHash: hashOtp(normalizedEmail, otp),
-        attempts: 0,
-        expiresAt: new Date(Date.now() + 10 * 60 * 1000)
-    });
-
-    try {
-        await sendOtpEmail(normalizedEmail, otp);
-    } catch (error) {
-        await OtpVerification.deleteOne({ _id: otpRecord._id });
-        throw error;
-    }
 };
 
 // @route   GET /api/auth/health
@@ -276,15 +209,6 @@ router.post('/register', async (req, res) => {
             ]
         });
         if (userExists) {
-            if (userExists.email === normalizedEmail && userExists.isEmailVerified === false) {
-                await createAndSendEmailOtp(normalizedEmail);
-                return res.status(200).json({
-                    requiresOtp: true,
-                    email: normalizedEmail,
-                    message: 'This account is not verified yet. We sent a new OTP to your email.'
-                });
-            }
-
             return res.status(400).json({ message: 'An account already exists with this email or mobile number.' });
         }
 
@@ -293,98 +217,14 @@ router.post('/register', async (req, res) => {
             email: normalizedEmail,
             phone: normalizedPhone,
             password,
-            isEmailVerified: false
+            isEmailVerified: true
         });
 
-        try {
-            await createAndSendEmailOtp(normalizedEmail);
-        } catch (emailError) {
-            await User.deleteOne({ _id: user._id });
-            throw emailError;
-        }
-
-        res.status(201).json({
-            requiresOtp: true,
-            email: normalizedEmail,
-            message: 'Account created. Enter the OTP sent to your email.'
-        });
+        const token = createToken(user);
+        res.status(201).json(authPayload(user, token));
     } catch (error) {
         console.error('Register Error:', error);
         res.status(500).json({ message: error.message });
-    }
-});
-
-// @route   POST /api/auth/verify-email-otp
-// @desc    Verify registration email OTP and log user in
-router.post('/verify-email-otp', async (req, res) => {
-    try {
-        const normalizedEmail = normalizeEmail(req.body.email);
-        const otp = String(req.body.otp || '').trim();
-
-        if (!normalizedEmail || !/^\d{6}$/.test(otp)) {
-            return res.status(400).json({ message: 'Enter the 6-digit OTP sent to your email.' });
-        }
-
-        const user = await User.findOne({ email: normalizedEmail });
-        if (!user) {
-            return res.status(404).json({ message: 'No account found for this email.' });
-        }
-
-        if (user.isEmailVerified) {
-            const token = createToken(user);
-            return res.json(authPayload(user, token));
-        }
-
-        const otpRecord = await OtpVerification.findOne({ email: normalizedEmail }).sort({ createdAt: -1 });
-        if (!otpRecord || otpRecord.expiresAt < new Date()) {
-            await OtpVerification.deleteMany({ email: normalizedEmail });
-            return res.status(400).json({ message: 'OTP expired. Please request a new OTP.' });
-        }
-
-        if (otpRecord.attempts >= 3) {
-            await OtpVerification.deleteMany({ email: normalizedEmail });
-            return res.status(429).json({ message: 'Maximum attempts exceeded. Please request a new OTP.' });
-        }
-
-        if (otpRecord.otpHash !== hashOtp(normalizedEmail, otp)) {
-            otpRecord.attempts += 1;
-            await otpRecord.save();
-            const remaining = Math.max(0, 3 - otpRecord.attempts);
-            return res.status(400).json({ message: `Invalid OTP. ${remaining} attempts remaining.` });
-        }
-
-        user.isEmailVerified = true;
-        await user.save();
-        await OtpVerification.deleteMany({ email: normalizedEmail });
-
-        const token = createToken(user);
-        res.json(authPayload(user, token));
-    } catch (error) {
-        console.error('Verify OTP Error:', error);
-        res.status(500).json({ message: error.message || 'Failed to verify OTP.' });
-    }
-});
-
-// @route   POST /api/auth/resend-email-otp
-// @desc    Resend registration email OTP
-router.post('/resend-email-otp', async (req, res) => {
-    try {
-        const normalizedEmail = normalizeEmail(req.body.email);
-
-        const user = await User.findOne({ email: normalizedEmail });
-        if (!user) {
-            return res.status(404).json({ message: 'No account found for this email.' });
-        }
-
-        if (user.isEmailVerified) {
-            return res.json({ message: 'Email is already verified.' });
-        }
-
-        await createAndSendEmailOtp(normalizedEmail);
-        res.json({ message: 'A new OTP has been sent to your email.' });
-    } catch (error) {
-        console.error('Resend OTP Error:', error);
-        res.status(500).json({ message: error.message || 'Failed to resend OTP.' });
     }
 });
 
@@ -403,15 +243,6 @@ router.post('/login', async (req, res) => {
         const isMatch = await user.comparePassword(password);
         if (!isMatch) {
             return res.status(401).json({ message: 'Invalid email or password' });
-        }
-
-        if (user.isEmailVerified === false) {
-            await createAndSendEmailOtp(normalizedEmail);
-            return res.status(403).json({
-                requiresOtp: true,
-                email: normalizedEmail,
-                message: 'Please verify your email. We sent a new OTP.'
-            });
         }
 
         const token = createToken(user);
