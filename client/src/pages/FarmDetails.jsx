@@ -93,7 +93,7 @@ const FarmDetails = () => {
         type: 'Whole Mud Cottage',
         label: 'Whole Mud Cottage - All 4 Cottages',
         price: 19996,
-        capacity: 8,
+        capacity: 10,
         amenities: ["Whole Mud Cottage Booking", "Shared Accommodation", "Couple Accommodation", "Traditional Mud Cottage", "Earthy Living", "Farm Experience", "Wifi", "AC", "Firepit", "Breakfast Included", "Free Parking", "Bonfire Nights", "Farm Activities"],
         availableCottages: ["Traditional Mud Cottage - 1", "Traditional Mud Cottage - 2", "Traditional Mud Cottage - 3", "Traditional Mud Cottage - 4"]
     };
@@ -106,6 +106,7 @@ const FarmDetails = () => {
     const hasVariations = farmVariations.length > 0;
     const nightlyPrice = selectedVariation?.price || farm?.price || 0;
     const guestLimit = selectedVariation?.capacity || farm?.capacity || 1;
+    const isWholeMudCottageSelected = selectedVariation?.type === wholeMudCottageVariation.type;
 
     const selectVariation = (variation) => {
         if (!variation) return;
@@ -113,7 +114,9 @@ const FarmDetails = () => {
         setSelectedCottage(variation.availableCottages?.[0] || null);
         setBookingData((current) => ({
             ...current,
-            guests: Math.min(Number(current.guests) || 1, variation.capacity || farm?.capacity || 1)
+            guests: variation.type === wholeMudCottageVariation.type
+                ? variation.capacity
+                : Math.min(Number(current.guests) || 1, variation.capacity || farm?.capacity || 1)
         }));
         setIsVariationSelectorOpen(false);
     };
@@ -526,14 +529,14 @@ const FarmDetails = () => {
             return;
         }
 
-        const guestError = validateGuestCount(bookingData.guests);
+        const guestError = isWholeMudCottageSelected ? '' : validateGuestCount(bookingData.guests);
         if (guestError) {
             setGuestCountError(guestError);
             showBookingValidationError(guestError);
             return;
         }
 
-        const guestCount = Number(bookingData.guests);
+        const guestCount = isWholeMudCottageSelected ? guestLimit : Number(bookingData.guests);
 
         try {
             const startDate = dateSelection[0].startDate;
@@ -1106,39 +1109,53 @@ const FarmDetails = () => {
                                     maxLength="10"
                                 />
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Number of Guests</label>
-                                <input
-                                    type="text"
-                                    inputMode="numeric"
-                                    required
-                                    value={bookingData.guests}
-                                    placeholder="Enter number of guests"
-                                    aria-invalid={Boolean(guestCountError)}
-                                    className={`w-full p-2.5 md:p-3 border-2 rounded-lg outline-none transition-all text-base ${
-                                        guestCountError
-                                            ? 'border-red-400 bg-red-50 text-red-900 focus:ring-2 focus:ring-red-300 focus:border-red-500'
-                                            : 'border-gray-200 focus:ring-2 focus:ring-primary focus:border-primary'
-                                    }`}
-                                    onChange={(e) => {
-                                        const value = e.target.value.replace(/\D/g, '');
-                                        const error = validateGuestCount(value);
-                                        setGuestCountError(error);
-                                        setBookingError(error);
-                                        setBookingData({ ...bookingData, guests: value });
-                                    }}
-                                    onBlur={() => {
-                                        if (!bookingData.guests) {
-                                            setBookingData({ ...bookingData, guests: 1 });
-                                            setGuestCountError('');
-                                            setBookingError('');
-                                        }
-                                    }}
-                                />
-                                <p className={`mt-1 text-xs ${guestCountError ? 'font-semibold text-red-600' : 'text-gray-500'}`}>
-                                    {guestCountError || `Maximum ${guestLimit} guests`}
-                                </p>
-                            </div>
+                            {isWholeMudCottageSelected ? (
+                                <div className="rounded-xl border border-[#ead7b8] bg-[#fff8ed] p-3">
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                                            <Users size={20} />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-bold text-gray-900">Whole Mud Cottages</p>
+                                            <p className="text-sm text-gray-600">Max {guestLimit} guests</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Number of Guests</label>
+                                    <input
+                                        type="text"
+                                        inputMode="numeric"
+                                        required
+                                        value={bookingData.guests}
+                                        placeholder="Enter number of guests"
+                                        aria-invalid={Boolean(guestCountError)}
+                                        className={`w-full p-2.5 md:p-3 border-2 rounded-lg outline-none transition-all text-base ${
+                                            guestCountError
+                                                ? 'border-red-400 bg-red-50 text-red-900 focus:ring-2 focus:ring-red-300 focus:border-red-500'
+                                                : 'border-gray-200 focus:ring-2 focus:ring-primary focus:border-primary'
+                                        }`}
+                                        onChange={(e) => {
+                                            const value = e.target.value.replace(/\D/g, '');
+                                            const error = validateGuestCount(value);
+                                            setGuestCountError(error);
+                                            setBookingError(error);
+                                            setBookingData({ ...bookingData, guests: value });
+                                        }}
+                                        onBlur={() => {
+                                            if (!bookingData.guests) {
+                                                setBookingData({ ...bookingData, guests: 1 });
+                                                setGuestCountError('');
+                                                setBookingError('');
+                                            }
+                                        }}
+                                    />
+                                    <p className={`mt-1 text-xs ${guestCountError ? 'font-semibold text-red-600' : 'text-gray-500'}`}>
+                                        {guestCountError || `Maximum ${guestLimit} guests`}
+                                    </p>
+                                </div>
+                            )}
 
                             <button
                                 type="submit"

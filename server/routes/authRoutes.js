@@ -4,7 +4,6 @@ const mongoose = require('mongoose');
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const nodemailer = require('nodemailer');
 const { verifyToken } = require('../middleware/authMiddleware');
 const { OAuth2Client } = require('google-auth-library');
 
@@ -38,88 +37,17 @@ const authPayload = (user, token) => ({
     token
 });
 
-let cachedTransporter = null;
-
-const getEmailProvider = () => {
-    if (getEnv('EMAIL_USER', 'EMAIL_ID', 'Email_id', 'email_id') && getEnv('EMAIL_PASS', 'EMAIL_PASSWORD', 'Email_pass', 'email_pass')) return 'gmail-smtp';
-    return null;
-};
-
-const createEmailTransporter = () => {
-    if (cachedTransporter) {
-        return cachedTransporter;
-    }
-
-    const emailUser = getEnv('EMAIL_USER', 'EMAIL_ID', 'Email_id', 'email_id');
-    const emailPass = getEnv('EMAIL_PASS', 'EMAIL_PASSWORD', 'Email_pass', 'email_pass');
-
-    if (emailUser && emailPass) {
-        cachedTransporter = nodemailer.createTransport({
-            service: 'gmail',
-            host: 'smtp.gmail.com',
-            port: 465,
-            secure: true,
-            auth: {
-                user: emailUser,
-                pass: emailPass
-            },
-            tls: {
-                rejectUnauthorized: false
-            }
-        });
-        return cachedTransporter;
-    }
-
-    return null;
-};
-
 // @route   GET /api/auth/health
 // @desc    Verify auth routes are mounted
 router.get('/health', (req, res) => {
     res.json({
         message: 'Auth routes are working',
         timestamp: new Date().toISOString(),
-        emailConfigured: !!getEmailProvider(),
-        emailProvider: getEmailProvider(),
-        emailFromConfigured: !!getEnv('EMAIL_FROM', 'EMAIL_USER', 'EMAIL_ID', 'Email_id', 'email_id'),
+        emailConfigured: false,
+        emailProvider: null,
+        emailFromConfigured: false,
         env: process.env.NODE_ENV
     });
-});
-
-// @route   GET /api/auth/test-email
-// @desc    Test email configuration (Diagnostics)
-router.get('/test-email', async (req, res) => {
-    try {
-        const provider = getEmailProvider();
-        if (!provider) {
-            return res.status(503).json({ 
-                success: false, 
-                message: 'No email transporter configured. Check environment variables.' 
-            });
-        }
-
-        const transporter = createEmailTransporter();
-
-        const fromAddress = getEnv('EMAIL_USER', 'EMAIL_ID', 'Email_id', 'email_id');
-        
-        // Try to verify connection
-        await transporter.verify();
-        
-        res.json({ 
-            success: true, 
-            message: 'Email transporter is connected and verified!',
-            from: fromAddress,
-            transporterType: transporter.options.service || 'gmail-smtp'
-        });
-    } catch (error) {
-        console.error('Email Test Failed:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Email verification failed', 
-            error: error.message,
-            code: error.code
-        });
-    }
 });
 
 // @route   POST /api/auth/google
