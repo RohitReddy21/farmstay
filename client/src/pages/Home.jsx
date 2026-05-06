@@ -1,11 +1,7 @@
 import { motion } from 'framer-motion';
-import { Link, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
-import { ArrowRight, Star, MapPin, Users, Heart, Shield, Leaf, Award, Quote, CalendarDays, Search } from 'lucide-react';
-import { DateRange } from 'react-date-range';
+import { Link } from 'react-router-dom';
+import { ArrowRight, Star, MapPin, Users, Heart, Shield, Leaf, Award, Quote, CalendarDays } from 'lucide-react';
 import LazySection from '../components/LazySection';
-import 'react-date-range/dist/styles.css';
-import 'react-date-range/dist/theme/default.css';
 
 /* ─── Real Google Reviews ─── */
 const googleReviews = [
@@ -60,48 +56,20 @@ const googleReviews = [
 ];
 
 const Home = () => {
-    const navigate = useNavigate();
-    const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-    const [dateSelection, setDateSelection] = useState([
-        {
-            startDate: new Date(),
-            endDate: new Date(),
-            key: 'selection'
-        }
-    ]);
-    const [search, setSearch] = useState({
-        guests: '2'
-    });
-
-    const handleHeroSearch = (event) => {
-        event.preventDefault();
-        const params = new URLSearchParams();
-        params.set('checkIn', dateSelection[0].startDate.toLocaleDateString('en-CA'));
-        params.set('checkOut', dateSelection[0].endDate.toLocaleDateString('en-CA'));
-        if (search.guests) params.set('guests', search.guests);
-        navigate(`/farms${params.toString() ? `?${params.toString()}` : ''}`);
-    };
-
-    const handleDateChange = (item) => {
-        setDateSelection([item.selection]);
-    };
-
-    const formatDatePart = (date, option) => date.toLocaleDateString('en-US', option);
-
     return (
         <div className="space-y-12 md:space-y-16 lg:space-y-20 pb-12 md:pb-20 lg:pb-20">
 
             {/* ── Hero Section ── */}
-            <section className="relative mx-0 mt-2 min-h-[690px] overflow-hidden rounded-2xl shadow-2xl sm:mx-2 md:min-h-[620px] md:rounded-3xl lg:min-h-[600px] group">
+            <section className="relative mx-0 mt-2 min-h-[690px] overflow-visible rounded-2xl shadow-2xl sm:mx-2 md:min-h-[620px] md:rounded-3xl lg:min-h-[600px] group">
                 <motion.img
                     initial={{ scale: 1.1 }}
                     animate={{ scale: 1 }}
                     transition={{ duration: 10, repeat: Infinity, repeatType: "reverse" }}
                     src="/images/home-hero.JPG"
                     alt="Brown Cows Organic Dairy farm stay courtyard"
-                    className="absolute inset-0 w-full h-full object-cover"
+                    className="absolute inset-0 h-full w-full rounded-2xl object-cover md:rounded-3xl"
                 />
-                <div className="absolute inset-0 bg-gradient-to-r from-[#132018]/85 via-[#2f3b25]/55 to-[#132018]/10 flex items-center">
+                <div className="absolute inset-0 flex items-center rounded-2xl bg-gradient-to-r from-[#132018]/85 via-[#2f3b25]/55 to-[#132018]/10 md:rounded-3xl">
                     <div className="container mx-auto px-4 sm:px-6">
                         <motion.div
                             initial={{ opacity: 0, x: -50 }}
@@ -131,80 +99,6 @@ const Home = () => {
                                     Farm Retreat <ArrowRight className="ml-2" size={20} />
                                 </Link>
                             </div>
-
-                            <form
-                                onSubmit={handleHeroSearch}
-                                className="relative mt-6 w-full rounded-2xl border border-[#ead7b8] bg-[#fffaf1]/95 p-2 shadow-lg backdrop-blur md:mt-7 md:max-w-2xl lg:max-w-3xl"
-                            >
-                                <div className="grid gap-2 md:grid-cols-[minmax(260px,1.15fr)_minmax(140px,0.6fr)] lg:grid-cols-[minmax(290px,1fr)_minmax(140px,0.5fr)_auto]">
-                                    <button
-                                        type="button"
-                                        onClick={() => setIsCalendarOpen((current) => !current)}
-                                        className="grid min-h-[50px] grid-cols-2 overflow-hidden rounded-xl border border-[#ead7b8] bg-white text-left text-[#211b14] transition hover:border-[#8b5e34] focus:outline-none focus:ring-2 focus:ring-[#d6a23d]"
-                                    >
-                                        <span className="flex items-center justify-between gap-2 border-r border-[#ead7b8] px-3">
-                                            <span className="text-[9px] font-black uppercase tracking-[0.1em] text-[#8b5e34]">Check-in</span>
-                                            <span className="whitespace-nowrap text-base font-black leading-none">
-                                                {formatDatePart(dateSelection[0].startDate, { month: 'short' })} {formatDatePart(dateSelection[0].startDate, { day: 'numeric' })}
-                                            </span>
-                                        </span>
-                                        <span className="flex items-center justify-between gap-2 px-3">
-                                            <span className="text-[9px] font-black uppercase tracking-[0.1em] text-[#8b5e34]">Check-out</span>
-                                            <span className="whitespace-nowrap text-base font-black leading-none">
-                                                {formatDatePart(dateSelection[0].endDate, { month: 'short' })} {formatDatePart(dateSelection[0].endDate, { day: 'numeric' })}
-                                            </span>
-                                        </span>
-                                    </button>
-
-                                    <label className="flex min-h-[50px] items-center gap-3 rounded-xl border border-[#ead7b8] bg-white px-3 text-[#211b14]">
-                                        <span className="text-[9px] font-black uppercase tracking-[0.14em] text-[#7a5527]">Guests</span>
-                                        <span className="flex min-w-0 flex-1 items-center gap-2">
-                                            <Users size={16} className="shrink-0 text-[#8b5e34]" />
-                                            <input
-                                                type="number"
-                                                min="1"
-                                                max="20"
-                                                value={search.guests}
-                                                onChange={(event) => setSearch((current) => ({ ...current, guests: event.target.value }))}
-                                                className="w-full min-w-0 bg-transparent text-base font-black text-[#211b14] outline-none"
-                                                aria-label="Number of guests"
-                                            />
-                                        </span>
-                                    </label>
-
-                                    <button
-                                        type="submit"
-                                        className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-xl bg-[#8b5e34] px-4 text-sm font-black text-white shadow-md transition hover:bg-[#704721] md:col-span-2 lg:col-span-1"
-                                    >
-                                        <Search size={18} />
-                                        Check Availability
-                                    </button>
-                                </div>
-
-                                {isCalendarOpen && (
-                                    <div className="absolute left-4 right-4 top-[calc(100%+12px)] z-30 max-w-[min(100%,420px)] overflow-hidden rounded-3xl border border-[#ead7b8] bg-white shadow-2xl md:left-5 md:right-auto md:max-w-none">
-                                        <DateRange
-                                            editableDateInputs={false}
-                                            onChange={handleDateChange}
-                                            moveRangeOnFirstSelection={false}
-                                            ranges={dateSelection}
-                                            minDate={new Date()}
-                                            months={1}
-                                            direction="vertical"
-                                            rangeColors={['#8b5e34']}
-                                        />
-                                        <div className="border-t border-[#ead7b8] bg-[#fffaf1] p-3">
-                                            <button
-                                                type="button"
-                                                onClick={() => setIsCalendarOpen(false)}
-                                                className="w-full rounded-xl bg-[#8b5e34] px-4 py-3 text-sm font-black text-white transition hover:bg-[#704721]"
-                                            >
-                                                Apply Dates
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-                            </form>
                         </motion.div>
                     </div>
                 </div>

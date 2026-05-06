@@ -1,6 +1,5 @@
 const express = require('express');
 const mongoose = require('mongoose');
-const nodemailer = require('nodemailer');
 const router = express.Router();
 const User = require('../models/User');
 const Booking = require('../models/Booking');
@@ -8,23 +7,7 @@ const Farm = require('../models/Farm');
 const BlockedDate = require('../models/BlockedDate');
 const { verifyAdmin, verifyToken } = require('../middleware/authMiddleware');
 const upload = require('../middleware/uploadMiddleware');
-
-const createEmailTransporter = () => {
-    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-        return nodemailer.createTransport({
-            service: 'gmail',
-            host: 'smtp.gmail.com',
-            port: 465,
-            secure: true,
-            auth: {
-                user: process.env.EMAIL_USER,
-                pass: process.env.EMAIL_PASS
-            }
-        });
-    }
-
-    return null;
-};
+const { sendResendEmail } = require('../utils/email');
 
 const getBookingUserId = (booking) => {
     if (!booking?.user) return null;
@@ -32,8 +15,6 @@ const getBookingUserId = (booking) => {
 };
 
 const sendBookingStatusEmail = async (booking, status, rejectionReason = '', context = {}) => {
-    const from = process.env.EMAIL_USER;
-    const transporter = createEmailTransporter();
     const userId = getBookingUserId(booking);
     let user = typeof booking.user === 'object' && booking.user?.email ? booking.user : null;
 
@@ -72,12 +53,12 @@ const sendBookingStatusEmail = async (booking, status, rejectionReason = '', con
         return;
     }
 
-    if (!from || !transporter) {
-        console.log('Booking status email skipped: SMTP not configured', {
+    if (!process.env.RESEND_API_KEY) {
+        console.log('Booking status email skipped: Resend not configured', {
             bookingId: booking._id,
             to: email,
             status,
-            emailConfigured: Boolean(process.env.EMAIL_USER && process.env.EMAIL_PASS)
+            emailConfigured: Boolean(process.env.RESEND_API_KEY)
         });
         return;
     }
@@ -86,8 +67,7 @@ const sendBookingStatusEmail = async (booking, status, rejectionReason = '', con
     const guestName = booking.guestDetails?.name || user?.name || booking.user?.name || 'Guest';
     const isRejected = status === 'Rejected';
 
-    await transporter.sendMail({
-        from,
+    await sendResendEmail({
         to: email,
         subject: isRejected
             ? `Your Brown Cows booking was not approved`

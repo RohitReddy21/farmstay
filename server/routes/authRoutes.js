@@ -43,9 +43,9 @@ router.get('/health', (req, res) => {
     res.json({
         message: 'Auth routes are working',
         timestamp: new Date().toISOString(),
-        emailConfigured: false,
-        emailProvider: null,
-        emailFromConfigured: false,
+        emailConfigured: Boolean(process.env.RESEND_API_KEY),
+        emailProvider: process.env.RESEND_API_KEY ? 'resend-api' : null,
+        emailFromConfigured: Boolean(process.env.RESEND_FROM),
         env: process.env.NODE_ENV
     });
 });

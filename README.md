@@ -64,8 +64,8 @@ A full-stack MERN application for booking farm stays with user authentication, p
    STRIPE_SECRET_KEY=sk_test_your_stripe_secret_key
    STRIPE_WEBHOOK_SECRET=whsec_your_stripe_webhook_secret
    CLIENT_URL=http://localhost:5173
-   SENDGRID_API_KEY=SG.your_sendgrid_key
-   EMAIL_FROM=noreply@farmstay.com
+   RESEND_API_KEY=your_resend_api_key
+   RESEND_FROM=Brown Cows Dairy <onboarding@resend.dev>
    OWNER_EMAIL=owner@farmstay.com
    TWILIO_ACCOUNT_SID=your_twilio_sid
    TWILIO_AUTH_TOKEN=your_twilio_auth_token

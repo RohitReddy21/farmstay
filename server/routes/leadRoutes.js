@@ -1,37 +1,18 @@
 const express = require('express');
-const nodemailer = require('nodemailer');
 const Lead = require('../models/Lead');
+const { sendResendEmail } = require('../utils/email');
 
 const router = express.Router();
 const getPhoneDigits = (phone = '') => String(phone).replace(/\D/g, '');
 
 const sendLeadEmail = async (lead) => {
-    const to = process.env.OWNER_EMAIL || process.env.EMAIL_USER;
-    if (!to || !process.env.EMAIL_USER) {
+    const to = process.env.OWNER_EMAIL || process.env.ADMIN_EMAIL;
+    if (!to) {
         console.log('Lead email notification skipped:', lead.email);
         return;
     }
 
-    const transporter = process.env.EMAIL_USER && process.env.EMAIL_PASS
-        ? nodemailer.createTransport({
-            service: 'gmail',
-            host: 'smtp.gmail.com',
-            port: 465,
-            secure: true,
-            auth: {
-                user: process.env.EMAIL_USER,
-                pass: process.env.EMAIL_PASS
-            }
-        })
-        : null;
-
-    if (!transporter) {
-        console.log('No email transport configured for lead:', lead.email);
-        return;
-    }
-
-    await transporter.sendMail({
-        from: process.env.EMAIL_USER,
+    await sendResendEmail({
         replyTo: lead.email,
         to,
         subject: `New retreat brochure lead - ${lead.name}`,

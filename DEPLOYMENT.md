@@ -22,7 +22,7 @@ Before starting, ensure you have:
 - [ ] Production credentials ready:
   - Strong JWT secret
   - Stripe API keys (if using payments)
-  - SendGrid API key (if using emails)
+  - Resend API key (if using emails)
   - Twilio credentials (if using SMS)
 
 ### Push to GitHub (if not done already)
@@ -159,8 +159,8 @@ Click **"Add Environment Variable"** for each:
 | `CLIENT_URL` | `https://farmstay.vercel.app` | Your Vercel URL (update after frontend deployment) |
 | `STRIPE_SECRET_KEY` | `sk_live_...` or `sk_test_...` | Your Stripe secret key |
 | `STRIPE_WEBHOOK_SECRET` | `whsec_...` | Configure after Stripe webhook setup |
-| `SENDGRID_API_KEY` | `SG.xxxxx` | Your SendGrid API key (optional) |
-| `EMAIL_FROM` | `noreply@farmstay.com` | Sender email address |
+| `RESEND_API_KEY` | `re_xxxxx` | Your Resend API key (for email) |
+| `RESEND_FROM` | `Brown Cows Dairy <onboarding@resend.dev>` | Optional sender override |
 | `OWNER_EMAIL` | `owner@farmstay.com` | Owner notification email |
 | `TWILIO_ACCOUNT_SID` | `ACxxxxx` | Your Twilio SID (optional) |
 | `TWILIO_AUTH_TOKEN` | `xxxxx` | Your Twilio auth token (optional) |
@@ -486,8 +486,8 @@ If you encounter issues:
 - [ ] CLIENT_URL
 - [ ] STRIPE_SECRET_KEY
 - [ ] STRIPE_WEBHOOK_SECRET
-- [ ] SENDGRID_API_KEY (optional)
-- [ ] EMAIL_FROM (optional)
+- [ ] RESEND_API_KEY (for email)
+- [ ] RESEND_FROM (optional)
 - [ ] OWNER_EMAIL (optional)
 - [ ] TWILIO credentials (optional)
 

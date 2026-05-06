@@ -1,32 +1,13 @@
-const nodemailer = require('nodemailer');
 const twilio = require('twilio');
+const { sendResendEmail } = require('./email');
 
 const sendBookingNotification = async (booking) => {
-    if (process.env.EMAIL_USER && process.env.EMAIL_PASS && process.env.OWNER_EMAIL) {
-        const transporter = nodemailer.createTransport({
-            service: 'gmail',
-            host: 'smtp.gmail.com',
-            port: 465,
-            secure: true,
-            auth: {
-                user: process.env.EMAIL_USER,
-                pass: process.env.EMAIL_PASS
-            }
-        });
-
-        const mailOptions = {
-            from: process.env.EMAIL_USER,
-            to: process.env.OWNER_EMAIL, // Notify owner
+    if (process.env.OWNER_EMAIL) {
+        await sendResendEmail({
+            to: process.env.OWNER_EMAIL,
             subject: 'New Farm Booking Confirmed!',
-            text: `New booking for farm ID: ${booking.farm} from ${booking.startDate} to ${booking.endDate}. Total: $${booking.totalPrice}`
-        };
-
-        try {
-            await transporter.sendMail(mailOptions);
-            console.log('Email sent');
-        } catch (error) {
-            console.error('Email error:', error);
-        }
+            text: `New booking for farm ID: ${booking.farm || booking.property} from ${booking.startDate} to ${booking.endDate}. Total: ${booking.totalPrice}`
+        });
     } else {
         console.log('Simulating Email Notification:', `Booking ${booking._id} confirmed.`);
     }

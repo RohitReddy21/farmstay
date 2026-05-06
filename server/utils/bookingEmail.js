@@ -1,68 +1,4 @@
-const nodemailer = require('nodemailer');
-
-const getTransporterConfigs = () => {
-    if (process.env.SMTP_PORT) {
-        return [{
-            label: `smtp-${process.env.SMTP_PORT}`,
-            transporter: createTransporter()
-        }];
-    }
-
-    return [
-        {
-            label: 'gmail-465',
-            transporter: createTransporter({ port: 465, secure: true })
-        },
-        {
-            label: 'gmail-587',
-            transporter: createTransporter({ port: 587, secure: false })
-        }
-    ];
-};
-
-const createTransporter = (overrides = {}) => {
-    const port = Number(overrides.port || process.env.SMTP_PORT || 465);
-    const secure = overrides.secure ?? (process.env.SMTP_SECURE === 'false' ? false : port === 465);
-
-    return nodemailer.createTransport({
-        service: 'gmail',
-        host: process.env.SMTP_HOST || 'smtp.gmail.com',
-        port,
-        secure,
-        auth: {
-            user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASS
-        },
-        tls: {
-            rejectUnauthorized: false
-        },
-        connectionTimeout: 15000,
-        greetingTimeout: 15000,
-        socketTimeout: 20000
-    });
-};
-
-const sendMailWithFallback = async (mailOptions) => {
-    let lastError;
-
-    for (const { label, transporter } of getTransporterConfigs()) {
-        try {
-            const info = await transporter.sendMail(mailOptions);
-            return { info, transport: label };
-        } catch (error) {
-            lastError = error;
-            console.error('Booking confirmation email transport failed:', {
-                transport: label,
-                code: error.code,
-                command: error.command,
-                responseCode: error.responseCode,
-                message: error.message
-            });
-        }
-    }
-
-    throw lastError;
-};
+const { sendResendEmail } = require('./email');
 
 const formatDate = (date) => date
     ? new Date(date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
@@ -150,13 +86,12 @@ const buildBookingEmail = (booking, user = {}) => {
 
 const sendBookingConfirmationEmail = async (booking, user = {}) => {
     const to = booking.guestDetails?.email || user.email;
-    const from = process.env.EMAIL_FROM || process.env.EMAIL_USER;
 
-    if (!to || !from || !process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    if (!to) {
         console.log('Booking confirmation email skipped:', {
             bookingId: String(booking._id || booking.id),
             to,
-            emailConfigured: Boolean(process.env.EMAIL_USER && process.env.EMAIL_PASS)
+            emailConfigured: Boolean(process.env.RESEND_API_KEY)
         });
         return { skipped: true };
     }
@@ -164,31 +99,26 @@ const sendBookingConfirmationEmail = async (booking, user = {}) => {
     const email = buildBookingEmail(booking, user);
 
     try {
-        const { info, transport } = await sendMailWithFallback({
-            from: {
-                name: 'Brown Cows Dairy',
-                address: from
-            },
+        const success = await sendResendEmail({
             to,
             subject: email.subject,
             text: email.text,
             html: email.html
         });
 
+        if (!success) {
+            return { success: false };
+        }
+
         console.log('Booking confirmation email sent:', {
             bookingId: String(booking._id || booking.id),
-            to,
-            messageId: info.messageId,
-            transport
+            to
         });
-        return { success: true, info };
+        return { success: true };
     } catch (error) {
         console.error('Booking confirmation email failed:', {
             bookingId: String(booking._id || booking.id),
             to,
-            code: error.code,
-            command: error.command,
-            responseCode: error.responseCode,
             message: error.message
         });
         return { success: false, error };
