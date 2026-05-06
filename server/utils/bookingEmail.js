@@ -1,20 +1,67 @@
 const nodemailer = require('nodemailer');
 
-const createTransporter = () => {
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-        return null;
+const getTransporterConfigs = () => {
+    if (process.env.SMTP_PORT) {
+        return [{
+            label: `smtp-${process.env.SMTP_PORT}`,
+            transporter: createTransporter()
+        }];
     }
+
+    return [
+        {
+            label: 'gmail-465',
+            transporter: createTransporter({ port: 465, secure: true })
+        },
+        {
+            label: 'gmail-587',
+            transporter: createTransporter({ port: 587, secure: false })
+        }
+    ];
+};
+
+const createTransporter = (overrides = {}) => {
+    const port = Number(overrides.port || process.env.SMTP_PORT || 465);
+    const secure = overrides.secure ?? (process.env.SMTP_SECURE === 'false' ? false : port === 465);
 
     return nodemailer.createTransport({
         service: 'gmail',
-        host: 'smtp.gmail.com',
-        port: 465,
-        secure: true,
+        host: process.env.SMTP_HOST || 'smtp.gmail.com',
+        port,
+        secure,
         auth: {
             user: process.env.EMAIL_USER,
             pass: process.env.EMAIL_PASS
-        }
+        },
+        tls: {
+            rejectUnauthorized: false
+        },
+        connectionTimeout: 15000,
+        greetingTimeout: 15000,
+        socketTimeout: 20000
     });
+};
+
+const sendMailWithFallback = async (mailOptions) => {
+    let lastError;
+
+    for (const { label, transporter } of getTransporterConfigs()) {
+        try {
+            const info = await transporter.sendMail(mailOptions);
+            return { info, transport: label };
+        } catch (error) {
+            lastError = error;
+            console.error('Booking confirmation email transport failed:', {
+                transport: label,
+                code: error.code,
+                command: error.command,
+                responseCode: error.responseCode,
+                message: error.message
+            });
+        }
+    }
+
+    throw lastError;
 };
 
 const formatDate = (date) => date
@@ -104,13 +151,12 @@ const buildBookingEmail = (booking, user = {}) => {
 const sendBookingConfirmationEmail = async (booking, user = {}) => {
     const to = booking.guestDetails?.email || user.email;
     const from = process.env.EMAIL_FROM || process.env.EMAIL_USER;
-    const transporter = createTransporter();
 
-    if (!to || !from || !transporter) {
+    if (!to || !from || !process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
         console.log('Booking confirmation email skipped:', {
             bookingId: String(booking._id || booking.id),
             to,
-            emailConfigured: Boolean(transporter)
+            emailConfigured: Boolean(process.env.EMAIL_USER && process.env.EMAIL_PASS)
         });
         return { skipped: true };
     }
@@ -118,7 +164,7 @@ const sendBookingConfirmationEmail = async (booking, user = {}) => {
     const email = buildBookingEmail(booking, user);
 
     try {
-        const info = await transporter.sendMail({
+        const { info, transport } = await sendMailWithFallback({
             from: {
                 name: 'Brown Cows Dairy',
                 address: from
@@ -132,13 +178,17 @@ const sendBookingConfirmationEmail = async (booking, user = {}) => {
         console.log('Booking confirmation email sent:', {
             bookingId: String(booking._id || booking.id),
             to,
-            messageId: info.messageId
+            messageId: info.messageId,
+            transport
         });
         return { success: true, info };
     } catch (error) {
         console.error('Booking confirmation email failed:', {
             bookingId: String(booking._id || booking.id),
             to,
+            code: error.code,
+            command: error.command,
+            responseCode: error.responseCode,
             message: error.message
         });
         return { success: false, error };

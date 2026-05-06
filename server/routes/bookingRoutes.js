@@ -370,6 +370,10 @@ router.post('/verify-payment', verifyToken, async (req, res) => {
                 variation,
                 retreatMeta
             } = bookingDetails;
+            const bookingGuestDetails = {
+                ...guestDetails,
+                email: guestDetails?.email || req.user.email
+            };
 
             const { property, start, end } = await validateBookingAvailability({
                 propertyId,
@@ -377,7 +381,7 @@ router.post('/verify-payment', verifyToken, async (req, res) => {
                 startDate,
                 endDate,
                 guests,
-                guestDetails,
+                guestDetails: bookingGuestDetails,
                 variation,
                 retreatMeta
             });
@@ -391,7 +395,7 @@ router.post('/verify-payment', verifyToken, async (req, res) => {
                 startDate: start,
                 endDate: end,
                 guests,
-                guestDetails,
+                guestDetails: bookingGuestDetails,
                 variation,
                 retreatMeta,
                 totalPrice,
@@ -444,9 +448,13 @@ router.post('/cod', verifyToken, async (req, res) => {
     const { propertyId, roomId, startDate, endDate, guests, guestDetails, totalPrice, tax, variation, retreatMeta } = req.body;
 
     try {
+        const bookingGuestDetails = {
+            ...guestDetails,
+            email: guestDetails?.email || req.user.email
+        };
         const property = await Farm.findById(propertyId);
         if (!property) return res.status(404).json({ message: 'Property not found' });
-        validateGuestPhone(guestDetails);
+        validateGuestPhone(bookingGuestDetails);
 
         const start = new Date(startDate);
         const end = new Date(endDate);
@@ -487,7 +495,7 @@ router.post('/cod', verifyToken, async (req, res) => {
             startDate: start,
             endDate: end,
             guests,
-            guestDetails,
+            guestDetails: bookingGuestDetails,
             variation,
             retreatMeta,
             totalPrice,

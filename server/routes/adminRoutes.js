@@ -27,9 +27,15 @@ const createEmailTransporter = () => {
 };
 
 const sendBookingStatusEmail = async (booking, status, rejectionReason = '') => {
-    const to = booking.guestDetails?.email || booking.user?.email;
+    let to = booking.guestDetails?.email || booking.user?.email;
     const from = process.env.EMAIL_USER;
     const transporter = createEmailTransporter();
+
+    if (!to && booking.user) {
+        const userId = typeof booking.user === 'object' ? booking.user._id : booking.user;
+        const user = userId ? await User.findById(userId).select('email') : null;
+        to = user?.email;
+    }
 
     if (!to || !from || !transporter) {
         console.log('Booking status email skipped:', { bookingId: booking._id, to, status });
