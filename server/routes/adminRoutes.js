@@ -8,6 +8,7 @@ const BlockedDate = require('../models/BlockedDate');
 const { verifyAdmin, verifyToken } = require('../middleware/authMiddleware');
 const upload = require('../middleware/uploadMiddleware');
 const { sendResendEmail } = require('../utils/email');
+const { buildBookingStatusEmail } = require('../utils/bookingEmail');
 
 const getBookingUserId = (booking) => {
     if (!booking?.user) return null;
@@ -63,28 +64,19 @@ const sendBookingStatusEmail = async (booking, status, rejectionReason = '', con
         return;
     }
 
-    const propertyTitle = booking.property?.title || booking.propertyTitle || 'your farm stay';
     const guestName = booking.guestDetails?.name || user?.name || booking.user?.name || 'Guest';
-    const isRejected = status === 'Rejected';
+    const emailContent = buildBookingStatusEmail(
+        booking,
+        { name: guestName, email },
+        status,
+        rejectionReason
+    );
 
     await sendResendEmail({
         to: email,
-        subject: isRejected
-            ? `Your Brown Cows booking was not approved`
-            : `Your Brown Cows booking is confirmed`,
-        text: [
-            `Hi ${guestName},`,
-            '',
-            isRejected
-                ? `Your booking for ${propertyTitle} has been rejected.`
-                : `Your booking for ${propertyTitle} has been confirmed.`,
-            rejectionReason ? `Reason: ${rejectionReason}` : '',
-            '',
-            `Check-in: ${booking.startDate ? new Date(booking.startDate).toLocaleDateString('en-IN') : '-'}`,
-            `Check-out: ${booking.endDate ? new Date(booking.endDate).toLocaleDateString('en-IN') : '-'}`,
-            '',
-            'Brown Cows Organic Dairy'
-        ].filter(Boolean).join('\n')
+        subject: emailContent.subject,
+        text: emailContent.text,
+        html: emailContent.html
     });
 };
 

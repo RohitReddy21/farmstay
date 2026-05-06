@@ -24,6 +24,27 @@ const verifyToken = async (req, res, next) => {
     }
 };
 
+// Attach user when a token is present, but allow public requests through.
+const optionalAuth = async (req, res, next) => {
+    try {
+        const token = req.headers.authorization?.split(' ')[1];
+
+        if (!token) {
+            req.user = null;
+            return next();
+        }
+
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const user = await User.findById(decoded._id).select('-password');
+
+        req.user = user || null;
+        return next();
+    } catch (error) {
+        req.user = null;
+        return next();
+    }
+};
+
 // Verify Admin Role
 const verifyAdmin = async (req, res, next) => {
     try {
@@ -48,4 +69,4 @@ const verifyAdmin = async (req, res, next) => {
     }
 };
 
-module.exports = { verifyAdmin, verifyToken };
+module.exports = { verifyAdmin, verifyToken, optionalAuth };

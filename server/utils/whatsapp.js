@@ -84,7 +84,7 @@ const buildBookingMessage = (booking) => {
         `Guests: ${getGuestCount(booking.guests)}`,
         `Amount: Rs ${amount}`,
         `Payment: ${getPaymentLabel(booking)}`,
-        'Status: Pending admin approval',
+        'Status: Pending approval',
         '',
         'We will update you after the host reviews your booking.'
     ].join('\n');
@@ -117,7 +117,7 @@ const buildTemplatePayload = (booking, to) => {
                     { type: 'text', text: String(getGuestCount(booking.guests)) },
                     { type: 'text', text: `Rs ${amount}` },
                     { type: 'text', text: getPaymentLabel(booking) },
-                    { type: 'text', text: 'Pending admin approval' }
+                    { type: 'text', text: 'Pending approval' }
                 ]
             }]
         }

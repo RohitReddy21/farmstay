@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Star, MapPin, Users, Heart, Shield, Leaf, Award, Quote, CalendarDays } from 'lucide-react';
+import { ArrowRight, Star, MapPin, Users, Shield, Leaf, Award, Quote } from 'lucide-react';
 import LazySection from '../components/LazySection';
 
 /* ─── Real Google Reviews ─── */
@@ -61,10 +61,7 @@ const Home = () => {
 
             {/* ── Hero Section ── */}
             <section className="relative mx-0 mt-2 min-h-[690px] overflow-visible rounded-2xl shadow-2xl sm:mx-2 md:min-h-[620px] md:rounded-3xl lg:min-h-[600px] group">
-                <motion.img
-                    initial={{ scale: 1.1 }}
-                    animate={{ scale: 1 }}
-                    transition={{ duration: 10, repeat: Infinity, repeatType: "reverse" }}
+                <img
                     src="/images/home-hero.JPG"
                     alt="Brown Cows Organic Dairy farm stay courtyard"
                     className="absolute inset-0 h-full w-full rounded-2xl object-cover md:rounded-3xl"

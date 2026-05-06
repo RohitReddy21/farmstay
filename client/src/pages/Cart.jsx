@@ -94,6 +94,7 @@ const Cart = () => {
                             <div className="min-w-0">
                                 <p className="font-bold text-[#211b14]">{cartItem.guests} Guests</p>
                                 <p className="break-words text-sm text-[#645747]">Guest Name: {cartItem.guestDetails.name}</p>
+                                <p className="break-words text-sm text-[#645747]">Email: {cartItem.guestDetails.email || '-'}</p>
                             </div>
                         </div>
                     </motion.div>

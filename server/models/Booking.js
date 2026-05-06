@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const bookingSchema = new mongoose.Schema({
-    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     property: { type: mongoose.Schema.Types.ObjectId, ref: 'Farm', required: true },
     propertyTitle: { type: String, default: '' },
     propertyLocation: { type: String, default: '' },

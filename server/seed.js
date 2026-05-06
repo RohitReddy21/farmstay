@@ -155,7 +155,7 @@ const seedData = async () => {
                     {
                         type: "Whole Mud Cottage",
                         label: "Whole Mud Cottage - All 4 Cottages",
-                        price: 19996,
+                        price: 19999,
                         capacity: 8,
                         amenities: ["Whole Mud Cottage Booking", "Shared Accommodation", "Couple Accommodation", "Traditional Mud Cottage", "Earthy Living", "Farm Experience", "Wifi", "AC", "Firepit", "Breakfast Included", "Free Parking", "Bonfire Nights", "Farm Activities"],
                         availableCottages: ["Traditional Mud Cottage - 1", "Traditional Mud Cottage - 2", "Traditional Mud Cottage - 3", "Traditional Mud Cottage - 4"]

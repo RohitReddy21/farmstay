@@ -1,11 +1,10 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 
 const Login = () => {
     const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
     const [message, setMessage] = useState('');
     const { login, googleLogin } = useAuth();
     const navigate = useNavigate();
@@ -21,10 +20,10 @@ const Login = () => {
         setError('');
         setMessage('');
         try {
-            await login(email, password);
+            await login(email);
             navigate(redirectTo, { replace: true, state: redirectState });
         } catch (err) {
-            setError(err.response?.data?.message || 'Invalid credentials');
+            setError(err.response?.data?.message || 'Could not continue with this email');
         }
     };
 
@@ -87,23 +86,8 @@ const Login = () => {
                         required
                     />
                 </div>
-                <div>
-                    <div className="mb-1 flex items-center justify-between">
-                        <label className="block text-sm font-semibold text-[#3a2b1e]">Password</label>
-                        <Link to="/forgot-password" className="text-sm font-semibold text-[#7a5527] hover:underline">
-                            Forgot Password?
-                        </Link>
-                    </div>
-                    <input
-                        type="password"
-                        className="w-full rounded-xl border border-[#e3cfac] bg-white p-3 text-[#211b14] outline-none transition focus:border-[#7a5527] focus:ring-2 focus:ring-[#d6a23d]/30"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                    />
-                </div>
                 <button type="submit" className="w-full rounded-xl bg-primary py-3 font-bold text-white shadow-lg transition hover:bg-primary-800">
-                    Guest Login
+                    Continue with Email
                 </button>
             </form>
             </div>

@@ -72,6 +72,7 @@ const FarmDetails = () => {
     const [showLightbox, setShowLightbox] = useState(false);
     const [showAllGalleryImages, setShowAllGalleryImages] = useState(false);
     const [isVariationSelectorOpen, setIsVariationSelectorOpen] = useState(false);
+    const [showStayBookingModal, setShowStayBookingModal] = useState(false);
     const [weekendDateConflict, setWeekendDateConflict] = useState(null);
     const [showRetreatPrompt, setShowRetreatPrompt] = useState(false);
     const [bookingError, setBookingError] = useState('');
@@ -86,6 +87,7 @@ const FarmDetails = () => {
     const [bookingData, setBookingData] = useState({
         guests: 1,
         guestName: '',
+        guestEmail: '',
         guestPhone: ''
     });
     const [selectedVariation, setSelectedVariation] = useState(null);
@@ -94,7 +96,7 @@ const FarmDetails = () => {
     const wholeMudCottageVariation = {
         type: 'Whole Mud Cottage',
         label: 'Whole Mud Cottage - All 4 Cottages',
-        price: 19996,
+        price: 19999,
         capacity: 10,
         amenities: ["Whole Mud Cottage Booking", "Shared Accommodation", "Couple Accommodation", "Traditional Mud Cottage", "Earthy Living", "Farm Experience", "Wifi", "AC", "Firepit", "Breakfast Included", "Free Parking", "Bonfire Nights", "Farm Activities"],
         availableCottages: ["Traditional Mud Cottage - 1", "Traditional Mud Cottage - 2", "Traditional Mud Cottage - 3", "Traditional Mud Cottage - 4"]
@@ -434,6 +436,7 @@ const FarmDetails = () => {
             setBookingData({
                 guests: draft.bookingData.guests || 1,
                 guestName: draft.bookingData.guestName || '',
+                guestEmail: draft.bookingData.guestEmail || '',
                 guestPhone: getTenDigitPhone(draft.bookingData.guestPhone || '')
             });
         }
@@ -542,21 +545,6 @@ const FarmDetails = () => {
         e.preventDefault();
         setBookingError('');
 
-        if (!user) {
-            showToast({
-                type: 'info',
-                title: 'Login required',
-                message: 'Please log in to continue your booking.'
-            });
-            navigate('/login', {
-                state: {
-                    from: `${location.pathname}${location.search}`,
-                    bookingDraft: buildBookingDraft()
-                }
-            });
-            return;
-        }
-
         const startStr = dateSelection[0].startDate.toLocaleDateString('en-CA');
         const endStr = dateSelection[0].endDate.toLocaleDateString('en-CA');
 
@@ -570,8 +558,13 @@ const FarmDetails = () => {
             return;
         }
 
-        if (!bookingData.guestName || !bookingData.guestPhone) {
-            showBookingValidationError('Please enter your full name and mobile number.');
+        if (!bookingData.guestName || !bookingData.guestEmail || !bookingData.guestPhone) {
+            showBookingValidationError('Please enter your full name, email, and mobile number.');
+            return;
+        }
+
+        if (!/\S+@\S+\.\S+/.test(bookingData.guestEmail)) {
+            showBookingValidationError('Please enter a valid email address.');
             return;
         }
 
@@ -622,6 +615,7 @@ const FarmDetails = () => {
                 guests: guestCount,
                 guestDetails: {
                     name: bookingData.guestName,
+                    email: bookingData.guestEmail,
                     phone: bookingData.guestPhone
                 },
                 variation: selectedVariation ? {
@@ -694,7 +688,11 @@ const FarmDetails = () => {
     const isBookingBlocked = Boolean(dateConflict || weekendDateConflict);
     const selectedIsBookedForDates = selectedVariation && variationHasDateConflict(selectedVariation);
     const hasValidDates = Boolean(dateSelection[0].startDate && dateSelection[0].endDate && !isBookingBlocked);
-    const hasValidGuestDetails = Boolean(bookingData.guestName.trim() && getTenDigitPhone(bookingData.guestPhone).length === 10);
+    const hasValidGuestDetails = Boolean(
+        bookingData.guestName.trim()
+        && /\S+@\S+\.\S+/.test(bookingData.guestEmail)
+        && getTenDigitPhone(bookingData.guestPhone).length === 10
+    );
     const hasValidGuestCount = isWholeMudCottageSelected
         || (!validateGuestCount(bookingData.guests) && !guestCountError);
     const isReadyToReview = hasValidDates && hasValidGuestDetails && hasValidGuestCount && !selectedIsBookedForDates;
@@ -1260,7 +1258,7 @@ const FarmDetails = () => {
                             </AnimatePresence>
                         </div>
 
-                        <form onSubmit={handleBooking} noValidate className="space-y-3 md:space-y-4">
+                        <div className="space-y-3 md:space-y-4">
                             {bookingError && (
                                 <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700">
                                     {bookingError}
@@ -1271,97 +1269,22 @@ const FarmDetails = () => {
                                     This cottage is booked for the selected dates. Please choose another available option from the dropdown.
                                 </div>
                             )}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                                <input
-                                    type="text"
-                                    required
-                                    placeholder="Enter your full name"
-                                    className="w-full p-2.5 md:p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all text-base"
-                                    value={bookingData.guestName}
-                                    onChange={(e) => {
-                                        setBookingError('');
-                                        setBookingData({ ...bookingData, guestName: e.target.value });
-                                    }}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Mobile Number</label>
-                                <input
-                                    type="tel"
-                                    required
-                                    placeholder="Enter mobile number"
-                                    className="w-full p-2.5 md:p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all text-base"
-                                    value={bookingData.guestPhone}
-                                    onChange={(e) => {
-                                        setBookingError('');
-                                        setBookingData({ ...bookingData, guestPhone: getTenDigitPhone(e.target.value) });
-                                    }}
-                                    inputMode="numeric"
-                                    pattern="[0-9]{10}"
-                                    maxLength="10"
-                                />
-                            </div>
-                            {isWholeMudCottageSelected ? (
-                                <div className="rounded-xl border border-[#ead7b8] bg-[#fff8ed] p-3">
-                                    <div className="flex items-center gap-3">
-                                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                                            <Users size={20} />
-                                        </div>
-                                        <div>
-                                            <p className="text-sm font-bold text-gray-900">Whole Mud Cottages</p>
-                                            <p className="text-sm text-gray-600">Max {guestLimit} guests</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Number of Guests</label>
-                                    <input
-                                        type="text"
-                                        inputMode="numeric"
-                                        required
-                                        value={bookingData.guests}
-                                        placeholder="Enter number of guests"
-                                        aria-invalid={Boolean(guestCountError)}
-                                        className={`w-full p-2.5 md:p-3 border-2 rounded-lg outline-none transition-all text-base ${
-                                            guestCountError
-                                                ? 'border-red-400 bg-red-50 text-red-900 focus:ring-2 focus:ring-red-300 focus:border-red-500'
-                                                : 'border-gray-200 focus:ring-2 focus:ring-primary focus:border-primary'
-                                        }`}
-                                        onChange={(e) => {
-                                            const value = e.target.value.replace(/\D/g, '');
-                                            const error = validateGuestCount(value);
-                                            setGuestCountError(error);
-                                            setBookingError(error);
-                                            setBookingData({ ...bookingData, guests: value });
-                                        }}
-                                        onBlur={() => {
-                                            if (!bookingData.guests) {
-                                                setBookingData({ ...bookingData, guests: 1 });
-                                                setGuestCountError('');
-                                                setBookingError('');
-                                            }
-                                        }}
-                                    />
-                                    <p className={`mt-1 text-xs ${guestCountError ? 'font-semibold text-red-600' : 'text-gray-500'}`}>
-                                        {guestCountError || `Maximum ${guestLimit} guests`}
-                                    </p>
-                                </div>
-                            )}
-
                             <button
-                                type="submit"
-                                disabled={isBookingBlocked}
-                                className={`w-full py-3 md:py-4 rounded-xl font-bold text-base md:text-lg transition-all shadow-lg transform ${isBookingBlocked
+                                type="button"
+                                onClick={() => {
+                                    setBookingError('');
+                                    setShowStayBookingModal(true);
+                                }}
+                                disabled={isBookingBlocked || selectedIsBookedForDates}
+                                className={`w-full py-3 md:py-4 rounded-xl font-bold text-base md:text-lg transition-all shadow-lg transform ${isBookingBlocked || selectedIsBookedForDates
                                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                                     : 'bg-primary text-white hover:bg-primary-800 hover:-translate-y-0.5 active:translate-y-0'
                                     }`}
                             >
-                                {isBookingBlocked ? 'Dates Unavailable' : 'Book Now'}
+                                {isBookingBlocked || selectedIsBookedForDates ? 'Dates Unavailable' : 'Book Now'}
                             </button>
-                            <p className="text-center text-xs md:text-sm text-gray-500 mt-2">You won't be charged yet</p>
-                        </form>
+                            <p className="text-center text-xs md:text-sm text-gray-500 mt-2">Enter guest details in the next step. You won't be charged yet.</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1544,6 +1467,198 @@ const FarmDetails = () => {
                 }}
             />
 
+            {/* Stay Booking Details Modal */}
+            <AnimatePresence>
+                {showStayBookingModal && (
+                    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-3 backdrop-blur-sm sm:p-4">
+                        <div
+                            className="absolute inset-0"
+                            onClick={() => setShowStayBookingModal(false)}
+                        />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            transition={{ duration: 0.2 }}
+                            className="relative max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-3xl border-2 border-[#dfd1bb] bg-white p-5 shadow-2xl sm:p-8"
+                        >
+                            <button
+                                type="button"
+                                onClick={() => setShowStayBookingModal(false)}
+                                className="absolute right-4 top-4 rounded-full bg-[#f4ead8] p-2 text-[#7a5527] transition hover:bg-[#ead7b8]"
+                                aria-label="Close booking details"
+                            >
+                                <X size={18} />
+                            </button>
+
+                            <div className="mb-6 text-center">
+                                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-r from-[#7a5527] to-[#5d3d19] text-white">
+                                    <Check size={28} />
+                                </div>
+                                <p className="text-xs font-bold uppercase tracking-[0.26em] text-primary">Guest Details</p>
+                                <h3 className="mt-2 text-2xl font-bold text-[#211b14]">Confirm Your Stay</h3>
+                                <p className="mt-2 text-sm text-[#645747]">
+                                    Add the booking contact details for confirmation mail and approval updates.
+                                </p>
+                            </div>
+
+                            <div className="mb-5 rounded-2xl border border-[#ead7b8] bg-[#fff8ed] p-4">
+                                <div className="grid gap-3 text-sm sm:grid-cols-3">
+                                    <div>
+                                        <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#8a642d]">Stay</p>
+                                        <p className="mt-1 font-semibold text-[#211b14]">{selectedVariation?.label || farm.title}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#8a642d]">Dates</p>
+                                        <p className="mt-1 font-semibold text-[#211b14]">
+                                            {dateSelection[0].startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {dateSelection[0].endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#8a642d]">Total</p>
+                                        <p className="mt-1 font-semibold text-[#211b14]">₹{selectedGrandTotal.toLocaleString('en-IN')}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <form onSubmit={handleBooking} noValidate className="space-y-4">
+                                {bookingError && (
+                                    <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700">
+                                        {bookingError}
+                                    </div>
+                                )}
+                                {selectedIsBookedForDates && (
+                                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-800">
+                                        This cottage is booked for the selected dates. Please choose another available option from the dropdown.
+                                    </div>
+                                )}
+
+                                <div className="grid gap-4 sm:grid-cols-2">
+                                    <div>
+                                        <label className="mb-2 block text-sm font-semibold text-[#7a5527]">Full Name <span className="text-red-500">*</span></label>
+                                        <input
+                                            type="text"
+                                            required
+                                            placeholder="Enter your full name"
+                                            className="w-full rounded-xl border-2 border-[#dfd1bb] bg-white px-4 py-3 text-base outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/15"
+                                            value={bookingData.guestName}
+                                            onChange={(e) => {
+                                                setBookingError('');
+                                                setBookingData({ ...bookingData, guestName: e.target.value });
+                                            }}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="mb-2 block text-sm font-semibold text-[#7a5527]">Email Address <span className="text-red-500">*</span></label>
+                                        <input
+                                            type="email"
+                                            required
+                                            placeholder="Enter email for confirmation"
+                                            className="w-full rounded-xl border-2 border-[#dfd1bb] bg-white px-4 py-3 text-base outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/15"
+                                            value={bookingData.guestEmail}
+                                            onChange={(e) => {
+                                                setBookingError('');
+                                                setBookingData({ ...bookingData, guestEmail: e.target.value.trim() });
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid gap-4 sm:grid-cols-2">
+                                    <div>
+                                        <label className="mb-2 block text-sm font-semibold text-[#7a5527]">Mobile Number <span className="text-red-500">*</span></label>
+                                        <input
+                                            type="tel"
+                                            required
+                                            placeholder="Enter mobile number"
+                                            className="w-full rounded-xl border-2 border-[#dfd1bb] bg-white px-4 py-3 text-base outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/15"
+                                            value={bookingData.guestPhone}
+                                            onChange={(e) => {
+                                                setBookingError('');
+                                                setBookingData({ ...bookingData, guestPhone: getTenDigitPhone(e.target.value) });
+                                            }}
+                                            inputMode="numeric"
+                                            pattern="[0-9]{10}"
+                                            maxLength="10"
+                                        />
+                                    </div>
+
+                                    {isWholeMudCottageSelected ? (
+                                        <div>
+                                            <label className="mb-2 block text-sm font-semibold text-[#7a5527]">Guests</label>
+                                            <div className="flex min-h-[52px] items-center gap-3 rounded-xl border-2 border-[#dfd1bb] bg-[#fff8ed] px-4 py-3">
+                                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                                                    <Users size={18} />
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-bold text-gray-900">Whole Mud Cottages</p>
+                                                    <p className="text-xs font-semibold text-gray-600">Max {guestLimit} guests</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div>
+                                            <label className="mb-2 block text-sm font-semibold text-[#7a5527]">Number of Guests <span className="text-red-500">*</span></label>
+                                            <input
+                                                type="text"
+                                                inputMode="numeric"
+                                                required
+                                                value={bookingData.guests}
+                                                placeholder="Enter number of guests"
+                                                aria-invalid={Boolean(guestCountError)}
+                                                className={`w-full rounded-xl border-2 px-4 py-3 text-base outline-none transition-all ${
+                                                    guestCountError
+                                                        ? 'border-red-400 bg-red-50 text-red-900 focus:ring-4 focus:ring-red-200'
+                                                        : 'border-[#dfd1bb] bg-white focus:border-primary focus:ring-4 focus:ring-primary/15'
+                                                }`}
+                                                onChange={(e) => {
+                                                    const value = e.target.value.replace(/\D/g, '');
+                                                    const error = validateGuestCount(value);
+                                                    setGuestCountError(error);
+                                                    setBookingError(error);
+                                                    setBookingData({ ...bookingData, guests: value });
+                                                }}
+                                                onBlur={() => {
+                                                    if (!bookingData.guests) {
+                                                        setBookingData({ ...bookingData, guests: 1 });
+                                                        setGuestCountError('');
+                                                        setBookingError('');
+                                                    }
+                                                }}
+                                            />
+                                            <p className={`mt-1 text-xs ${guestCountError ? 'font-semibold text-red-600' : 'text-gray-500'}`}>
+                                                {guestCountError || `Maximum ${guestLimit} guests`}
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="flex flex-col gap-3 pt-2 sm:flex-row">
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowStayBookingModal(false)}
+                                        className="flex-1 rounded-2xl border-2 border-[#dfd1bb] bg-white px-6 py-3 font-semibold text-[#645747] transition hover:bg-[#fff8ed]"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={isBookingBlocked || selectedIsBookedForDates}
+                                        className={`flex-1 rounded-2xl px-6 py-3 font-bold text-white shadow-lg transition ${
+                                            isBookingBlocked || selectedIsBookedForDates
+                                                ? 'cursor-not-allowed bg-gray-300 text-gray-500'
+                                                : 'bg-gradient-to-r from-[#7a5527] to-[#5d3d19] hover:from-[#8b6230] hover:to-[#6d441a]'
+                                        }`}
+                                    >
+                                        {isBookingBlocked || selectedIsBookedForDates ? 'Dates Unavailable' : 'Confirm Booking'}
+                                    </button>
+                                </div>
+                            </form>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
             {/* Lightbox Overlay - Media (Images & Videos) */}
             <AnimatePresence>
                 {showLightbox && (
@@ -1551,119 +1666,153 @@ const FarmDetails = () => {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-50 flex h-[100dvh] items-center justify-center bg-black/95 p-0 backdrop-blur-sm sm:p-4"
+                        className="fixed inset-0 z-[120] flex h-[100dvh] items-center justify-center overflow-hidden bg-[#060504] p-0 text-white sm:p-4"
                         onClick={() => setShowLightbox(false)}
                     >
+                        {allMedia[currentMediaIndex]?.type === 'image' && (
+                            <img
+                                src={optimizeImageUrl(allMedia[currentMediaIndex]?.url, { width: 1000, crop: 'fill' })}
+                                alt=""
+                                aria-hidden="true"
+                                className="pointer-events-none absolute inset-0 h-full w-full scale-110 object-cover opacity-25 blur-3xl"
+                                loading="eager"
+                                decoding="async"
+                            />
+                        )}
+                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(122,85,39,0.18),rgba(0,0,0,0.72)_48%,rgba(0,0,0,0.96)_100%)]" />
+
                         <button
                             onClick={() => setShowLightbox(false)}
-                            className="absolute right-3 top-[max(1rem,env(safe-area-inset-top))] text-white/70 hover:text-white p-2 transition-colors z-[60]"
+                            className="absolute right-3 top-[max(1rem,env(safe-area-inset-top))] z-[140] rounded-full border border-white/15 bg-black/35 p-2.5 text-white shadow-2xl backdrop-blur-md transition-all hover:bg-white hover:text-[#211b14] sm:right-5"
+                            aria-label="Close gallery"
                         >
-                            <X size={32} />
+                            <X size={24} />
                         </button>
 
-                        <div className="relative flex h-full w-full max-w-6xl items-center justify-center px-3 pb-24 pt-16 sm:max-h-screen sm:p-2" onClick={e => e.stopPropagation()}>
-                            <AnimatePresence mode="wait">
-                                {allMedia[currentMediaIndex]?.type === 'image' ? (
-                                    <motion.img
-                                        key={currentMediaIndex}
-                                        src={optimizeImageUrl(allMedia[currentMediaIndex]?.url, { width: 1600, crop: 'limit' })}
-                                        srcSet={buildImageSrcSet(allMedia[currentMediaIndex]?.url, [768, 1120, 1600, 2048], { crop: 'limit' })}
-                                        sizes="100vw"
-                                        alt="Full screen view"
-                                        className="h-auto max-h-[70dvh] w-full object-contain rounded-lg shadow-2xl sm:max-h-[85vh]"
-                                        loading="eager"
-                                        fetchPriority="high"
-                                        decoding="async"
-                                        width="1600"
-                                        height="1000"
-                                        initial={{ y: 20, opacity: 0 }}
-                                        animate={{ y: 0, opacity: 1 }}
-                                        exit={{ y: -20, opacity: 0 }}
-                                        transition={{ delay: 0.1 }}
-                                    />
-                                ) : (
-                                    isVideoFileUrl(allMedia[currentMediaIndex]?.url) ? (
-                                        <motion.video
-                                            key={currentMediaIndex}
-                                            src={allMedia[currentMediaIndex]?.url}
-                                            className="h-auto max-h-[70dvh] w-full rounded-lg shadow-2xl sm:max-h-[85vh]"
-                                            controls
-                                            playsInline
-                                            title="Video Lightbox"
-                                            initial={{ y: 20, opacity: 0 }}
-                                            animate={{ y: 0, opacity: 1 }}
-                                            exit={{ y: -20, opacity: 0 }}
-                                            transition={{ delay: 0.1 }}
-                                        />
-                                    ) : (
-                                        <motion.iframe
-                                            key={currentMediaIndex}
-                                            src={buildEmbedSrc(allMedia[currentMediaIndex]?.url, true)}
-                                            className="aspect-video h-auto max-h-[70dvh] w-full rounded-lg shadow-2xl sm:max-h-[85vh]"
-                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                            allowFullScreen
-                                            title="Video Lightbox"
-                                            initial={{ y: 20, opacity: 0 }}
-                                            animate={{ y: 0, opacity: 1 }}
-                                            exit={{ y: -20, opacity: 0 }}
-                                            transition={{ delay: 0.1 }}
-                                        />
-                                    )
-                                )}
-                            </AnimatePresence>
-
-                            {/* Lightbox Navigation */}
-                            {allMedia.length > 1 && (
-                                <>
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); prevMedia(); }}
-                                        className="absolute left-3 top-1/2 z-20 -translate-y-1/2 rounded-full bg-white/20 p-3 text-white backdrop-blur-md transition-all hover:bg-white/30 md:left-8 md:p-4"
-                                    >
-                                        <ChevronLeft size={32} />
-                                    </button>
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); nextMedia(); }}
-                                        className="absolute right-3 top-1/2 z-20 -translate-y-1/2 rounded-full bg-white/20 p-3 text-white backdrop-blur-md transition-all hover:bg-white/30 md:right-8 md:p-4"
-                                    >
-                                        <ChevronRight size={32} />
-                                    </button>
-                                </>
-                            )}
-
-                            {/* Media Counter */}
-                            {allMedia.length > 1 && (
-                                <div className="absolute bottom-28 left-1/2 z-20 -translate-x-1/2 rounded-full bg-white/20 px-3 py-1 text-sm text-white backdrop-blur-md sm:bottom-20">
-                                    {currentMediaIndex + 1} / {allMedia.length}
+                        <div
+                            className="relative z-[130] flex h-full w-full max-w-7xl flex-col px-3 pb-[6.75rem] pt-[max(1rem,env(safe-area-inset-top))] sm:px-6 sm:pb-32 sm:pt-5"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <div className="mb-3 flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-black/25 px-4 py-3 shadow-2xl backdrop-blur-md sm:mb-5">
+                                <div className="min-w-0">
+                                    <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-[#e7c678]">Brown Cows Gallery</p>
+                                    <h3 className="truncate text-base font-bold sm:text-lg">{farm.title}</h3>
                                 </div>
-                            )}
+                                {allMedia.length > 1 && (
+                                    <div className="shrink-0 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-bold text-white/90">
+                                        {currentMediaIndex + 1} / {allMedia.length}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="relative flex min-h-0 flex-1 items-center justify-center">
+                                <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-[1.75rem] border border-white/10 bg-black/25 shadow-[0_30px_100px_rgba(0,0,0,0.55)] backdrop-blur-sm">
+                                    <AnimatePresence mode="wait">
+                                        {allMedia[currentMediaIndex]?.type === 'image' ? (
+                                            <motion.img
+                                                key={currentMediaIndex}
+                                                src={optimizeImageUrl(allMedia[currentMediaIndex]?.url, { width: 1800, crop: 'limit' })}
+                                                srcSet={buildImageSrcSet(allMedia[currentMediaIndex]?.url, [768, 1120, 1600, 2048], { crop: 'limit' })}
+                                                sizes="100vw"
+                                                alt={`${farm.title} gallery image ${currentMediaIndex + 1}`}
+                                                className="h-full max-h-[calc(100dvh-12.5rem)] w-full object-contain sm:max-h-[calc(100dvh-14rem)]"
+                                                loading="eager"
+                                                fetchPriority="high"
+                                                decoding="async"
+                                                width="1800"
+                                                height="1125"
+                                                initial={{ x: 28, opacity: 0 }}
+                                                animate={{ x: 0, opacity: 1 }}
+                                                exit={{ x: -28, opacity: 0 }}
+                                                transition={{ duration: 0.24, ease: 'easeOut' }}
+                                            />
+                                        ) : (
+                                            isVideoFileUrl(allMedia[currentMediaIndex]?.url) ? (
+                                                <motion.video
+                                                    key={currentMediaIndex}
+                                                    src={allMedia[currentMediaIndex]?.url}
+                                                    className="h-auto max-h-[calc(100dvh-12.5rem)] w-full rounded-2xl shadow-2xl sm:max-h-[calc(100dvh-14rem)]"
+                                                    controls
+                                                    playsInline
+                                                    title="Video Lightbox"
+                                                    initial={{ x: 28, opacity: 0 }}
+                                                    animate={{ x: 0, opacity: 1 }}
+                                                    exit={{ x: -28, opacity: 0 }}
+                                                    transition={{ duration: 0.24, ease: 'easeOut' }}
+                                                />
+                                            ) : (
+                                                <motion.iframe
+                                                    key={currentMediaIndex}
+                                                    src={buildEmbedSrc(allMedia[currentMediaIndex]?.url, true)}
+                                                    className="aspect-video h-auto max-h-[calc(100dvh-12.5rem)] w-full rounded-2xl shadow-2xl sm:max-h-[calc(100dvh-14rem)]"
+                                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                    allowFullScreen
+                                                    title="Video Lightbox"
+                                                    initial={{ x: 28, opacity: 0 }}
+                                                    animate={{ x: 0, opacity: 1 }}
+                                                    exit={{ x: -28, opacity: 0 }}
+                                                    transition={{ duration: 0.24, ease: 'easeOut' }}
+                                                />
+                                            )
+                                        )}
+                                    </AnimatePresence>
+
+                                    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/35 to-transparent" />
+                                </div>
+
+                                {allMedia.length > 1 && (
+                                    <>
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); prevMedia(); }}
+                                            className="absolute left-2 top-1/2 z-20 -translate-y-1/2 rounded-full border border-white/15 bg-black/35 p-3 text-white shadow-2xl backdrop-blur-md transition-all hover:bg-white hover:text-[#211b14] sm:left-5 sm:p-4"
+                                            aria-label="Previous image"
+                                        >
+                                            <ChevronLeft size={28} />
+                                        </button>
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); nextMedia(); }}
+                                            className="absolute right-2 top-1/2 z-20 -translate-y-1/2 rounded-full border border-white/15 bg-black/35 p-3 text-white shadow-2xl backdrop-blur-md transition-all hover:bg-white hover:text-[#211b14] sm:right-5 sm:p-4"
+                                            aria-label="Next image"
+                                        >
+                                            <ChevronRight size={28} />
+                                        </button>
+                                    </>
+                                )}
+                            </div>
                         </div>
 
-                        {/* Lightbox Thumbnails */}
-                        <div className="absolute bottom-[max(1rem,env(safe-area-inset-bottom))] left-0 right-0 flex justify-start gap-2 overflow-x-auto px-3 sm:justify-center sm:px-4" onClick={e => e.stopPropagation()}>
-                            <div className="flex gap-2 p-2">
+                        <div
+                            className="absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-0 right-0 z-[135] px-3 sm:px-6"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <div className="mx-auto flex max-w-5xl gap-2 overflow-x-auto rounded-2xl border border-white/10 bg-black/35 p-2 shadow-2xl backdrop-blur-md sm:justify-center">
                                 {allMedia.map((media, idx) => (
                                     <button
                                         key={idx}
                                         onClick={() => setCurrentMediaIndex(idx)}
-                                        className={`w-16 h-12 rounded-md overflow-hidden flex-shrink-0 transition-all relative ${idx === currentMediaIndex ? 'ring-2 ring-white scale-110 opacity-100' : 'opacity-50 hover:opacity-80'
+                                        className={`relative h-14 w-20 flex-shrink-0 overflow-hidden rounded-xl transition-all sm:h-16 sm:w-24 ${idx === currentMediaIndex ? 'scale-105 ring-2 ring-[#e7c678] opacity-100' : 'opacity-60 hover:opacity-95'
                                             }`}
+                                        aria-label={`Open gallery item ${idx + 1}`}
                                     >
                                         {media.type === 'image' ? (
                                             <img
-                                                src={optimizeImageUrl(media.url, { width: 160, height: 120 })}
-                                                srcSet={buildImageSrcSet(media.url, [96, 160, 240], { height: 180 })}
-                                                sizes="64px"
+                                                src={optimizeImageUrl(media.url, { width: 180, height: 120 })}
+                                                srcSet={buildImageSrcSet(media.url, [120, 180, 260], { height: 180 })}
+                                                sizes="96px"
                                                 alt={`Thumbnail ${idx + 1}`}
                                                 loading="lazy"
                                                 decoding="async"
-                                                width="160"
+                                                width="180"
                                                 height="120"
-                                                className="w-full h-full object-cover"
+                                                className="h-full w-full object-cover"
                                             />
                                         ) : (
-                                            <div className="w-full h-full bg-gray-800 flex items-center justify-center">
-                                                <Play className="w-4 h-4 text-white" />
+                                            <div className="flex h-full w-full items-center justify-center bg-[#211b14]">
+                                                <Play className="h-5 w-5 text-white" />
                                             </div>
+                                        )}
+                                        {idx === currentMediaIndex && (
+                                            <span className="absolute inset-x-2 bottom-1 h-1 rounded-full bg-[#e7c678]" />
                                         )}
                                     </button>
                                 ))}
@@ -1690,8 +1839,13 @@ const FarmDetails = () => {
                 </div>
                 <button
                     onClick={() => {
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                        setIsCalendarOpen(true);
+                        if (isBookingBlocked || selectedIsBookedForDates) {
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                            setIsCalendarOpen(true);
+                            return;
+                        }
+                        setBookingError('');
+                        setShowStayBookingModal(true);
                     }}
                     className="shrink-0 bg-primary text-white px-5 py-3 rounded-xl font-bold hover:bg-primary-800 transition-all shadow-lg active:scale-95"
                 >

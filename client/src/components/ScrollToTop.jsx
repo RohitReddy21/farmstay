@@ -1,12 +1,25 @@
 import { useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigationType } from 'react-router-dom';
 
 const ScrollToTop = () => {
-    const { pathname } = useLocation();
+    const { pathname, search } = useLocation();
+    const navigationType = useNavigationType();
+
+    useEffect(() => {
+        if ('scrollRestoration' in window.history) {
+            window.history.scrollRestoration = 'manual';
+        }
+
+        return () => {
+            if ('scrollRestoration' in window.history) {
+                window.history.scrollRestoration = 'auto';
+            }
+        };
+    }, []);
 
     useEffect(() => {
         window.scrollTo(0, 0);
-    }, [pathname]);
+    }, [pathname, search, navigationType]);
 
     return null;
 };

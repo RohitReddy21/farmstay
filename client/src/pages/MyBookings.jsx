@@ -307,7 +307,7 @@ const MyBookings = () => {
 
             {location.state?.bookingSuccess && (
                 <div className="mb-6 rounded-2xl border border-[#cfe4c8] bg-[#f1f8ec] p-4 text-[#3f6b3f]">
-                    {location.state?.message || 'Booking received. Your booking is pending admin approval.'}
+                    {location.state?.message || 'Booking received. Your booking is pending approval.'}
                 </div>
             )}
 

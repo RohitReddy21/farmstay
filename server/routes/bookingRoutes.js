@@ -6,7 +6,7 @@ const Booking = require('../models/Booking');
 const Farm = require('../models/Farm');
 const Payment = require('../models/Payment');
 const BlockedDate = require('../models/BlockedDate');
-const { verifyToken } = require('../middleware/authMiddleware');
+const { optionalAuth } = require('../middleware/authMiddleware');
 const { sendBookingNotification } = require('../utils/notifications');
 const { sendBookingWhatsAppConfirmation } = require('../utils/whatsapp');
 const { sendBookingConfirmationEmail } = require('../utils/bookingEmail');
@@ -226,10 +226,19 @@ async function buildRetreatAvailability(startDate, endDate) {
 }
 
 const getPhoneDigits = (phone = '') => String(phone).replace(/\D/g, '');
+const isValidEmail = (email = '') => /\S+@\S+\.\S+/.test(String(email).trim());
 
 function validateGuestPhone(guestDetails) {
     if (getPhoneDigits(guestDetails?.phone).length !== 10) {
         const error = new Error('Mobile number must be exactly 10 digits.');
+        error.statusCode = 400;
+        throw error;
+    }
+}
+
+function validateGuestEmail(guestDetails) {
+    if (!isValidEmail(guestDetails?.email)) {
+        const error = new Error('Guest email is required for booking confirmation.');
         error.statusCode = 400;
         throw error;
     }
@@ -244,6 +253,7 @@ async function validateBookingAvailability({ propertyId, roomId, startDate, endD
     }
 
     validateGuestPhone(guestDetails);
+    validateGuestEmail(guestDetails);
 
     const start = new Date(startDate);
     const end = new Date(endDate);
@@ -285,8 +295,8 @@ async function validateBookingAvailability({ propertyId, roomId, startDate, endD
 
 // @route   POST /api/bookings/create-order
 // @desc    Create a Razorpay order after pre-checking availability
-// @access  Private
-router.post('/create-order', verifyToken, async (req, res) => {
+// @access  Public, attaches user when logged in
+router.post('/create-order', optionalAuth, async (req, res) => {
     const { propertyId, roomId, startDate, endDate, guests, guestDetails, totalPrice, tax, variation, retreatMeta } = req.body;
 
     try {
@@ -333,8 +343,8 @@ router.get('/razorpay-key', (req, res) => {
 
 // @route   POST /api/bookings/verify-payment
 // @desc    Verify Razorpay payment signature
-// @access  Private
-router.post('/verify-payment', verifyToken, async (req, res) => {
+// @access  Public, attaches user when logged in
+router.post('/verify-payment', optionalAuth, async (req, res) => {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, bookingDetails } = req.body;
 
     try {
@@ -353,7 +363,7 @@ router.post('/verify-payment', verifyToken, async (req, res) => {
             if (existingPayment) {
                 return res.json({
                     success: true,
-                    message: 'Payment already verified. Booking pending admin approval.',
+                    message: 'Payment already verified. Booking pending approval.',
                     bookingId: existingPayment.booking
                 });
             }
@@ -372,7 +382,7 @@ router.post('/verify-payment', verifyToken, async (req, res) => {
             } = bookingDetails;
             const bookingGuestDetails = {
                 ...guestDetails,
-                email: guestDetails?.email || req.user.email
+                email: String(guestDetails?.email || '').trim().toLowerCase()
             };
 
             const { property, start, end } = await validateBookingAvailability({
@@ -387,7 +397,7 @@ router.post('/verify-payment', verifyToken, async (req, res) => {
             });
 
             const booking = await Booking.create({
-                user: req.user.id,
+                ...(req.user?._id ? { user: req.user._id } : {}),
                 property: propertyId,
                 propertyTitle: property.title || '',
                 propertyLocation: property.location || '',
@@ -408,7 +418,7 @@ router.post('/verify-payment', verifyToken, async (req, res) => {
 
             await Payment.create({
                 booking: booking._id,
-                user: req.user.id,
+                ...(req.user?._id ? { user: req.user._id } : {}),
                 razorpayOrderId: razorpay_order_id,
                 razorpayPaymentId: razorpay_payment_id,
                 razorpaySignature: razorpay_signature,
@@ -420,7 +430,7 @@ router.post('/verify-payment', verifyToken, async (req, res) => {
             sendBookingWhatsAppConfirmation(booking).catch((whatsappError) => {
                 console.error('WhatsApp notification error:', whatsappError);
             });
-            sendBookingConfirmationEmail(booking, req.user).catch((emailError) => {
+            sendBookingConfirmationEmail(booking, req.user || null).catch((emailError) => {
                 console.error('Booking confirmation email error:', emailError);
             });
             sendBookingSMSConfirmation(booking).catch((smsError) => {
@@ -429,7 +439,7 @@ router.post('/verify-payment', verifyToken, async (req, res) => {
 
             return res.json({
                 success: true,
-                message: 'Payment verified. Booking pending admin approval.',
+                message: 'Payment verified. Booking pending approval.',
                 bookingId: booking._id
             });
         } else {
@@ -443,18 +453,19 @@ router.post('/verify-payment', verifyToken, async (req, res) => {
 
 // @route   POST /api/bookings/cod
 // @desc    Create a COD booking
-// @access  Private
-router.post('/cod', verifyToken, async (req, res) => {
+// @access  Public, attaches user when logged in
+router.post('/cod', optionalAuth, async (req, res) => {
     const { propertyId, roomId, startDate, endDate, guests, guestDetails, totalPrice, tax, variation, retreatMeta } = req.body;
 
     try {
         const bookingGuestDetails = {
             ...guestDetails,
-            email: guestDetails?.email || req.user.email
+            email: String(guestDetails?.email || '').trim().toLowerCase()
         };
         const property = await Farm.findById(propertyId);
         if (!property) return res.status(404).json({ message: 'Property not found' });
         validateGuestPhone(bookingGuestDetails);
+        validateGuestEmail(bookingGuestDetails);
 
         const start = new Date(startDate);
         const end = new Date(endDate);
@@ -487,7 +498,7 @@ router.post('/cod', verifyToken, async (req, res) => {
 
         // Create a 'Pending' Booking with COD
         const booking = await Booking.create({
-            user: req.user.id,
+            ...(req.user?._id ? { user: req.user._id } : {}),
             property: propertyId,
             propertyTitle: property.title || '',
             propertyLocation: property.location || '',
@@ -508,7 +519,7 @@ router.post('/cod', verifyToken, async (req, res) => {
         // Create Payment Record
         await Payment.create({
             booking: booking._id,
-            user: req.user.id,
+            ...(req.user?._id ? { user: req.user._id } : {}),
             amount: totalPrice + tax,
             status: 'COD',
             paymentMethod: 'COD'
@@ -517,7 +528,7 @@ router.post('/cod', verifyToken, async (req, res) => {
         sendBookingWhatsAppConfirmation(booking).catch((whatsappError) => {
             console.error('WhatsApp notification error:', whatsappError);
         });
-        sendBookingConfirmationEmail(booking, req.user).catch((emailError) => {
+        sendBookingConfirmationEmail(booking, req.user || null).catch((emailError) => {
             console.error('Booking confirmation email error:', emailError);
         });
         sendBookingSMSConfirmation(booking).catch((smsError) => {

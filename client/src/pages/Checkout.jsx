@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
@@ -22,7 +22,6 @@ const Checkout = () => {
     const { cartItem, clearCart } = useCart();
     const { user } = useAuth();
     const navigate = useNavigate();
-    const location = useLocation();
     const [isProcessing, setIsProcessing] = useState(false);
     const [error, setError] = useState(null);
     const [paymentMethod, setPaymentMethod] = useState('razorpay');
@@ -37,16 +36,10 @@ const Checkout = () => {
 
         if (!cartItem) {
             navigate('/farms');
-        } else if (!user) {
-            navigate('/login', {
-                state: {
-                    from: `${location.pathname}${location.search}`
-                }
-            });
         }
-    }, [cartItem, user, navigate, isCheckoutComplete, location.pathname, location.search]);
+    }, [cartItem, navigate, isCheckoutComplete]);
 
-    if (!user || (!cartItem && !isCheckoutComplete)) {
+    if (!cartItem && !isCheckoutComplete) {
         return null;
     }
 
@@ -59,6 +52,7 @@ const Checkout = () => {
         ? `Farm experience only (${cartItem?.guests} guests)`
         : propertyTitle;
     const token = localStorage.getItem('token');
+    const authConfig = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
 
     const finishCheckout = (message, bookingResponse = {}) => {
         const nextCompletedBooking = {
@@ -103,9 +97,7 @@ const Checkout = () => {
 
         try {
             const bookingPayload = buildBookingPayload();
-            const { data: orderData } = await axios.post(`${API_URL}/api/bookings/create-order`, bookingPayload, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const { data: orderData } = await axios.post(`${API_URL}/api/bookings/create-order`, bookingPayload, authConfig);
 
             if (!orderData.success) {
                 throw new Error('Failed to create order');
@@ -131,9 +123,7 @@ const Checkout = () => {
                             razorpay_payment_id: response.razorpay_payment_id,
                             razorpay_signature: response.razorpay_signature,
                             bookingDetails: bookingPayload
-                        }, {
-                            headers: { Authorization: `Bearer ${token}` }
-                        });
+                        }, authConfig);
 
                         if (verifyRes.data.success) {
                             finishCheckout('Payment received. We will notify you after admin review.', verifyRes.data);
@@ -146,7 +136,7 @@ const Checkout = () => {
                 prefill: {
                     name: cartItem.guestDetails.name,
                     contact: cartItem.guestDetails.phone,
-                    email: user.email
+                    email: cartItem.guestDetails.email || user?.email || ''
                 },
                 theme: { color: '#7a5527' },
                 modal: {
@@ -174,9 +164,7 @@ const Checkout = () => {
         setError(null);
 
         try {
-            const { data } = await axios.post(`${API_URL}/api/bookings/cod`, buildBookingPayload(), {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const { data } = await axios.post(`${API_URL}/api/bookings/cod`, buildBookingPayload(), authConfig);
 
             if (!data.success) {
                 throw new Error('Failed to create COD booking');
@@ -212,7 +200,7 @@ const Checkout = () => {
                         {confirmationMessage || 'We will notify you after admin review.'}
                     </p>
                     <p className="mx-auto mt-2 max-w-lg text-sm text-[#3f6b3f]">
-                        Your booking confirmation has been sent to your email and saved in My Bookings.
+                        Your booking confirmation has been sent to your email{user ? ' and saved in My Bookings.' : '.'}
                     </p>
 
                     <div className="mt-8 rounded-2xl border border-[#ead7b8] bg-[#f8efdf] p-5 text-left">
@@ -251,18 +239,20 @@ const Checkout = () => {
                     </div>
 
                     <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
-                        <button
-                            type="button"
-                            onClick={() => navigate('/bookings', {
-                                state: {
-                                    bookingSuccess: true,
-                                    message: confirmationMessage
-                                }
-                            })}
-                            className="rounded-xl bg-primary px-6 py-3 font-bold text-white shadow-lg transition hover:bg-primary-800"
-                        >
-                            View My Bookings
-                        </button>
+                        {user && (
+                            <button
+                                type="button"
+                                onClick={() => navigate('/bookings', {
+                                    state: {
+                                        bookingSuccess: true,
+                                        message: confirmationMessage
+                                    }
+                                })}
+                                className="rounded-xl bg-primary px-6 py-3 font-bold text-white shadow-lg transition hover:bg-primary-800"
+                            >
+                                View My Bookings
+                            </button>
+                        )}
                         <button
                             type="button"
                             onClick={() => navigate('/farms')}
