@@ -26,29 +26,69 @@ const createEmailTransporter = () => {
     return null;
 };
 
-const sendBookingStatusEmail = async (booking, status, rejectionReason = '') => {
-    let to = booking.guestDetails?.email || booking.user?.email;
+const getBookingUserId = (booking) => {
+    if (!booking?.user) return null;
+    return typeof booking.user === 'object' ? booking.user._id : booking.user;
+};
+
+const sendBookingStatusEmail = async (booking, status, rejectionReason = '', context = {}) => {
     const from = process.env.EMAIL_USER;
     const transporter = createEmailTransporter();
+    const userId = getBookingUserId(booking);
+    let user = typeof booking.user === 'object' && booking.user?.email ? booking.user : null;
 
-    if (!to && booking.user) {
-        const userId = typeof booking.user === 'object' ? booking.user._id : booking.user;
-        const user = userId ? await User.findById(userId).select('email') : null;
-        to = user?.email;
+    if (!user && userId) {
+        user = await User.findById(userId).select('name email');
+        if (!user) {
+            console.error('Booking status email user not found:', {
+                bookingId: booking?._id,
+                userId
+            });
+        }
     }
 
-    if (!to || !from || !transporter) {
-        console.log('Booking status email skipped:', { bookingId: booking._id, to, status });
+    const email =
+        context.requestEmail ||
+        booking.guestDetails?.email ||
+        user?.email ||
+        booking.user?.email ||
+        booking.email;
+
+    console.log('EMAIL DEBUG:', {
+        requestEmail: context.requestEmail,
+        userEmail: user?.email || booking.user?.email,
+        bookingEmail: booking?.email,
+        guestDetailsEmail: booking.guestDetails?.email,
+        bookingId: booking?._id,
+        status
+    });
+
+    if (!email) {
+        console.error('Email missing, skipping email send', {
+            bookingId: booking?._id,
+            userId,
+            hasUser: Boolean(booking?.user)
+        });
+        return;
+    }
+
+    if (!from || !transporter) {
+        console.log('Booking status email skipped: SMTP not configured', {
+            bookingId: booking._id,
+            to: email,
+            status,
+            emailConfigured: Boolean(process.env.EMAIL_USER && process.env.EMAIL_PASS)
+        });
         return;
     }
 
     const propertyTitle = booking.property?.title || booking.propertyTitle || 'your farm stay';
-    const guestName = booking.guestDetails?.name || booking.user?.name || 'Guest';
+    const guestName = booking.guestDetails?.name || user?.name || booking.user?.name || 'Guest';
     const isRejected = status === 'Rejected';
 
     await transporter.sendMail({
         from,
-        to,
+        to: email,
         subject: isRejected
             ? `Your Brown Cows booking was not approved`
             : `Your Brown Cows booking is confirmed`,
@@ -404,12 +444,14 @@ router.put('/bookings/:id/status', verifyAdmin, async (req, res) => {
             updateData.rejectionReason = rejectionReason;
         }
 
-        const booking = await Booking.findByIdAndUpdate(
+        await Booking.findByIdAndUpdate(
             req.params.id,
             updateData,
             { new: true }
-        )
-            .populate('user', 'name email')
+        );
+
+        const booking = await Booking.findById(req.params.id)
+            .populate('user')
             .populate('property', 'title location');
 
         if (!booking) {
@@ -417,7 +459,9 @@ router.put('/bookings/:id/status', verifyAdmin, async (req, res) => {
         }
 
         if (status === 'Confirmed' || status === 'Approved' || status === 'Rejected') {
-            sendBookingStatusEmail(booking, status, rejectionReason).catch((emailError) => {
+            sendBookingStatusEmail(booking, status, rejectionReason, {
+                requestEmail: req.body?.email
+            }).catch((emailError) => {
                 console.error('Booking status email failed:', emailError);
             });
         }
