@@ -9,6 +9,8 @@ const BlockedDate = require('../models/BlockedDate');
 const { verifyToken } = require('../middleware/authMiddleware');
 const { sendBookingNotification } = require('../utils/notifications');
 const { sendBookingWhatsAppConfirmation } = require('../utils/whatsapp');
+const { sendBookingConfirmationEmail } = require('../utils/bookingEmail');
+const { sendBookingSMSConfirmation } = require('../utils/sms');
 
 const ACTIVE_BOOKING_STATUSES = ['Confirmed', 'Pending', 'Approved'];
 const RETREAT_STAY_SLOT_LIMITS = {
@@ -414,6 +416,12 @@ router.post('/verify-payment', verifyToken, async (req, res) => {
             sendBookingWhatsAppConfirmation(booking).catch((whatsappError) => {
                 console.error('WhatsApp notification error:', whatsappError);
             });
+            sendBookingConfirmationEmail(booking, req.user).catch((emailError) => {
+                console.error('Booking confirmation email error:', emailError);
+            });
+            sendBookingSMSConfirmation(booking).catch((smsError) => {
+                console.error('Booking confirmation SMS error:', smsError);
+            });
 
             return res.json({
                 success: true,
@@ -500,6 +508,12 @@ router.post('/cod', verifyToken, async (req, res) => {
 
         sendBookingWhatsAppConfirmation(booking).catch((whatsappError) => {
             console.error('WhatsApp notification error:', whatsappError);
+        });
+        sendBookingConfirmationEmail(booking, req.user).catch((emailError) => {
+            console.error('Booking confirmation email error:', emailError);
+        });
+        sendBookingSMSConfirmation(booking).catch((smsError) => {
+            console.error('Booking confirmation SMS error:', smsError);
         });
 
         res.json({

@@ -212,7 +212,7 @@ const Checkout = () => {
                         {confirmationMessage || 'We will notify you after admin review.'}
                     </p>
                     <p className="mx-auto mt-2 max-w-lg text-sm text-[#3f6b3f]">
-                        Your booking details are saved in My Bookings.
+                        Your booking confirmation has been sent to your email and saved in My Bookings.
                     </p>
 
                     <div className="mt-8 rounded-2xl border border-[#ead7b8] bg-[#f8efdf] p-5 text-left">
