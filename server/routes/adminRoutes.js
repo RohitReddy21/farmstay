@@ -5,6 +5,7 @@ const router = express.Router();
 const User = require('../models/User');
 const Booking = require('../models/Booking');
 const Farm = require('../models/Farm');
+const BlockedDate = require('../models/BlockedDate');
 const { verifyAdmin, verifyToken } = require('../middleware/authMiddleware');
 const upload = require('../middleware/uploadMiddleware');
 
@@ -94,6 +95,22 @@ const splitList = (value) => {
         .filter(Boolean);
 };
 
+const startOfDay = (date) => {
+    const value = new Date(date);
+    value.setHours(0, 0, 0, 0);
+    return value;
+};
+
+const hasRangeOverlap = (startDate, endDate) => ({
+    $and: [{
+        $or: [
+            { startDate: { $lte: startDate }, endDate: { $gte: startDate } },
+            { startDate: { $lte: endDate }, endDate: { $gte: endDate } },
+            { startDate: { $gte: startDate }, endDate: { $lte: endDate } }
+        ]
+    }]
+});
+
 const normalizeVideoUrl = (rawUrl) => {
     const url = String(rawUrl || '').trim();
     if (!url) return '';
@@ -135,6 +152,95 @@ router.get('/farms', verifyAdmin, async (req, res) => {
         const farms = await Farm.find({});
         res.json(farms);
     } catch (error) {
+        res.status(500).json({ message: 'Server Error' });
+    }
+});
+
+// @route   GET /api/admin/blocked-dates
+// @desc    Get manual blocked date ranges
+router.get('/blocked-dates', verifyAdmin, async (req, res) => {
+    try {
+        const query = req.query.farm ? { farm: req.query.farm } : {};
+        const blockedDates = await BlockedDate.find(query)
+            .populate('farm', 'title location')
+            .populate('createdBy', 'name email')
+            .sort({ startDate: 1 });
+        res.json(blockedDates);
+    } catch (error) {
+        console.error('Error fetching blocked dates:', error);
+        res.status(500).json({ message: 'Server Error' });
+    }
+});
+
+// @route   POST /api/admin/blocked-dates
+// @desc    Create a manual blocked date range
+router.post('/blocked-dates', verifyAdmin, async (req, res) => {
+    try {
+        const { farm, startDate, endDate, reason } = req.body;
+        const selectedFarm = await Farm.findById(farm);
+        if (!selectedFarm) {
+            return res.status(404).json({ message: 'Farm not found' });
+        }
+
+        const start = startOfDay(startDate);
+        const end = startOfDay(endDate);
+        if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+            return res.status(400).json({ message: 'Please select valid start and end dates.' });
+        }
+
+        if (end < start) {
+            return res.status(400).json({ message: 'End date must be the same as or after start date.' });
+        }
+
+        const conflictingBooking = await Booking.findOne({
+            property: farm,
+            status: { $in: ['Confirmed', 'Pending', 'Approved'] },
+            ...hasRangeOverlap(start, end)
+        });
+
+        if (conflictingBooking) {
+            return res.status(409).json({ message: 'A booking already exists in this date range.' });
+        }
+
+        const existingBlock = await BlockedDate.findOne({
+            farm,
+            ...hasRangeOverlap(start, end)
+        });
+
+        if (existingBlock) {
+            return res.status(409).json({ message: 'This date range overlaps an existing manual block.' });
+        }
+
+        const blockedDate = await BlockedDate.create({
+            farm,
+            startDate: start,
+            endDate: end,
+            reason: String(reason || 'Blocked by admin').trim(),
+            createdBy: req.user._id
+        });
+
+        const populatedBlock = await BlockedDate.findById(blockedDate._id)
+            .populate('farm', 'title location')
+            .populate('createdBy', 'name email');
+
+        res.status(201).json(populatedBlock);
+    } catch (error) {
+        console.error('Error creating blocked date:', error);
+        res.status(500).json({ message: 'Server Error' });
+    }
+});
+
+// @route   DELETE /api/admin/blocked-dates/:id
+// @desc    Remove a manual blocked date range
+router.delete('/blocked-dates/:id', verifyAdmin, async (req, res) => {
+    try {
+        const blockedDate = await BlockedDate.findByIdAndDelete(req.params.id);
+        if (!blockedDate) {
+            return res.status(404).json({ message: 'Blocked date not found' });
+        }
+        res.json({ message: 'Blocked date removed' });
+    } catch (error) {
+        console.error('Error deleting blocked date:', error);
         res.status(500).json({ message: 'Server Error' });
     }
 });
@@ -270,7 +376,7 @@ router.get('/bookings', verifyAdmin, async (req, res) => {
     try {
         const bookings = await Booking.find({})
             .populate('user', 'name email')
-            .populate('property', 'title location');
+            .populate('property', 'title location availability capacity');
         res.json(bookings);
     } catch (error) {
         res.status(500).json({ message: 'Server Error' });

@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
 import { Suspense, lazy, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Instagram, Mail, MessageCircle, Youtube, X, Facebook, Phone, MapPin } from 'lucide-react';
@@ -14,7 +14,6 @@ import PageTransition from './components/PageTransition';
 // Lazy load pages
 const Home = lazy(() => import('./pages/Home'));
 const Login = lazy(() => import('./pages/Login'));
-const Register = lazy(() => import('./pages/Register'));
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 const Farms = lazy(() => import('./pages/Farms'));
 const FarmDetails = lazy(() => import('./pages/FarmDetails'));
@@ -24,6 +23,7 @@ const Database = lazy(() => import('./pages/Database'));
 const Success = lazy(() => import('./pages/Success'));
 const Profile = lazy(() => import('./pages/Profile'));
 const MyBookings = lazy(() => import('./pages/MyBookings'));
+const BookingDetails = lazy(() => import('./pages/BookingDetails'));
 const Favorites = lazy(() => import('./pages/Favorites'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const Cart = lazy(() => import('./pages/Cart'));
@@ -37,7 +37,7 @@ const AnimatedRoutes = () => {
       <Routes location={location} key={location.pathname}>
         <Route path="/" element={<PageTransition><Home /></PageTransition>} />
         <Route path="/login" element={<PageTransition><Login /></PageTransition>} />
-        <Route path="/register" element={<PageTransition><Register /></PageTransition>} />
+        <Route path="/register" element={<Navigate to="/login" replace state={location.state} />} />
         <Route path="/forgot-password" element={<PageTransition><ForgotPassword /></PageTransition>} />
         <Route path="/farms" element={<PageTransition><Farms /></PageTransition>} />
         <Route path="/farm/:id" element={<PageTransition><FarmDetails /></PageTransition>} />
@@ -48,6 +48,7 @@ const AnimatedRoutes = () => {
         <Route path="/success" element={<PageTransition><Success /></PageTransition>} />
         <Route path="/profile" element={<PageTransition><Profile /></PageTransition>} />
         <Route path="/bookings" element={<PageTransition><MyBookings /></PageTransition>} />
+        <Route path="/bookings/:id" element={<PageTransition><BookingDetails /></PageTransition>} />
         <Route path="/favorites" element={<PageTransition><Favorites /></PageTransition>} />
         <Route path="/cart" element={<PageTransition><Cart /></PageTransition>} />
         <Route path="/checkout" element={<PageTransition><Checkout /></PageTransition>} />

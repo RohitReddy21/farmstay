@@ -46,6 +46,7 @@ import ReviewForm from '../components/ReviewForm';
 import StarRating from '../components/StarRating';
 import BookingConfirmationModal from '../components/BookingConfirmationModal';
 import LazySection from '../components/LazySection';
+import { buildImageSrcSet, optimizeImageUrl } from '../utils/imageOptimization';
 
 const FarmDetails = () => {
     const { id } = useParams();
@@ -69,6 +70,7 @@ const FarmDetails = () => {
     const [isCalendarOpen, setIsCalendarOpen] = useState(false);
     const [confirmedBookingDetails, setConfirmedBookingDetails] = useState(null);
     const [showLightbox, setShowLightbox] = useState(false);
+    const [showAllGalleryImages, setShowAllGalleryImages] = useState(false);
     const [isVariationSelectorOpen, setIsVariationSelectorOpen] = useState(false);
     const [weekendDateConflict, setWeekendDateConflict] = useState(null);
     const [showRetreatPrompt, setShowRetreatPrompt] = useState(false);
@@ -240,7 +242,12 @@ const FarmDetails = () => {
         rangeStart: new Date(booking.startDate),
         rangeEnd: new Date(booking.endDate)
     })), [unavailableDates]);
-    const mediaThumbnails = useMemo(() => allMedia.slice(0, 8), [allMedia]);
+    const visibleThumbnailLimit = 8;
+    const mediaThumbnails = useMemo(
+        () => allMedia.slice(0, showAllGalleryImages ? allMedia.length : visibleThumbnailLimit),
+        [allMedia, showAllGalleryImages]
+    );
+    const hiddenThumbnailCount = Math.max(0, allMedia.length - visibleThumbnailLimit);
 
     const rangesOverlap = (startDate, endDate, booking) => {
         const bookingStart = booking.rangeStart || new Date(booking.startDate);
@@ -353,6 +360,49 @@ const FarmDetails = () => {
         return false;
     };
 
+    const isBookedDate = (date) => unavailableRanges.some((booking) =>
+        bookingMatchesVariation(booking) && rangesOverlap(date, date, booking)
+    );
+
+    const isWeekendBlockedDate = (date) => {
+        if (farm?.availability !== 'Monday to Friday') return false;
+        const day = date.getDay();
+        return day === 0 || day === 6;
+    };
+
+    const renderCalendarDay = (date) => {
+        const booked = isBookedDate(date);
+        const weekendBlocked = isWeekendBlockedDate(date);
+
+        return (
+            <span className="relative flex h-full w-full items-center justify-center">
+                <span>{date.getDate()}</span>
+                {booked && (
+                    <span
+                        aria-label="Unavailable date"
+                        className={`absolute bottom-0.5 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full ${unavailableRanges.some((booking) => booking.source === 'manual-block' && rangesOverlap(date, date, booking)) ? 'bg-gray-500' : 'bg-red-500'}`}
+                    />
+                )}
+                {!booked && weekendBlocked && (
+                    <span
+                        aria-label="Weekend unavailable"
+                        className="absolute bottom-0.5 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-amber-500"
+                    />
+                )}
+            </span>
+        );
+    };
+
+    const visibleUnavailableRanges = useMemo(() => unavailableRanges
+        .filter((booking) => bookingMatchesVariation(booking))
+        .filter((booking) => {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            return booking.rangeEnd >= today;
+        })
+        .sort((a, b) => a.rangeStart - b.rangeStart)
+        .slice(0, 3), [unavailableRanges, selectedVariation, selectedCottage, hasVariations]);
+
     const handleDateChange = (item) => {
         setDateSelection([item.selection]);
         setBookingError('');
@@ -415,6 +465,7 @@ const FarmDetails = () => {
                 const { data } = await axios.get(`${API_URL}/api/farms/${id}`);
                 setFarm(data);
                 setAllMedia(combineMedia(data));
+                setShowAllGalleryImages(false);
                 const bookingDraft = location.state?.bookingDraft;
 
                 if (bookingDraft?.farmId === id) {
@@ -612,11 +663,53 @@ const FarmDetails = () => {
         }
     };
 
-    if (loading) return <div className="text-center py-20">Loading...</div>;
+    if (loading) {
+        return (
+            <div className="space-y-6 md:space-y-8">
+                <div className="grid grid-cols-1 gap-6 md:gap-8 lg:grid-cols-3">
+                    <div className="lg:col-span-2">
+                        <div className="h-[300px] animate-pulse rounded-2xl bg-[#ead7b8] sm:h-[400px] md:h-[500px]" />
+                        <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
+                            {Array.from({ length: 8 }).map((_, index) => (
+                                <div key={index} className="h-20 animate-pulse rounded-lg bg-[#f1e3cc]" />
+                            ))}
+                        </div>
+                    </div>
+                    <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-xl">
+                        <div className="mb-5 h-8 w-3/4 animate-pulse rounded bg-[#ead7b8]" />
+                        <div className="mb-5 h-8 w-32 animate-pulse rounded bg-[#ead7b8]" />
+                        <div className="mb-5 h-24 animate-pulse rounded-2xl bg-[#f1e3cc]" />
+                        <div className="space-y-3">
+                            {Array.from({ length: 4 }).map((_, index) => (
+                                <div key={index} className="h-12 animate-pulse rounded-xl bg-[#f1e3cc]" />
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
     if (!farm) return <div className="text-center py-20">Farm not found</div>;
 
     const isBookingBlocked = Boolean(dateConflict || weekendDateConflict);
     const selectedIsBookedForDates = selectedVariation && variationHasDateConflict(selectedVariation);
+    const hasValidDates = Boolean(dateSelection[0].startDate && dateSelection[0].endDate && !isBookingBlocked);
+    const hasValidGuestDetails = Boolean(bookingData.guestName.trim() && getTenDigitPhone(bookingData.guestPhone).length === 10);
+    const hasValidGuestCount = isWholeMudCottageSelected
+        || (!validateGuestCount(bookingData.guests) && !guestCountError);
+    const isReadyToReview = hasValidDates && hasValidGuestDetails && hasValidGuestCount && !selectedIsBookedForDates;
+    const bookingStepIndex = !hasValidDates
+        ? 0
+        : !hasValidGuestDetails || !hasValidGuestCount
+            ? 1
+            : !isReadyToReview
+                ? 2
+                : 3;
+    const bookingSteps = ['Select Dates', 'Guest Details', 'Review', 'Book'];
+    const selectedNights = Math.max(1, Math.ceil((dateSelection[0].endDate - dateSelection[0].startDate) / (1000 * 60 * 60 * 24)));
+    const selectedTotal = selectedNights * nightlyPrice;
+    const selectedTax = Math.round(selectedTotal * 0.18);
+    const selectedGrandTotal = selectedTotal + selectedTax;
 
     return (
         <div className="space-y-6 md:space-y-8">
@@ -688,9 +781,16 @@ const FarmDetails = () => {
                                 {allMedia.length > 0 && allMedia[currentMediaIndex]?.type === 'image' ? (
                                     <motion.img
                                         key={currentMediaIndex}
-                                        src={allMedia[currentMediaIndex].url}
+                                        src={optimizeImageUrl(allMedia[currentMediaIndex].url, { width: 1120, height: 740 })}
+                                        srcSet={buildImageSrcSet(allMedia[currentMediaIndex].url, [480, 768, 1120, 1440], { height: 960 })}
+                                        sizes="(max-width: 1024px) 100vw, 66vw"
                                         alt={`${farm.title} - Media ${currentMediaIndex + 1}`}
                                         className="w-full h-full object-cover"
+                                        loading={currentMediaIndex === 0 ? 'eager' : 'lazy'}
+                                        fetchPriority={currentMediaIndex === 0 ? 'high' : 'auto'}
+                                        decoding="async"
+                                        width="1120"
+                                        height="740"
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 1 }}
                                         exit={{ opacity: 0 }}
@@ -769,17 +869,21 @@ const FarmDetails = () => {
                                     <button
                                         key={index}
                                         onClick={() => setCurrentMediaIndex(index)}
-                                        className={`rounded-lg overflow-hidden h-20 transition-all relative group ${index === currentMediaIndex
+                                        className={`relative h-20 overflow-hidden rounded-lg transition-all group ${index === currentMediaIndex
                                             ? 'ring-4 ring-primary scale-105'
                                             : 'opacity-60 hover:opacity-100'
                                             }`}
                                     >
                                         {media.type === 'image' ? (
                                             <img
-                                                src={media.url}
+                                                src={optimizeImageUrl(media.url, { width: 260, height: 160 })}
+                                                srcSet={buildImageSrcSet(media.url, [160, 260, 360], { height: 220 })}
+                                                sizes="(max-width: 640px) 30vw, 160px"
                                                 alt={`Thumbnail ${index + 1}`}
                                                 loading="lazy"
                                                 decoding="async"
+                                                width="260"
+                                                height="160"
                                                 className="w-full h-full object-cover"
                                             />
                                         ) : (
@@ -794,13 +898,22 @@ const FarmDetails = () => {
                                         )}
                                     </button>
                                 ))}
-                                {allMedia.length > mediaThumbnails.length && (
+                                {!showAllGalleryImages && hiddenThumbnailCount > 0 && (
                                     <button
                                         type="button"
-                                        onClick={() => setShowLightbox(true)}
-                                        className="rounded-lg bg-[#211b14] text-sm font-bold text-white"
+                                        onClick={() => setShowAllGalleryImages(true)}
+                                        className="h-20 rounded-lg bg-[#211b14] text-sm font-bold text-white transition hover:bg-primary"
                                     >
-                                        +{allMedia.length - mediaThumbnails.length} more
+                                        +{hiddenThumbnailCount} more
+                                    </button>
+                                )}
+                                {showAllGalleryImages && hiddenThumbnailCount > 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowAllGalleryImages(false)}
+                                        className="h-20 rounded-lg border border-[#d9c18e] bg-white text-sm font-bold text-primary transition hover:bg-[#fff7ea]"
+                                    >
+                                        Show less
                                     </button>
                                 )}
                             </div>
@@ -817,6 +930,43 @@ const FarmDetails = () => {
                         <div className="flex justify-between items-end mb-4 md:mb-6">
                             <span className="text-2xl md:text-3xl font-bold text-gray-900">₹{nightlyPrice}</span>
                             <span className="text-gray-500 mb-1 text-sm md:text-base">/ night</span>
+                        </div>
+
+                        <div className="mb-5 rounded-2xl border border-[#ead7b8] bg-[#fffaf1] p-3">
+                            <div className="mb-3 flex items-center justify-between gap-2">
+                                <p className="text-[11px] font-black uppercase tracking-[0.18em] text-primary">Booking Progress</p>
+                                <p className="text-xs font-bold text-gray-500">Step {Math.min(bookingStepIndex + 1, bookingSteps.length)} of {bookingSteps.length}</p>
+                            </div>
+                            <div className="grid grid-cols-4 gap-1.5">
+                                {bookingSteps.map((step, index) => {
+                                    const isComplete = index < bookingStepIndex;
+                                    const isCurrent = index === bookingStepIndex;
+
+                                    return (
+                                        <div key={step} className="min-w-0">
+                                            <div className={`mb-1 h-1.5 rounded-full transition-colors ${
+                                                isComplete || isCurrent ? 'bg-primary' : 'bg-[#ead7b8]'
+                                            }`} />
+                                            <div className="flex flex-col items-center gap-1 text-center">
+                                                <span className={`flex h-7 w-7 items-center justify-center rounded-full border text-xs font-black transition-colors ${
+                                                    isComplete
+                                                        ? 'border-primary bg-primary text-white'
+                                                        : isCurrent
+                                                            ? 'border-primary bg-white text-primary'
+                                                            : 'border-[#ead7b8] bg-white text-gray-400'
+                                                }`}>
+                                                    {isComplete ? <Check size={14} strokeWidth={4} /> : index + 1}
+                                                </span>
+                                                <span className={`text-[10px] font-bold leading-tight ${
+                                                    isComplete || isCurrent ? 'text-[#211b14]' : 'text-gray-400'
+                                                }`}>
+                                                    {step}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
 
                         {hasVariations && (
@@ -1044,9 +1194,52 @@ const FarmDetails = () => {
                                                     minDate={new Date()}
                                                     rangeColors={['#7a5527']}
                                                     disabledDay={isDateDisabled}
+                                                    dayContentRenderer={renderCalendarDay}
                                                     className="border-none rounded-2xl font-inter"
                                                     months={1}
                                                 />
+                                            </div>
+                                            <div className="mt-3 w-full rounded-2xl border border-[#ead7b8] bg-[#fffaf1] p-3">
+                                                <div className="mb-2 flex flex-wrap items-center gap-3 text-xs font-semibold text-gray-600">
+                                                    <span className="inline-flex items-center gap-1.5">
+                                                        <span className="h-2 w-2 rounded-full bg-red-500" />
+                                                        Booked
+                                                    </span>
+                                                    <span className="inline-flex items-center gap-1.5">
+                                                        <span className="h-2 w-2 rounded-full bg-gray-500" />
+                                                        Blocked
+                                                    </span>
+                                                    {farm?.availability === 'Monday to Friday' && (
+                                                        <span className="inline-flex items-center gap-1.5">
+                                                            <span className="h-2 w-2 rounded-full bg-amber-500" />
+                                                            Weekend unavailable
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">
+                                                    Unavailable dates
+                                                </p>
+                                                {visibleUnavailableRanges.length > 0 ? (
+                                                    <div className="mt-2 space-y-1.5">
+                                                        {visibleUnavailableRanges.map((booking) => (
+                                                            <div
+                                                                key={`${booking.startDate}-${booking.endDate}-${booking._id || booking.id || ''}`}
+                                                                className="flex items-center justify-between gap-3 rounded-xl bg-white px-3 py-2 text-xs font-semibold text-gray-700"
+                                                            >
+                                                                <span>
+                                                                    {formatDateForDisplay(booking.rangeStart)} - {formatDateForDisplay(booking.rangeEnd)}
+                                                                </span>
+                                                                <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] ${booking.source === 'manual-block' ? 'bg-gray-100 text-gray-600' : 'bg-red-50 text-red-600'}`}>
+                                                                    {booking.source === 'manual-block' ? 'Blocked' : 'Booked'}
+                                                                </span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <p className="mt-2 text-xs font-medium text-gray-500">
+                                                        No upcoming booked dates for this option.
+                                                    </p>
+                                                )}
                                             </div>
                                             <div className="mt-3 pt-4 border-t border-gray-100 flex justify-center w-full">
                                                 <button
@@ -1373,9 +1566,16 @@ const FarmDetails = () => {
                                 {allMedia[currentMediaIndex]?.type === 'image' ? (
                                     <motion.img
                                         key={currentMediaIndex}
-                                        src={allMedia[currentMediaIndex]?.url}
+                                        src={optimizeImageUrl(allMedia[currentMediaIndex]?.url, { width: 1600, crop: 'limit' })}
+                                        srcSet={buildImageSrcSet(allMedia[currentMediaIndex]?.url, [768, 1120, 1600, 2048], { crop: 'limit' })}
+                                        sizes="100vw"
                                         alt="Full screen view"
                                         className="h-auto max-h-[70dvh] w-full object-contain rounded-lg shadow-2xl sm:max-h-[85vh]"
+                                        loading="eager"
+                                        fetchPriority="high"
+                                        decoding="async"
+                                        width="1600"
+                                        height="1000"
                                         initial={{ y: 20, opacity: 0 }}
                                         animate={{ y: 0, opacity: 1 }}
                                         exit={{ y: -20, opacity: 0 }}
@@ -1449,7 +1649,17 @@ const FarmDetails = () => {
                                             }`}
                                     >
                                         {media.type === 'image' ? (
-                                            <img src={media.url} alt={`Thumbnail ${idx + 1}`} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                                            <img
+                                                src={optimizeImageUrl(media.url, { width: 160, height: 120 })}
+                                                srcSet={buildImageSrcSet(media.url, [96, 160, 240], { height: 180 })}
+                                                sizes="64px"
+                                                alt={`Thumbnail ${idx + 1}`}
+                                                loading="lazy"
+                                                decoding="async"
+                                                width="160"
+                                                height="120"
+                                                className="w-full h-full object-cover"
+                                            />
                                         ) : (
                                             <div className="w-full h-full bg-gray-800 flex items-center justify-center">
                                                 <Play className="w-4 h-4 text-white" />
@@ -1464,22 +1674,26 @@ const FarmDetails = () => {
             </AnimatePresence>
 
             {/* Sticky Mobile Booking Bar */}
-            <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 md:hidden z-40 shadow-[0_-4px_10px_rgba(0,0,0,0.05)] flex items-center justify-between gap-4">
-                <div>
-                    <p className="text-gray-900 font-bold text-lg">₹{nightlyPrice}<span className="text-sm font-normal text-gray-500"> / night</span></p>
+            <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3 md:hidden z-40 shadow-[0_-4px_10px_rgba(0,0,0,0.05)] flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                    <p className="text-gray-900 font-bold text-lg">₹{selectedGrandTotal.toLocaleString('en-IN')}<span className="text-xs font-normal text-gray-500"> total</span></p>
+                    <p className="truncate text-xs font-semibold text-gray-500">
+                        {selectedNights} night{selectedNights === 1 ? '' : 's'} · ₹{nightlyPrice.toLocaleString('en-IN')}/night · Tax ₹{selectedTax.toLocaleString('en-IN')}
+                    </p>
                     {dateConflict ? (
                         <p className="text-xs text-red-500 font-medium">Dates unavailable</p>
                     ) : (
-                        <p className="text-xs text-secondary font-medium">Available now</p>
+                        <p className="text-xs text-secondary font-medium">
+                            {dateSelection[0].startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {dateSelection[0].endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </p>
                     )}
                 </div>
                 <button
                     onClick={() => {
                         window.scrollTo({ top: 0, behavior: 'smooth' });
-                        // Optional: Open calendar automatically if desired
                         setIsCalendarOpen(true);
                     }}
-                    className="bg-primary text-white px-6 py-3 rounded-xl font-bold hover:bg-primary-800 transition-all shadow-lg active:scale-95"
+                    className="shrink-0 bg-primary text-white px-5 py-3 rounded-xl font-bold hover:bg-primary-800 transition-all shadow-lg active:scale-95"
                 >
                     Book Now
                 </button>

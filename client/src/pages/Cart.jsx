@@ -139,7 +139,7 @@ const Cart = () => {
                             }}
                             className="mt-4 w-full py-3 font-medium text-[#8b7a66] transition-colors hover:text-red-500"
                         >
-                            Cancel Booking
+                            Back to Farm
                         </button>
                     </motion.div>
                 </div>

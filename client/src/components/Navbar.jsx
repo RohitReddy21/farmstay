@@ -54,9 +54,6 @@ const Navbar = () => {
                         ) : (
                             <>
                                 <Link to="/login" className="px-2 py-1 text-[#645747] transition hover:text-[#7a5527] dark:text-[#d5c9b7] dark:hover:text-[#e7c678]">Login</Link>
-                                <Link to="/register" className="transform rounded-full bg-primary px-4 py-2 text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-primary-800 hover:shadow-xl">
-                                    Sign Up
-                                </Link>
                             </>
                         )}
                     </div>
@@ -180,13 +177,6 @@ const Navbar = () => {
                                         className="rounded-lg px-4 py-3 font-medium text-[#645747] transition-all hover:bg-[#f4ead8] hover:text-[#7a5527] dark:text-[#d5c9b7] dark:hover:bg-[#232823] dark:hover:text-[#e7c678]"
                                     >
                                         Login
-                                    </Link>
-                                    <Link
-                                        to="/register"
-                                        onClick={() => setIsOpen(false)}
-                                        className="rounded-lg bg-primary px-4 py-3 text-center font-semibold text-white shadow-md transition-all hover:bg-primary-800"
-                                    >
-                                        Sign Up
                                     </Link>
                                 </>
                             )}

@@ -5,8 +5,10 @@ const Razorpay = require('razorpay');
 const Booking = require('../models/Booking');
 const Farm = require('../models/Farm');
 const Payment = require('../models/Payment');
+const BlockedDate = require('../models/BlockedDate');
 const { verifyToken } = require('../middleware/authMiddleware');
 const { sendBookingNotification } = require('../utils/notifications');
+const { sendBookingWhatsAppConfirmation } = require('../utils/whatsapp');
 
 const ACTIVE_BOOKING_STATUSES = ['Confirmed', 'Pending', 'Approved'];
 const RETREAT_STAY_SLOT_LIMITS = {
@@ -50,6 +52,21 @@ async function hasOverlap(propertyId, roomId, startDate, endDate, variation) {
         }]
     });
     return !!overlap;
+}
+
+async function hasManualDateBlock(propertyId, startDate, endDate) {
+    const blockedDate = await BlockedDate.findOne({
+        farm: propertyId,
+        $and: [{
+            $or: [
+                { startDate: { $lte: startDate }, endDate: { $gte: startDate } },
+                { startDate: { $lte: endDate }, endDate: { $gte: endDate } },
+                { startDate: { $gte: startDate }, endDate: { $lte: endDate } }
+            ]
+        }]
+    });
+
+    return !!blockedDate;
 }
 
 function rangeIncludesWeekend(startDate, endDate) {
@@ -235,6 +252,13 @@ async function validateBookingAvailability({ propertyId, roomId, startDate, endD
         throw error;
     }
 
+    const manuallyBlocked = await hasManualDateBlock(propertyId, start, end);
+    if (manuallyBlocked) {
+        const error = new Error('Selected dates are blocked by the host. Please choose different dates.');
+        error.statusCode = 409;
+        throw error;
+    }
+
     if (retreatMeta) {
         if (isStayRetreat(retreatMeta)) {
             const slotAvailability = await getRetreatStaySlotAvailability(start, retreatMeta.stayType || retreatMeta.package);
@@ -387,8 +411,9 @@ router.post('/verify-payment', verifyToken, async (req, res) => {
                 paymentMethod: 'Razorpay'
             });
 
-            // Notify Admin
-            // sendAdminNotification(booking._id);
+            sendBookingWhatsAppConfirmation(booking).catch((whatsappError) => {
+                console.error('WhatsApp notification error:', whatsappError);
+            });
 
             return res.json({
                 success: true,
@@ -422,6 +447,10 @@ router.post('/cod', verifyToken, async (req, res) => {
             return res.status(400).json({
                 message: 'This farm stay is available Monday to Friday only. Saturdays and Sundays are reserved for the 2-day Learning Retreat.'
             });
+        }
+
+        if (await hasManualDateBlock(propertyId, start, end)) {
+            return res.status(409).json({ message: 'Selected dates are blocked by the host. Please choose different dates.' });
         }
 
         if (retreatMeta) {
@@ -469,6 +498,10 @@ router.post('/cod', verifyToken, async (req, res) => {
             paymentMethod: 'COD'
         });
 
+        sendBookingWhatsAppConfirmation(booking).catch((whatsappError) => {
+            console.error('WhatsApp notification error:', whatsappError);
+        });
+
         res.json({
             success: true,
             message: 'COD booking placed successfully.',
@@ -507,8 +540,19 @@ router.get('/property/:id/availability', async (req, res) => {
         const bookings = await Booking.find({
             property: req.params.id,
             status: { $in: ['Confirmed', 'Pending', 'Approved'] }
-        }).select('startDate endDate room variation');
-        res.json(bookings);
+        }).select('startDate endDate room variation status');
+        const blockedDates = await BlockedDate.find({ farm: req.params.id }).select('startDate endDate reason');
+        res.json([
+            ...bookings.map((booking) => booking.toObject()),
+            ...blockedDates.map((block) => ({
+                _id: block._id,
+                startDate: block.startDate,
+                endDate: block.endDate,
+                reason: block.reason,
+                source: 'manual-block',
+                variation: null
+            }))
+        ]);
     } catch (error) {
         console.error('Error fetching availability:', error);
         res.status(500).json({ message: 'Server Error' });

@@ -34,7 +34,7 @@ const Login = () => {
                 <div className="mb-8 text-center">
                     <p className="mb-2 text-xs font-bold uppercase tracking-[0.28em] text-[#8a642d]">Brown Cows Dairy</p>
                     <h2 className="text-3xl font-bold text-[#211b14]">Welcome Back</h2>
-                    <p className="mt-2 text-sm text-[#645747]">Login to continue your farm stay booking.</p>
+                    <p className="mt-2 text-sm text-[#645747]">Use Google or direct login to continue your farm stay booking.</p>
                 </div>
             {error && <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
             {message && <div className="mb-4 rounded-xl border border-[#cfe4c8] bg-[#f1f8ec] p-3 text-sm text-[#3f6b3f]">{message}</div>}
@@ -71,7 +71,7 @@ const Login = () => {
                         <div className="w-full border-t border-[#ead7b8]"></div>
                     </div>
                     <div className="relative flex justify-center text-sm">
-                        <span className="bg-[#fffaf1] px-2 text-[#8b7a66]">Or login with email</span>
+                        <span className="bg-[#fffaf1] px-2 text-[#8b7a66]">Or direct guest login</span>
                     </div>
                 </div>
             </div>
@@ -103,12 +103,9 @@ const Login = () => {
                     />
                 </div>
                 <button type="submit" className="w-full rounded-xl bg-primary py-3 font-bold text-white shadow-lg transition hover:bg-primary-800">
-                    Login
+                    Guest Login
                 </button>
             </form>
-                <p className="mt-6 text-center text-[#645747]">
-                    Don't have an account? <Link to="/register" state={location.state} className="font-bold text-primary hover:underline">Sign up</Link>
-                </p>
             </div>
         </div>
     );

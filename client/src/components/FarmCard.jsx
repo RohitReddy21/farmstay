@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, MapPin, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useState, useEffect, useRef } from 'react';
 import FavoriteButton from './FavoriteButton';
+import { buildImageSrcSet, optimizeImageUrl } from '../utils/imageOptimization';
 
 const FarmCard = ({ farm }) => {
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -73,7 +74,9 @@ const FarmCard = ({ farm }) => {
             <div className="relative aspect-[4/3] overflow-hidden bg-gray-100 dark:bg-gray-700">
                 <motion.img
                     key={currentImageIndex}
-                    src={images[currentImageIndex] || 'https://via.placeholder.com/400'}
+                    src={optimizeImageUrl(images[currentImageIndex], { width: 520, height: 390 }) || 'https://via.placeholder.com/400'}
+                    srcSet={buildImageSrcSet(images[currentImageIndex], [320, 520, 760], { height: 570 })}
+                    sizes="(max-width: 640px) 92vw, (max-width: 1024px) 45vw, 30vw"
                     alt={farm.title}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -82,6 +85,8 @@ const FarmCard = ({ farm }) => {
                     className="h-full w-full object-cover"
                     loading="lazy"
                     decoding="async"
+                    width="520"
+                    height="390"
                 />
                 {showImageControls && (
                     <>

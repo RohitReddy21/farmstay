@@ -6,6 +6,18 @@ import axios from 'axios';
 import { ShieldCheck, ChevronLeft, Loader, CreditCard, Banknote } from 'lucide-react';
 import API_URL from '../config';
 
+const formatDate = (date) => date ? new Date(date).toLocaleDateString('en-IN') : '-';
+
+const getGuestCountText = (guests) => {
+    if (!guests) return '-';
+    if (typeof guests === 'object') {
+        const adults = Number(guests.adults || 0);
+        const children = Number(guests.children || 0);
+        return children ? `${adults} adults, ${children} children` : `${adults} guests`;
+    }
+    return `${guests} guests`;
+};
+
 const Checkout = () => {
     const { cartItem, clearCart } = useCart();
     const { user } = useAuth();
@@ -48,13 +60,19 @@ const Checkout = () => {
         : propertyTitle;
     const token = localStorage.getItem('token');
 
-    const finishCheckout = (message) => {
-        setCompletedBooking({
+    const finishCheckout = (message, bookingResponse = {}) => {
+        const nextCompletedBooking = {
+            bookingId: bookingResponse.bookingId,
             propertyTitle,
             total: cartItem?.pricing?.grandTotal,
             paymentMethod,
-            bookingTypeLabel
-        });
+            bookingTypeLabel,
+            startDate: cartItem?.startDate,
+            endDate: cartItem?.endDate,
+            guestsText: getGuestCountText(cartItem?.guests)
+        };
+
+        setCompletedBooking(nextCompletedBooking);
         setIsCheckoutComplete(true);
         setConfirmationMessage(message);
         clearCart();
@@ -118,7 +136,7 @@ const Checkout = () => {
                         });
 
                         if (verifyRes.data.success) {
-                            finishCheckout('Payment received. We will notify you after admin review.');
+                            finishCheckout('Payment received. We will notify you after admin review.', verifyRes.data);
                         }
                     } catch (err) {
                         setError('Payment verification failed. Please contact support.');
@@ -164,7 +182,7 @@ const Checkout = () => {
                 throw new Error('Failed to create COD booking');
             }
 
-            finishCheckout('COD booking placed. We will notify you after admin review.');
+            finishCheckout('COD booking placed. We will notify you after admin review.', data);
         } catch (err) {
             console.error('COD checkout error:', err);
             setError(err.response?.data?.message || 'Could not place COD booking. Please try again.');
@@ -193,11 +211,30 @@ const Checkout = () => {
                     <p className="mx-auto mt-3 max-w-lg text-[#645747]">
                         {confirmationMessage || 'We will notify you after admin review.'}
                     </p>
+                    <p className="mx-auto mt-2 max-w-lg text-sm text-[#3f6b3f]">
+                        Your booking details are saved in My Bookings.
+                    </p>
 
                     <div className="mt-8 rounded-2xl border border-[#ead7b8] bg-[#f8efdf] p-5 text-left">
+                        {completedBooking?.bookingId ? (
+                            <div className="mb-3 flex items-center justify-between gap-4">
+                                <span className="text-sm text-[#645747]">Booking ID</span>
+                                <span className="text-right font-bold text-[#211b14]">{completedBooking.bookingId}</span>
+                            </div>
+                        ) : null}
                         <div className="flex items-center justify-between gap-4">
                             <span className="text-sm text-[#645747]">{completedBooking?.bookingTypeLabel || bookingTypeLabel}</span>
                             <span className="text-right font-bold text-[#211b14]">{completedBooking?.propertyTitle || propertyTitle}</span>
+                        </div>
+                        <div className="mt-3 flex items-center justify-between gap-4">
+                            <span className="text-sm text-[#645747]">Dates</span>
+                            <span className="text-right font-semibold text-[#211b14]">
+                                {formatDate(completedBooking?.startDate)} to {formatDate(completedBooking?.endDate)}
+                            </span>
+                        </div>
+                        <div className="mt-3 flex items-center justify-between gap-4">
+                            <span className="text-sm text-[#645747]">Guests</span>
+                            <span className="font-semibold text-[#211b14]">{completedBooking?.guestsText || '-'}</span>
                         </div>
                         {completedBooking?.total ? (
                             <div className="mt-3 flex items-center justify-between gap-4">

@@ -32,13 +32,13 @@ const Chatbot = () => {
         if (userQuery.includes('book') || userQuery.includes('reservation')) {
             botResponse = "To make a booking, simply browse our farms, select your dates, and click 'Book Now'. You'll need to be logged in.";
         } else if (userQuery.includes('cancel') || userQuery.includes('refund')) {
-            botResponse = "You can cancel bookings from your 'My Bookings' page. Refunds are processed within 5-7 business days.";
+            botResponse = "For cancellation or refund help, please contact Brown Cows Dairy on WhatsApp or email. You can still edit eligible upcoming bookings from your 'My Bookings' page.";
         } else if (userQuery.includes('price') || userQuery.includes('cost')) {
             botResponse = "Prices vary by farm and season. You can filter farms by price range on our Explore page.";
         } else if (userQuery.includes('location') || userQuery.includes('where')) {
             botResponse = "We have farm stays across multiple locations! Use the location filter on the Explore page to find one near you.";
         } else if (userQuery.includes('contact') || userQuery.includes('support')) {
-            botResponse = "You can reach our support team at support@farmstay.com or call us at +91 98765 43210.";
+            botResponse = "You can reach Brown Cows Dairy at browncowsdairy@gmail.com or WhatsApp +91 99898 54411.";
         } else if (userQuery.includes('hello') || userQuery.includes('hi')) {
             botResponse = "Hello! How can I assist you with your farm stay plans today?";
         }

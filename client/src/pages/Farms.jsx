@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Link } from 'react-router-dom';
-import { MapPin, Users, SlidersHorizontal, X } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { CalendarDays, MapPin, Users, SlidersHorizontal, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import API_URL from '../config';
 import FavoriteButton from '../components/FavoriteButton';
@@ -11,6 +11,7 @@ import FarmCardSkeleton from '../components/FarmCardSkeleton';
 const PRICE_FILTER_MAX = 25000;
 
 const Farms = () => {
+    const [searchParams] = useSearchParams();
     const [farms, setFarms] = useState([]);
     const [filteredFarms, setFilteredFarms] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -25,12 +26,21 @@ const Farms = () => {
         subCategory: '',
         sortBy: 'default'
     });
+    const requestedCheckIn = searchParams.get('checkIn') || '';
+    const requestedCheckOut = searchParams.get('checkOut') || '';
 
     const amenitiesList = ['WiFi', 'Pool', 'Parking', 'Kitchen', 'AC', 'Pets Allowed', 'Garden', 'BBQ'];
 
     useEffect(() => {
         fetchFarms();
     }, []);
+
+    useEffect(() => {
+        const guests = searchParams.get('guests');
+        if (guests) {
+            setFilters((current) => ({ ...current, capacity: guests }));
+        }
+    }, [searchParams]);
 
     useEffect(() => {
         applyFilters();
@@ -133,6 +143,29 @@ const Farms = () => {
                     Filters
                 </button>
             </div>
+
+            {(requestedCheckIn || requestedCheckOut || filters.capacity) && (
+                <div className="rounded-2xl border border-[#ead7b8] bg-[#fffaf1] p-4 text-sm text-[#645747] shadow-sm">
+                    <div className="flex flex-wrap items-center gap-3">
+                        <span className="font-bold text-[#211b14]">Availability search</span>
+                        {requestedCheckIn && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1 font-semibold">
+                                <CalendarDays size={14} /> In: {requestedCheckIn}
+                            </span>
+                        )}
+                        {requestedCheckOut && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1 font-semibold">
+                                <CalendarDays size={14} /> Out: {requestedCheckOut}
+                            </span>
+                        )}
+                        {filters.capacity && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1 font-semibold">
+                                <Users size={14} /> {filters.capacity}+ guests
+                            </span>
+                        )}
+                    </div>
+                </div>
+            )}
 
             <div className="grid md:grid-cols-4 gap-6 md:gap-8">
                 {/* Filters Sidebar */}
@@ -292,7 +325,11 @@ const Farms = () => {
                     </div>
 
                     {loading ? (
-                        <div className="text-center py-20 text-gray-600 dark:text-gray-400">Loading farms...</div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                            {Array.from({ length: 6 }).map((_, index) => (
+                                <FarmCardSkeleton key={index} />
+                            ))}
+                        </div>
                     ) : filteredFarms.length === 0 ? (
                         <div className="text-center py-20">
                             <p className="text-gray-600 dark:text-gray-400 text-lg mb-4">No farms match your filters</p>

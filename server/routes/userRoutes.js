@@ -2,10 +2,91 @@ const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
 const Booking = require('../models/Booking');
+const Farm = require('../models/Farm');
+const BlockedDate = require('../models/BlockedDate');
 const bcrypt = require('bcryptjs');
 const { verifyToken } = require('../middleware/authMiddleware');
 
 const getPhoneDigits = (phone = '') => String(phone).replace(/\D/g, '');
+const ACTIVE_BOOKING_STATUSES = ['Pending', 'Approved', 'Confirmed'];
+const CLOSED_BOOKING_STATUSES = ['Cancelled', 'Completed', 'Rejected'];
+
+const startOfDay = (date) => {
+    const value = new Date(date);
+    value.setHours(0, 0, 0, 0);
+    return value;
+};
+
+const getSelectedCottages = (variation = {}) => {
+    if (Array.isArray(variation?.cottages) && variation.cottages.length) return variation.cottages;
+    return variation?.cottage ? [variation.cottage] : [];
+};
+
+const buildResourceFilter = (roomId, variation) => {
+    const selectedCottages = getSelectedCottages(variation);
+    if (selectedCottages.length) {
+        return {
+            $or: [
+                { 'variation.cottage': { $in: selectedCottages } },
+                { 'variation.cottages': { $in: selectedCottages } },
+                { 'variation.cottage': { $exists: false } },
+                { 'variation.cottage': null }
+            ]
+        };
+    }
+
+    return roomId ? { room: roomId } : {};
+};
+
+const getVariationConfig = (property, bookingVariation = {}) => {
+    if (!property?.variations?.length || !bookingVariation) return null;
+    return property.variations.find((variation) => (
+        (bookingVariation.type && variation.type === bookingVariation.type)
+        || (bookingVariation.label && variation.label === bookingVariation.label)
+    )) || null;
+};
+
+const calculateBookingPricing = (property, booking, nights) => {
+    const variationConfig = getVariationConfig(property, booking.variation);
+    const nightlyPrice = Number(variationConfig?.price || property.price || booking.totalPrice || 0);
+    const totalPrice = nightlyPrice * nights;
+    const tax = Math.round(totalPrice * 0.18);
+    return { totalPrice, tax };
+};
+
+const checkBookingOverlap = async (booking, startDate, endDate) => {
+    const resourceFilter = buildResourceFilter(booking.room, booking.variation);
+    const overlap = await Booking.findOne({
+        _id: { $ne: booking._id },
+        property: booking.property,
+        ...(resourceFilter || {}),
+        status: { $in: ACTIVE_BOOKING_STATUSES },
+        $and: [{
+            $or: [
+                { startDate: { $lte: startDate }, endDate: { $gte: startDate } },
+                { startDate: { $lte: endDate }, endDate: { $gte: endDate } },
+                { startDate: { $gte: startDate }, endDate: { $lte: endDate } }
+            ]
+        }]
+    });
+
+    return !!overlap;
+};
+
+const checkManualDateBlock = async (propertyId, startDate, endDate) => {
+    const blockedDate = await BlockedDate.findOne({
+        farm: propertyId,
+        $and: [{
+            $or: [
+                { startDate: { $lte: startDate }, endDate: { $gte: startDate } },
+                { startDate: { $lte: endDate }, endDate: { $gte: endDate } },
+                { startDate: { $gte: startDate }, endDate: { $lte: endDate } }
+            ]
+        }]
+    });
+
+    return !!blockedDate;
+};
 
 // @route   GET /api/users/profile
 // @desc    Get user profile
@@ -108,7 +189,7 @@ router.put('/password', verifyToken, async (req, res) => {
 router.get('/bookings', verifyToken, async (req, res) => {
     try {
         const bookings = await Booking.find({ user: req.user._id })
-            .populate('property', 'title location price images')
+            .populate('property', 'title location price capacity images variations')
             .sort({ createdAt: -1 });
 
         res.json(bookings);
@@ -118,45 +199,112 @@ router.get('/bookings', verifyToken, async (req, res) => {
     }
 });
 
-// @route   DELETE /api/users/bookings/:id
-// @desc    Cancel a booking
+// @route   PUT /api/users/bookings/:id
+// @desc    Edit a customer booking
 // @access  Private
-router.delete('/bookings/:id', verifyToken, async (req, res) => {
+router.put('/bookings/:id', verifyToken, async (req, res) => {
     try {
+        const { startDate, endDate, guests, guestDetails = {} } = req.body;
         const booking = await Booking.findById(req.params.id);
 
         if (!booking) {
             return res.status(404).json({ message: 'Booking not found' });
         }
 
-        // Check if booking belongs to user (convert both to strings for comparison)
         if (booking.user.toString() !== req.user._id.toString()) {
-            return res.status(403).json({ message: 'Not authorized to cancel this booking' });
+            return res.status(403).json({ message: 'Not authorized to edit this booking' });
         }
 
-        // Check if booking can be cancelled (only pending or confirmed)
-        if (booking.status === 'cancelled') {
-            return res.status(400).json({ message: 'Booking is already cancelled' });
+        if (CLOSED_BOOKING_STATUSES.includes(booking.status)) {
+            return res.status(400).json({ message: 'This booking can no longer be edited.' });
         }
 
-        if (booking.status === 'completed') {
-            return res.status(400).json({ message: 'Cannot cancel completed booking' });
+        const today = startOfDay(new Date());
+        const currentStart = startOfDay(booking.startDate);
+        if (currentStart < today) {
+            return res.status(400).json({ message: 'Past bookings cannot be edited.' });
         }
 
-        // Check if booking is in the future
-        const now = new Date();
-        if (new Date(booking.startDate) < now) {
-            return res.status(400).json({ message: 'Cannot cancel past bookings' });
+        const nextStart = startOfDay(startDate);
+        const nextEnd = startOfDay(endDate);
+        if (Number.isNaN(nextStart.getTime()) || Number.isNaN(nextEnd.getTime())) {
+            return res.status(400).json({ message: 'Please select valid check-in and check-out dates.' });
         }
 
-        booking.status = 'cancelled';
+        if (nextStart < today) {
+            return res.status(400).json({ message: 'Check-in date cannot be in the past.' });
+        }
+
+        if (nextEnd <= nextStart) {
+            return res.status(400).json({ message: 'Check-out date must be after check-in date.' });
+        }
+
+        const guestCount = Number(guests);
+        if (!Number.isInteger(guestCount) || guestCount < 1) {
+            return res.status(400).json({ message: 'Please enter a valid number of guests.' });
+        }
+
+        const guestName = String(guestDetails.name || booking.guestDetails?.name || '').trim();
+        if (!guestName) {
+            return res.status(400).json({ message: 'Guest name is required.' });
+        }
+
+        const phoneDigits = getPhoneDigits(guestDetails.phone || booking.guestDetails?.phone);
+        if (phoneDigits.length !== 10) {
+            return res.status(400).json({ message: 'Mobile number must be exactly 10 digits.' });
+        }
+
+        const property = await Farm.findById(booking.property);
+        if (!property) {
+            return res.status(404).json({ message: 'Property not found' });
+        }
+
+        const variationConfig = getVariationConfig(property, booking.variation);
+        const guestLimit = Number(variationConfig?.capacity || property.capacity || 1);
+        if (guestCount > guestLimit) {
+            return res.status(400).json({ message: `Maximum ${guestLimit} guests allowed for this stay.` });
+        }
+
+        const hasConflict = await checkBookingOverlap(booking, nextStart, nextEnd);
+        if (hasConflict) {
+            return res.status(409).json({ message: 'Selected dates are not available.' });
+        }
+
+        const hasManualBlock = await checkManualDateBlock(booking.property, nextStart, nextEnd);
+        if (hasManualBlock) {
+            return res.status(409).json({ message: 'Selected dates are blocked by the host. Please choose different dates.' });
+        }
+
+        const nights = Math.ceil((nextEnd - nextStart) / (1000 * 60 * 60 * 24));
+        const pricing = calculateBookingPricing(property, booking, nights);
+
+        booking.startDate = nextStart;
+        booking.endDate = nextEnd;
+        booking.guests = { adults: guestCount, children: 0 };
+        booking.guestDetails.name = guestName;
+        booking.guestDetails.phone = phoneDigits;
+        booking.totalPrice = pricing.totalPrice;
+        booking.tax = pricing.tax;
+
         await booking.save();
 
-        res.json({ message: 'Booking cancelled successfully', booking });
+        const updatedBooking = await Booking.findById(booking._id)
+            .populate('property', 'title location price capacity images variations');
+
+        res.json({ message: 'Booking updated successfully', booking: updatedBooking });
     } catch (error) {
-        console.error('Error cancelling booking:', error);
+        console.error('Error updating booking:', error);
         res.status(500).json({ message: 'Server Error' });
     }
+});
+
+// @route   DELETE /api/users/bookings/:id
+// @desc    Customer cancellations are handled by support
+// @access  Private
+router.delete('/bookings/:id', verifyToken, (req, res) => {
+    res.status(405).json({
+        message: 'Please contact Brown Cows Dairy on WhatsApp or email to cancel your booking.'
+    });
 });
 
 module.exports = router;
