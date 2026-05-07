@@ -45,13 +45,8 @@ async function hasOverlap(propertyId, roomId, startDate, endDate, variation) {
         property: propertyId,
         ...(resourceFilter || {}),
         status: { $in: ['Confirmed', 'Pending', 'Approved'] },
-        $and: [{
-            $or: [
-            { startDate: { $lte: startDate }, endDate: { $gte: startDate } },
-            { startDate: { $lte: endDate }, endDate: { $gte: endDate } },
-            { startDate: { $gte: startDate }, endDate: { $lte: endDate } }
-            ]
-        }]
+        startDate: { $lt: endDate },
+        endDate: { $gt: startDate }
     });
     return !!overlap;
 }
@@ -59,13 +54,8 @@ async function hasOverlap(propertyId, roomId, startDate, endDate, variation) {
 async function hasManualDateBlock(propertyId, startDate, endDate) {
     const blockedDate = await BlockedDate.findOne({
         farm: propertyId,
-        $and: [{
-            $or: [
-                { startDate: { $lte: startDate }, endDate: { $gte: startDate } },
-                { startDate: { $lte: endDate }, endDate: { $gte: endDate } },
-                { startDate: { $gte: startDate }, endDate: { $lte: endDate } }
-            ]
-        }]
+        startDate: { $lt: endDate },
+        endDate: { $gt: startDate }
     });
 
     return !!blockedDate;
@@ -77,7 +67,7 @@ function rangeIncludesWeekend(startDate, endDate) {
     const last = new Date(endDate);
     last.setHours(0, 0, 0, 0);
 
-    while (cursor <= last) {
+    while (cursor < last) {
         const day = cursor.getDay();
         if (day === 0 || day === 6) return true;
         cursor.setDate(cursor.getDate() + 1);
@@ -430,9 +420,7 @@ router.post('/verify-payment', optionalAuth, async (req, res) => {
             sendBookingWhatsAppConfirmation(booking).catch((whatsappError) => {
                 console.error('WhatsApp notification error:', whatsappError);
             });
-            sendBookingConfirmationEmail(booking, req.user || null).catch((emailError) => {
-                console.error('Booking confirmation email error:', emailError);
-            });
+            await sendBookingConfirmationEmail(booking, req.user || null);
             sendBookingSMSConfirmation(booking).catch((smsError) => {
                 console.error('Booking confirmation SMS error:', smsError);
             });
@@ -528,9 +516,7 @@ router.post('/cod', optionalAuth, async (req, res) => {
         sendBookingWhatsAppConfirmation(booking).catch((whatsappError) => {
             console.error('WhatsApp notification error:', whatsappError);
         });
-        sendBookingConfirmationEmail(booking, req.user || null).catch((emailError) => {
-            console.error('Booking confirmation email error:', emailError);
-        });
+        await sendBookingConfirmationEmail(booking, req.user || null);
         sendBookingSMSConfirmation(booking).catch((smsError) => {
             console.error('Booking confirmation SMS error:', smsError);
         });

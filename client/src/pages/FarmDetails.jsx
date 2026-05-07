@@ -254,7 +254,13 @@ const FarmDetails = () => {
     const rangesOverlap = (startDate, endDate, booking) => {
         const bookingStart = booking.rangeStart || new Date(booking.startDate);
         const bookingEnd = booking.rangeEnd || new Date(booking.endDate);
-        return startDate <= bookingEnd && endDate >= bookingStart;
+        return startDate < bookingEnd && endDate > bookingStart;
+    };
+
+    const isUnavailableDate = (date, booking) => {
+        const bookingStart = booking.rangeStart || new Date(booking.startDate);
+        const bookingEnd = booking.rangeEnd || new Date(booking.endDate);
+        return date >= bookingStart && date < bookingEnd;
     };
 
     const getVariationCottages = (variation) => {
@@ -291,7 +297,7 @@ const FarmDetails = () => {
         const last = new Date(endDate);
         last.setHours(0, 0, 0, 0);
 
-        while (cursor <= last) {
+        while (cursor < last) {
             const day = cursor.getDay();
             if (day === 0 || day === 6) return true;
             cursor.setDate(cursor.getDate() + 1);
@@ -350,7 +356,7 @@ const FarmDetails = () => {
         if (date < today) return true;
 
         // Disable unavailable dates from bookings
-        const isBooked = unavailableRanges.some(booking => bookingMatchesVariation(booking) && rangesOverlap(date, date, booking));
+        const isBooked = unavailableRanges.some(booking => bookingMatchesVariation(booking) && isUnavailableDate(date, booking));
         if (isBooked) return true;
 
         // Disable based on farm availability rules
@@ -363,7 +369,7 @@ const FarmDetails = () => {
     };
 
     const isBookedDate = (date) => unavailableRanges.some((booking) =>
-        bookingMatchesVariation(booking) && rangesOverlap(date, date, booking)
+        bookingMatchesVariation(booking) && isUnavailableDate(date, booking)
     );
 
     const isWeekendBlockedDate = (date) => {
@@ -382,7 +388,7 @@ const FarmDetails = () => {
                 {booked && (
                     <span
                         aria-label="Unavailable date"
-                        className={`absolute bottom-0.5 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full ${unavailableRanges.some((booking) => booking.source === 'manual-block' && rangesOverlap(date, date, booking)) ? 'bg-gray-500' : 'bg-red-500'}`}
+                        className={`absolute bottom-0.5 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full ${unavailableRanges.some((booking) => booking.source === 'manual-block' && isUnavailableDate(date, booking)) ? 'bg-gray-500' : 'bg-red-500'}`}
                     />
                 )}
                 {!booked && weekendBlocked && (

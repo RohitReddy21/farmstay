@@ -1,10 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
-import { Link, useSearchParams } from 'react-router-dom';
-import { CalendarDays, MapPin, Users, SlidersHorizontal, X } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useSearchParams } from 'react-router-dom';
+import { CalendarDays, Users, SlidersHorizontal, X } from 'lucide-react';
 import API_URL from '../config';
-import FavoriteButton from '../components/FavoriteButton';
 import FarmCard from '../components/FarmCard';
 import FarmCardSkeleton from '../components/FarmCardSkeleton';
 
@@ -13,7 +11,6 @@ const PRICE_FILTER_MAX = 25000;
 const Farms = () => {
     const [searchParams] = useSearchParams();
     const [farms, setFarms] = useState([]);
-    const [filteredFarms, setFilteredFarms] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showFilters, setShowFilters] = useState(false);
 
@@ -42,15 +39,10 @@ const Farms = () => {
         }
     }, [searchParams]);
 
-    useEffect(() => {
-        applyFilters();
-    }, [farms, filters]);
-
     const fetchFarms = async () => {
         try {
             const { data } = await axios.get(`${API_URL}/api/farms`);
             setFarms(data);
-            setFilteredFarms(data);
         } catch (error) {
             console.error(error);
         } finally {
@@ -58,7 +50,7 @@ const Farms = () => {
         }
     };
 
-    const applyFilters = () => {
+    const filteredFarms = useMemo(() => {
         let result = [...farms];
 
         // Location filter
@@ -107,8 +99,8 @@ const Farms = () => {
                 break;
         }
 
-        setFilteredFarms(result);
-    };
+        return result;
+    }, [farms, filters]);
 
     const handleAmenityToggle = (amenity) => {
         setFilters(prev => ({
@@ -169,14 +161,8 @@ const Farms = () => {
 
             <div className="grid md:grid-cols-4 gap-6 md:gap-8">
                 {/* Filters Sidebar */}
-                <AnimatePresence>
-                    {(showFilters || window.innerWidth >= 768) && (
-                        <motion.div
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: -20 }}
-                            className="fixed md:static inset-0 md:inset-auto z-50 md:z-auto md:col-span-1 bg-white dark:bg-gray-800 md:p-6 md:rounded-2xl md:shadow-md h-screen md:h-fit overflow-y-auto md:overflow-visible scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100"
-                        >
+                {(showFilters || window.innerWidth >= 768) && (
+                        <div className="fixed md:static inset-0 md:inset-auto z-50 md:z-auto md:col-span-1 bg-white dark:bg-gray-800 md:p-6 md:rounded-2xl md:shadow-md h-screen md:h-fit overflow-y-auto md:overflow-visible scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
                             {/* Mobile overlay backdrop */}
                             <div
                                 className="md:hidden fixed inset-0 bg-black/50 -z-20"
@@ -314,9 +300,8 @@ const Farms = () => {
                                     </select>
                                 </div>
                             </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+                        </div>
+                )}
 
                 {/* Farms Grid */}
                 <div className="md:col-span-3">

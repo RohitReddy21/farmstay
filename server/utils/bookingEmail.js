@@ -166,12 +166,23 @@ const buildBookingStatusEmail = (booking, user = {}, status = 'Confirmed', rejec
 };
 
 const sendBookingConfirmationEmail = async (booking, user = {}) => {
-    const to = booking.guestDetails?.email || user.email;
+    const guestEmail = String(booking.guestDetails?.email || '').trim().toLowerCase();
+    const userEmail = String(user?.email || '').trim().toLowerCase();
+    const to = guestEmail || userEmail;
+
+    console.log('BOOKING EMAIL DEBUG:', {
+        bookingId: String(booking._id || booking.id),
+        guestDetailsEmail: guestEmail || undefined,
+        userEmail: userEmail || undefined,
+        selectedRecipient: to || undefined,
+        resendConfigured: Boolean(process.env.RESEND_API_KEY),
+        resendFrom: process.env.RESEND_FROM?.trim() || 'Brown Cows Dairy <onboarding@resend.dev>'
+    });
 
     if (!to) {
         console.log('Booking confirmation email skipped:', {
             bookingId: String(booking._id || booking.id),
-            to,
+            to: undefined,
             emailConfigured: Boolean(process.env.RESEND_API_KEY)
         });
         return { skipped: true };
@@ -184,10 +195,15 @@ const sendBookingConfirmationEmail = async (booking, user = {}) => {
             to,
             subject: email.subject,
             text: email.text,
-            html: email.html
+            html: email.html,
+            replyTo: process.env.OWNER_EMAIL || process.env.EMAIL_FROM || undefined
         });
 
         if (!success) {
+            console.error('Booking confirmation email provider returned failure:', {
+                bookingId: String(booking._id || booking.id),
+                to
+            });
             return { success: false };
         }
 
