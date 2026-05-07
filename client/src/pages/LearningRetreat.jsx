@@ -616,8 +616,11 @@ const LearningRetreat = () => {
                 retreatContent={retreatContent}
                 setShowBrochure={setShowBrochure}
                 onBookNow={() => {
-                    document.getElementById('booking')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    window.setTimeout(() => setIsCalendarOpen(true), 450);
+                    setExperience('day');
+                    setCalendarError('');
+                    window.setTimeout(() => {
+                        document.getElementById('retreat-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }, 0);
                 }}
             />
 
@@ -649,7 +652,7 @@ const LearningRetreat = () => {
                         />
                     </div>
 
-                    <div className="lg:sticky lg:top-8">
+                    <div id="retreat-booking-panel" className="scroll-mt-24 lg:sticky lg:top-8">
                         <BookingPanel
                             experience={experience}
                             setExperience={setExperience}
