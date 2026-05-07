@@ -76,7 +76,8 @@ const sendBookingStatusEmail = async (booking, status, rejectionReason = '', con
         to: email,
         subject: emailContent.subject,
         text: emailContent.text,
-        html: emailContent.html
+        html: emailContent.html,
+        replyTo: process.env.OWNER_EMAIL || process.env.EMAIL_FROM || undefined
     });
 };
 

@@ -188,9 +188,18 @@ const Admin = () => {
                 if (rejectionReason === null) return;
             }
 
+            const booking = bookings.find((item) => item._id === bookingId);
+            const isOnlinePaidBooking = booking && (
+                booking.paymentMethod === 'Razorpay'
+                || ['Authorized', 'Captured'].includes(booking.paymentStatus)
+            );
+            const isCodBooking = booking && (booking.paymentMethod === 'COD' || booking.paymentStatus === 'COD');
+
             await axios.put(`${API_URL}/api/admin/bookings/${bookingId}/status`, { status, rejectionReason }, authConfig());
             fetchData();
-            alert(status === 'Rejected' ? 'Booking rejected and guest email sent if configured.' : 'Booking accepted and guest email sent if configured.');
+            alert(status === 'Rejected'
+                ? `Booking rejected and guest email sent if configured.${isOnlinePaidBooking ? ' Refund notice included: any debited amount will be refunded within 7 working days.' : ''}${isCodBooking ? ' COD payment notice included: no online amount was collected.' : ''}`
+                : 'Booking accepted and guest email sent if configured.');
         } catch (error) {
             console.error('Error updating booking status:', error);
             alert(error.response?.data?.message || 'Failed to update booking status');

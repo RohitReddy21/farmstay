@@ -18,6 +18,10 @@ const getPaymentLabel = (booking) => (
 );
 
 const getBookingTotal = (booking) => Number(booking.totalPrice || 0) + Number(booking.tax || 0);
+const isOnlinePaidBooking = (booking) => (
+    String(booking.paymentMethod || '').toLowerCase() === 'razorpay'
+    || ['Authorized', 'Captured'].includes(booking.paymentStatus)
+);
 
 const buildBookingEmail = (booking, user = {}) => {
     const guestName = booking.guestDetails?.name || user.name || 'Guest';
@@ -99,6 +103,11 @@ const buildBookingStatusEmail = (booking, user = {}, status = 'Confirmed', rejec
         : `Your booking for ${propertyTitle} has been confirmed.`;
     const statusLabel = isRejected ? 'Rejected' : 'Confirmed';
     const accent = isRejected ? '#9f3f2f' : '#4a7c59';
+    const showPaymentNotice = isRejected;
+    const paymentNoticeHeading = isOnlinePaidBooking(booking) ? 'Refund notice' : 'Payment notice';
+    const refundNotice = 'If any amount has been debited for this booking, it will be refunded to the original bank account or payment method within 7 working days as per payment gateway timelines.';
+    const codNotice = 'This was a COD / Pay at Farm booking, so no online amount was collected and no refund action is required.';
+    const paymentNotice = isOnlinePaidBooking(booking) ? refundNotice : codNotice;
     const rows = [
         ['Booking ID', bookingId],
         ['Stay', propertyTitle],
@@ -115,6 +124,7 @@ const buildBookingStatusEmail = (booking, user = {}, status = 'Confirmed', rejec
         '',
         message,
         rejectionReason ? `Reason: ${rejectionReason}` : '',
+        showPaymentNotice ? paymentNotice : '',
         '',
         `Booking ID: ${bookingId}`,
         `Stay: ${propertyTitle}`,
@@ -139,6 +149,11 @@ const buildBookingStatusEmail = (booking, user = {}, status = 'Confirmed', rejec
                 <div style="padding:24px;">
                     <p style="margin:0 0 14px;">Hi <strong>${guestName}</strong>,</p>
                     <p style="margin:0 0 20px;color:#645747;">${message}</p>
+                    ${showPaymentNotice ? `
+                        <div style="margin:0 0 20px;padding:14px 16px;border:1px solid #f0c9bd;background:#fff3ee;border-radius:14px;color:#6d3328;font-size:14px;line-height:1.5;">
+                            <strong>${paymentNoticeHeading}:</strong> ${paymentNotice}
+                        </div>
+                    ` : ''}
                     <table style="width:100%;border-collapse:collapse;background:#f8efdf;border:1px solid #ead7b8;border-radius:14px;overflow:hidden;">
                         <tbody>
                             ${rows.map(([label, value]) => `
