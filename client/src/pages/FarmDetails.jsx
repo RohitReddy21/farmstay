@@ -257,10 +257,16 @@ const FarmDetails = () => {
         return startDate < bookingEnd && endDate > bookingStart;
     };
 
-    const isUnavailableDate = (date, booking) => {
+    const isBookedNightDate = (date, booking) => {
         const bookingStart = booking.rangeStart || new Date(booking.startDate);
         const bookingEnd = booking.rangeEnd || new Date(booking.endDate);
         return date >= bookingStart && date < bookingEnd;
+    };
+
+    const isCalendarDisabledBookedDate = (date, booking) => {
+        const bookingStart = booking.rangeStart || new Date(booking.startDate);
+        const bookingEnd = booking.rangeEnd || new Date(booking.endDate);
+        return date > bookingStart && date < bookingEnd;
     };
 
     const getVariationCottages = (variation) => {
@@ -356,7 +362,7 @@ const FarmDetails = () => {
         if (date < today) return true;
 
         // Disable unavailable dates from bookings
-        const isBooked = unavailableRanges.some(booking => bookingMatchesVariation(booking) && isUnavailableDate(date, booking));
+        const isBooked = unavailableRanges.some(booking => bookingMatchesVariation(booking) && isCalendarDisabledBookedDate(date, booking));
         if (isBooked) return true;
 
         // Disable based on farm availability rules
@@ -369,7 +375,7 @@ const FarmDetails = () => {
     };
 
     const isBookedDate = (date) => unavailableRanges.some((booking) =>
-        bookingMatchesVariation(booking) && isUnavailableDate(date, booking)
+        bookingMatchesVariation(booking) && isBookedNightDate(date, booking)
     );
 
     const isWeekendBlockedDate = (date) => {
@@ -388,7 +394,7 @@ const FarmDetails = () => {
                 {booked && (
                     <span
                         aria-label="Unavailable date"
-                        className={`absolute bottom-0.5 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full ${unavailableRanges.some((booking) => booking.source === 'manual-block' && isUnavailableDate(date, booking)) ? 'bg-gray-500' : 'bg-red-500'}`}
+                        className={`absolute bottom-0.5 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full ${unavailableRanges.some((booking) => booking.source === 'manual-block' && isBookedNightDate(date, booking)) ? 'bg-gray-500' : 'bg-red-500'}`}
                     />
                 )}
                 {!booked && weekendBlocked && (
