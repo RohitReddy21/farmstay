@@ -32,11 +32,19 @@ cloudinary.config({
 });
 
 // Middleware
+const envAllowedOrigins = (process.env.CLIENT_URL || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 const allowedOrigins = [
   'http://localhost:5173',
   'http://127.0.0.1:5173',
   'https://farmstay-eight.vercel.app',
-  'https://stays.browncowsdairy.com'
+  'https://stays.browncowsdairy.com',
+  'https://browncowsorganicfarms.com',
+  'https://www.browncowsorganicfarms.com',
+  ...envAllowedOrigins
 ];
 
 app.use(cors({
