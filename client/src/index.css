@@ -95,6 +95,28 @@
   opacity: 0.7;
 }
 
+/* Farm stay date range: keep selected endpoints without the heavy continuous bar */
+.farm-date-range .rdrInRange {
+  background: transparent !important;
+}
+
+.farm-date-range .rdrStartEdge,
+.farm-date-range .rdrEndEdge,
+.farm-date-range .rdrSelected {
+  background: #8b5e34 !important;
+  border-radius: 999px !important;
+  left: 2px !important;
+  right: 2px !important;
+}
+
+.farm-date-range .rdrDayHovered .rdrDayNumber::after {
+  border-color: #8b5e34 !important;
+}
+
+.farm-date-range .rdrDay:not(.rdrDayPassive) .rdrInRange ~ .rdrDayNumber span {
+  color: #4b5563 !important;
+}
+
 
 
 @layer base {

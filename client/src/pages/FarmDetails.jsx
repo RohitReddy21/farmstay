@@ -79,8 +79,8 @@ const FarmDetails = () => {
     const [guestCountError, setGuestCountError] = useState('');
     const [dateSelection, setDateSelection] = useState([
         {
-            startDate: new Date(),
-            endDate: new Date(),
+            startDate: undefined,
+            endDate: undefined,
             key: 'selection'
         }
     ]);
@@ -412,20 +412,14 @@ const FarmDetails = () => {
         const booked = Boolean(bookingStatus && bookingStatus.type !== 'checkout');
         const weekendBlocked = isWeekendBlockedDate(date);
         const isManualBlock = bookingStatus?.booking?.source === 'manual-block';
-        const dotClass = isManualBlock
-            ? 'bg-gray-500'
-            : bookingStatus?.type === 'checkout'
-                ? 'bg-emerald-500'
-                : bookingStatus?.type === 'check-in'
-                    ? 'bg-red-500'
-                    : 'bg-red-700';
+        const dotClass = isManualBlock ? 'bg-gray-500' : 'bg-red-500';
 
         return (
             <span className="relative flex h-full w-full items-center justify-center">
                 <span>{date.getDate()}</span>
-                {bookingStatus && (
+                {booked && (
                     <span
-                        aria-label={bookingStatus.type === 'checkout' ? 'Checkout date available for new check-in' : 'Booked night'}
+                        aria-label="Booked night"
                         className={`absolute bottom-0.5 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full ${dotClass}`}
                     />
                 )}
@@ -460,8 +454,8 @@ const FarmDetails = () => {
     const buildBookingDraft = () => ({
         farmId: id,
         bookingData,
-        startDate: dateSelection[0].startDate.toISOString(),
-        endDate: dateSelection[0].endDate.toISOString(),
+        startDate: dateSelection[0].startDate ? dateSelection[0].startDate.toISOString() : null,
+        endDate: dateSelection[0].endDate ? dateSelection[0].endDate.toISOString() : null,
         variationType: selectedVariation?.type || '',
         selectedCottage
     });
@@ -557,7 +551,7 @@ const FarmDetails = () => {
                 });
 
                 const completedBooking = data.find(b =>
-                    b.farm._id === id &&
+                    b.farm && b.farm._id === id &&
                     b.status === 'completed'
                 );
 
@@ -576,13 +570,18 @@ const FarmDetails = () => {
     }, [id, user]);
 
     useEffect(() => {
-        if (!farm) return;
+        if (!farm || !dateSelection[0].startDate || !dateSelection[0].endDate) return;
         checkDateConflict(dateSelection[0].startDate, dateSelection[0].endDate);
     }, [selectedVariation, selectedCottage, unavailableRanges, farm]);
 
     const handleBooking = async (e) => {
         e.preventDefault();
         setBookingError('');
+
+        if (!dateSelection[0].startDate || !dateSelection[0].endDate) {
+            showBookingValidationError('Please select your start and end dates before booking.');
+            return;
+        }
 
         const startStr = dateSelection[0].startDate.toLocaleDateString('en-CA');
         const endStr = dateSelection[0].endDate.toLocaleDateString('en-CA');
@@ -964,10 +963,12 @@ const FarmDetails = () => {
                         <div className="mb-4 pb-4 border-b border-gray-100">
                             <h1 className="text-2xl md:text-3xl font-bold text-gray-900 leading-tight">{farm.title}</h1>
                         </div>
-                        <div className="flex justify-between items-end mb-4 md:mb-6">
-                            <span className="text-2xl md:text-3xl font-bold text-gray-900">₹{nightlyPrice}</span>
-                            <span className="text-gray-500 mb-1 text-sm md:text-base">/ night</span>
-                        </div>
+                        {dateSelection[0].startDate && dateSelection[0].endDate && !isBookingBlocked && (
+                            <div className="flex justify-between items-end mb-4 md:mb-6">
+                                <span className="text-2xl md:text-3xl font-bold text-gray-900">₹{nightlyPrice}</span>
+                                <span className="text-gray-500 mb-1 text-sm md:text-base">/ night</span>
+                            </div>
+                        )}
 
                         <div className="mb-5 rounded-2xl border border-[#ead7b8] bg-[#fffaf1] p-3">
                             <div className="mb-3 flex items-center justify-between gap-2">
@@ -1029,7 +1030,10 @@ const FarmDetails = () => {
                                         >
                                             {farmVariations.map((variation) => (
                                                 <option key={variation.type} value={variation.type}>
-                                                    {variation.label} - Rs {variation.price} - Max {variation.capacity} guests
+                                                    {dateSelection[0].startDate && dateSelection[0].endDate && !isBookingBlocked 
+                                                        ? `${variation.label} - Rs ${variation.price} - Max ${variation.capacity} guests`
+                                                        : `${variation.label} - Max ${variation.capacity} guests`
+                                                    }
                                                 </option>
                                             ))}
                                         </select>
@@ -1040,9 +1044,11 @@ const FarmDetails = () => {
                                     {selectedVariation && (
                                         <div className="mt-3 rounded-2xl bg-white/75 p-3">
                                             <div className="flex flex-wrap items-center gap-2">
-                                                <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-black text-primary">
-                                                    Rs {nightlyPrice} / night
-                                                </span>
+                                                {dateSelection[0].startDate && dateSelection[0].endDate && !isBookingBlocked && (
+                                                    <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-black text-primary">
+                                                        Rs {nightlyPrice} / night
+                                                    </span>
+                                                )}
                                                 <span className="rounded-full bg-[#f0dfc5] px-3 py-1 text-xs font-black text-[#7a5527]">
                                                     Max {guestLimit} guests
                                                 </span>
@@ -1191,15 +1197,15 @@ const FarmDetails = () => {
                                 className="flex gap-4 p-3 bg-gray-50 rounded-xl border border-gray-200 cursor-pointer hover:border-primary/50 transition-all active:scale-[0.99]"
                             >
                                 <div className="flex-1 text-center border-r border-gray-200">
-                                    <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Check-in</p>
+                                    <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Start Date</p>
                                     <p className="font-bold text-lg text-gray-900">
-                                        {dateSelection[0].startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                        {dateSelection[0].startDate ? dateSelection[0].startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Select date'}
                                     </p>
                                 </div>
                                 <div className="flex-1 text-center">
-                                    <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Check-out</p>
+                                    <p className="text-xs text-gray-500 uppercase font-semibold mb-1">End Date</p>
                                     <p className="font-bold text-lg text-gray-900">
-                                        {dateSelection[0].endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                        {dateSelection[0].endDate ? dateSelection[0].endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Select date'}
                                     </p>
                                 </div>
                             </div>
@@ -1232,7 +1238,8 @@ const FarmDetails = () => {
                                                     rangeColors={['#7a5527']}
                                                     disabledDay={isDateDisabled}
                                                     dayContentRenderer={renderCalendarDay}
-                                                    className="border-none rounded-2xl font-inter"
+                                                    showDateDisplay={false}
+                                                    className="farm-date-range border-none rounded-2xl font-inter"
                                                     months={1}
                                                 />
                                             </div>
@@ -1240,15 +1247,7 @@ const FarmDetails = () => {
                                                 <div className="mb-2 flex flex-wrap items-center gap-3 text-xs font-semibold text-gray-600">
                                                     <span className="inline-flex items-center gap-1.5">
                                                         <span className="h-2 w-2 rounded-full bg-red-500" />
-                                                        Check-in night
-                                                    </span>
-                                                    <span className="inline-flex items-center gap-1.5">
-                                                        <span className="h-2 w-2 rounded-full bg-red-700" />
-                                                        Occupied night
-                                                    </span>
-                                                    <span className="inline-flex items-center gap-1.5">
-                                                        <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                                                        Checkout available
+                                                        Booked
                                                     </span>
                                                     <span className="inline-flex items-center gap-1.5">
                                                         <span className="h-2 w-2 rounded-full bg-gray-500" />
@@ -1262,7 +1261,7 @@ const FarmDetails = () => {
                                                     )}
                                                 </div>
                                                 <p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">
-                                                    Booked nights
+                                                    Unavailable dates
                                                 </p>
                                                 {visibleUnavailableRanges.length > 0 ? (
                                                     <div className="mt-2 space-y-1.5">
@@ -1319,6 +1318,10 @@ const FarmDetails = () => {
                             <button
                                 type="button"
                                 onClick={() => {
+                                    if (!dateSelection[0].startDate || !dateSelection[0].endDate) {
+                                        setBookingError('Please select your start and end dates before booking.');
+                                        return;
+                                    }
                                     setBookingError('');
                                     setShowStayBookingModal(true);
                                 }}
@@ -1558,13 +1561,18 @@ const FarmDetails = () => {
                                     <div>
                                         <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#8a642d]">Dates</p>
                                         <p className="mt-1 font-semibold text-[#211b14]">
-                                            {dateSelection[0].startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {dateSelection[0].endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                            {dateSelection[0].startDate && dateSelection[0].endDate 
+                                                ? `${dateSelection[0].startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${dateSelection[0].endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+                                                : 'Select dates'
+                                            }
                                         </p>
                                     </div>
+                                    {dateSelection[0].startDate && dateSelection[0].endDate && !isBookingBlocked && (
                                     <div>
                                         <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#8a642d]">Total</p>
                                         <p className="mt-1 font-semibold text-[#211b14]">₹{selectedGrandTotal.toLocaleString('en-IN')}</p>
                                     </div>
+                                )}
                                 </div>
                             </div>
 
@@ -1872,20 +1880,32 @@ const FarmDetails = () => {
             {/* Sticky Mobile Booking Bar */}
             <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3 md:hidden z-40 shadow-[0_-4px_10px_rgba(0,0,0,0.05)] flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                    <p className="text-gray-900 font-bold text-lg">₹{selectedGrandTotal.toLocaleString('en-IN')}<span className="text-xs font-normal text-gray-500"> total</span></p>
-                    <p className="truncate text-xs font-semibold text-gray-500">
-                        {selectedNights} night{selectedNights === 1 ? '' : 's'} · ₹{nightlyPrice.toLocaleString('en-IN')}/night · Tax ₹{selectedTax.toLocaleString('en-IN')}
-                    </p>
+                    {dateSelection[0].startDate && dateSelection[0].endDate && !isBookingBlocked ? (
+                        <>
+                            <p className="text-gray-900 font-bold text-lg">₹{selectedGrandTotal.toLocaleString('en-IN')}<span className="text-xs font-normal text-gray-500"> total</span></p>
+                            <p className="truncate text-xs font-semibold text-gray-500">
+                                {selectedNights} night{selectedNights === 1 ? '' : 's'} · ₹{nightlyPrice.toLocaleString('en-IN')}/night · Tax ₹{selectedTax.toLocaleString('en-IN')}
+                            </p>
+                        </>
+                    ) : (
+                        <p className="text-gray-900 font-bold text-lg">Select dates to see pricing</p>
+                    )}
                     {dateConflict ? (
                         <p className="text-xs text-red-500 font-medium">Dates unavailable</p>
-                    ) : (
+                    ) : dateSelection[0].startDate && dateSelection[0].endDate ? (
                         <p className="text-xs text-secondary font-medium">
                             {dateSelection[0].startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {dateSelection[0].endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                         </p>
+                    ) : (
+                        <p className="text-xs text-secondary font-medium">Select dates</p>
                     )}
                 </div>
                 <button
                     onClick={() => {
+                        if (!dateSelection[0].startDate || !dateSelection[0].endDate) {
+                            setBookingError('Please select your start and end dates before booking.');
+                            return;
+                        }
                         if (isBookingBlocked || selectedIsBookedForDates) {
                             window.scrollTo({ top: 0, behavior: 'smooth' });
                             setIsCalendarOpen(true);
