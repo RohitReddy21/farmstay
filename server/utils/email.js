@@ -1,6 +1,6 @@
 const { Resend } = require('resend');
 
-const DEFAULT_FROM = 'Brown Cows Dairy <onboarding@resend.dev>';
+const DEFAULT_FROM = 'Brown Cows Dairy <bookings@browncowsorganicfarms.com>';
 
 const getResendClient = () => {
     const apiKey = process.env.RESEND_API_KEY?.trim();

@@ -96,6 +96,17 @@ function startOfDay(date) {
     return value;
 }
 
+function normalizeBookingDate(date) {
+    if (typeof date === 'string') {
+        const dateOnly = date.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (dateOnly) {
+            return new Date(Date.UTC(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3])));
+        }
+    }
+
+    return startOfDay(date);
+}
+
 function normalizeRetreatStayType(value = '') {
     const text = String(value).toLowerCase();
     if (text.includes('couple')) return 'couple';
@@ -245,8 +256,14 @@ async function validateBookingAvailability({ propertyId, roomId, startDate, endD
     validateGuestPhone(guestDetails);
     validateGuestEmail(guestDetails);
 
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    const start = normalizeBookingDate(startDate);
+    const end = normalizeBookingDate(endDate);
+
+    if (!(start < end)) {
+        const error = new Error('Please select a valid date range with at least 1 night.');
+        error.statusCode = 400;
+        throw error;
+    }
 
     if (isWeekendBlockedForProperty(property, start, end, !!retreatMeta)) {
         const error = new Error('This farm stay is available Monday to Friday only. Saturdays and Sundays are reserved for the 2-day Learning Retreat.');
@@ -450,39 +467,16 @@ router.post('/cod', optionalAuth, async (req, res) => {
             ...guestDetails,
             email: String(guestDetails?.email || '').trim().toLowerCase()
         };
-        const property = await Farm.findById(propertyId);
-        if (!property) return res.status(404).json({ message: 'Property not found' });
-        validateGuestPhone(bookingGuestDetails);
-        validateGuestEmail(bookingGuestDetails);
-
-        const start = new Date(startDate);
-        const end = new Date(endDate);
-
-        if (isWeekendBlockedForProperty(property, start, end, !!retreatMeta)) {
-            return res.status(400).json({
-                message: 'This farm stay is available Monday to Friday only. Saturdays and Sundays are reserved for the 2-day Learning Retreat.'
-            });
-        }
-
-        if (await hasManualDateBlock(propertyId, start, end)) {
-            return res.status(409).json({ message: 'Selected dates are blocked by the host. Please choose different dates.' });
-        }
-
-        if (retreatMeta) {
-            if (isStayRetreat(retreatMeta)) {
-                const slotAvailability = await getRetreatStaySlotAvailability(start, retreatMeta.stayType || retreatMeta.package);
-                const requestedSlots = slotAvailability.slotType === 'shared' ? getBookingGuestCount(guests) : 1;
-                if (slotAvailability.available < requestedSlots) {
-                    return res.status(409).json({ message: 'Selected retreat stay slots are not available.' });
-                }
-            }
-        } else {
-            // Check availability
-            const overlap = await hasOverlap(propertyId, roomId, start, end, variation);
-            if (overlap) {
-                return res.status(409).json({ message: 'Selected dates are not available.' });
-            }
-        }
+        const { property, start, end } = await validateBookingAvailability({
+            propertyId,
+            roomId,
+            startDate,
+            endDate,
+            guests,
+            guestDetails: bookingGuestDetails,
+            variation,
+            retreatMeta
+        });
 
         // Create a 'Pending' Booking with COD
         const booking = await Booking.create({

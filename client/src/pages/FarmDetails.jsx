@@ -239,10 +239,16 @@ const FarmDetails = () => {
     const displayedAmenities = selectedVariation?.amenities?.length ? selectedVariation.amenities : farm?.amenities || [];
     const isWeekdayOnlyFarm = farm?.availability === 'Monday to Friday';
     const getTenDigitPhone = (value = '') => value.replace(/\D/g, '').slice(0, 10);
+    const toLocalDateOnly = (value) => {
+        const date = value instanceof Date ? value : new Date(value);
+        return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    };
+    const isSameLocalDay = (first, second) => toLocalDateOnly(first).getTime() === toLocalDateOnly(second).getTime();
+
     const unavailableRanges = useMemo(() => unavailableDates.map((booking) => ({
         ...booking,
-        rangeStart: new Date(booking.startDate),
-        rangeEnd: new Date(booking.endDate)
+        rangeStart: toLocalDateOnly(booking.startDate),
+        rangeEnd: toLocalDateOnly(booking.endDate)
     })), [unavailableDates]);
     const visibleThumbnailLimit = 8;
     const mediaThumbnails = useMemo(
@@ -252,21 +258,25 @@ const FarmDetails = () => {
     const hiddenThumbnailCount = Math.max(0, allMedia.length - visibleThumbnailLimit);
 
     const rangesOverlap = (startDate, endDate, booking) => {
+        const newCheckIn = toLocalDateOnly(startDate);
+        const newCheckOut = toLocalDateOnly(endDate);
         const bookingStart = booking.rangeStart || new Date(booking.startDate);
         const bookingEnd = booking.rangeEnd || new Date(booking.endDate);
-        return startDate < bookingEnd && endDate > bookingStart;
+        return newCheckIn < bookingEnd && newCheckOut > bookingStart;
     };
 
     const isBookedNightDate = (date, booking) => {
+        const day = toLocalDateOnly(date);
         const bookingStart = booking.rangeStart || new Date(booking.startDate);
         const bookingEnd = booking.rangeEnd || new Date(booking.endDate);
-        return date >= bookingStart && date < bookingEnd;
+        return day >= bookingStart && day < bookingEnd;
     };
 
     const isCalendarDisabledBookedDate = (date, booking) => {
+        const day = toLocalDateOnly(date);
         const bookingStart = booking.rangeStart || new Date(booking.startDate);
         const bookingEnd = booking.rangeEnd || new Date(booking.endDate);
-        return date > bookingStart && date < bookingEnd;
+        return day > bookingStart && day < bookingEnd;
     };
 
     const getVariationCottages = (variation) => {
@@ -284,6 +294,19 @@ const FarmDetails = () => {
             ? booking.variation.cottages
             : [booking?.variation?.cottage].filter(Boolean);
         return cottages.some((cottage) => bookedCottages.includes(cottage));
+    };
+
+    const getCalendarBookingStatus = (date) => {
+        const matchingBookings = unavailableRanges.filter((booking) => bookingMatchesVariation(booking));
+        const day = toLocalDateOnly(date);
+        const occupiedBooking = matchingBookings.find((booking) => day > booking.rangeStart && day < booking.rangeEnd);
+        const checkInBooking = matchingBookings.find((booking) => isSameLocalDay(day, booking.rangeStart));
+        const checkoutBooking = matchingBookings.find((booking) => isSameLocalDay(day, booking.rangeEnd));
+
+        if (occupiedBooking) return { type: 'occupied', booking: occupiedBooking };
+        if (checkInBooking) return { type: 'check-in', booking: checkInBooking };
+        if (checkoutBooking) return { type: 'checkout', booking: checkoutBooking };
+        return null;
     };
 
     const variationHasDateConflict = (variation, startDate = dateSelection[0].startDate, endDate = dateSelection[0].endDate) => {
@@ -338,8 +361,8 @@ const FarmDetails = () => {
             return false;
         }
 
-        const startDate = new Date(start);
-        const endDate = new Date(end);
+        const startDate = toLocalDateOnly(start);
+        const endDate = toLocalDateOnly(end);
 
         const conflict = unavailableRanges.find(booking => bookingMatchesVariation(booking) && rangesOverlap(startDate, endDate, booking));
 
@@ -385,16 +408,25 @@ const FarmDetails = () => {
     };
 
     const renderCalendarDay = (date) => {
-        const booked = isBookedDate(date);
+        const bookingStatus = getCalendarBookingStatus(date);
+        const booked = Boolean(bookingStatus && bookingStatus.type !== 'checkout');
         const weekendBlocked = isWeekendBlockedDate(date);
+        const isManualBlock = bookingStatus?.booking?.source === 'manual-block';
+        const dotClass = isManualBlock
+            ? 'bg-gray-500'
+            : bookingStatus?.type === 'checkout'
+                ? 'bg-emerald-500'
+                : bookingStatus?.type === 'check-in'
+                    ? 'bg-red-500'
+                    : 'bg-red-700';
 
         return (
             <span className="relative flex h-full w-full items-center justify-center">
                 <span>{date.getDate()}</span>
-                {booked && (
+                {bookingStatus && (
                     <span
-                        aria-label="Unavailable date"
-                        className={`absolute bottom-0.5 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full ${unavailableRanges.some((booking) => booking.source === 'manual-block' && isBookedNightDate(date, booking)) ? 'bg-gray-500' : 'bg-red-500'}`}
+                        aria-label={bookingStatus.type === 'checkout' ? 'Checkout date available for new check-in' : 'Booked night'}
+                        className={`absolute bottom-0.5 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full ${dotClass}`}
                     />
                 )}
                 {!booked && weekendBlocked && (
@@ -421,10 +453,7 @@ const FarmDetails = () => {
         setDateSelection([item.selection]);
         setBookingError('');
         
-        const startStr = item.selection.startDate.toLocaleDateString('en-CA');
-        const endStr = item.selection.endDate.toLocaleDateString('en-CA');
-        
-        checkDateConflict(startStr, endStr);
+        checkDateConflict(item.selection.startDate, item.selection.endDate);
         checkWeekendConflict(item.selection.startDate, item.selection.endDate);
     };
 
@@ -548,9 +577,7 @@ const FarmDetails = () => {
 
     useEffect(() => {
         if (!farm) return;
-        const startStr = dateSelection[0].startDate.toLocaleDateString('en-CA');
-        const endStr = dateSelection[0].endDate.toLocaleDateString('en-CA');
-        checkDateConflict(startStr, endStr);
+        checkDateConflict(dateSelection[0].startDate, dateSelection[0].endDate);
     }, [selectedVariation, selectedCottage, unavailableRanges, farm]);
 
     const handleBooking = async (e) => {
@@ -606,7 +633,7 @@ const FarmDetails = () => {
                 return;
             }
 
-            const nights = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+            const nights = Math.ceil((toLocalDateOnly(endDate) - toLocalDateOnly(startDate)) / (1000 * 60 * 60 * 24));
             const basePrice = nightlyPrice;
             const totalPrice = nights * basePrice;
             const tax = Math.round(totalPrice * 0.18); // 18% GST example
@@ -1213,7 +1240,15 @@ const FarmDetails = () => {
                                                 <div className="mb-2 flex flex-wrap items-center gap-3 text-xs font-semibold text-gray-600">
                                                     <span className="inline-flex items-center gap-1.5">
                                                         <span className="h-2 w-2 rounded-full bg-red-500" />
-                                                        Booked
+                                                        Check-in night
+                                                    </span>
+                                                    <span className="inline-flex items-center gap-1.5">
+                                                        <span className="h-2 w-2 rounded-full bg-red-700" />
+                                                        Occupied night
+                                                    </span>
+                                                    <span className="inline-flex items-center gap-1.5">
+                                                        <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                                                        Checkout available
                                                     </span>
                                                     <span className="inline-flex items-center gap-1.5">
                                                         <span className="h-2 w-2 rounded-full bg-gray-500" />
@@ -1227,7 +1262,7 @@ const FarmDetails = () => {
                                                     )}
                                                 </div>
                                                 <p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">
-                                                    Unavailable dates
+                                                    Booked nights
                                                 </p>
                                                 {visibleUnavailableRanges.length > 0 ? (
                                                     <div className="mt-2 space-y-1.5">

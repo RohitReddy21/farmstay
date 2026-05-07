@@ -176,7 +176,7 @@ const sendBookingConfirmationEmail = async (booking, user = {}) => {
         userEmail: userEmail || undefined,
         selectedRecipient: to || undefined,
         resendConfigured: Boolean(process.env.RESEND_API_KEY),
-        resendFrom: process.env.RESEND_FROM?.trim() || 'Brown Cows Dairy <onboarding@resend.dev>'
+        resendFrom: process.env.RESEND_FROM?.trim() || 'Brown Cows Dairy <bookings@browncowsorganicfarms.com>'
     });
 
     if (!to) {
