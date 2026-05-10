@@ -40,6 +40,8 @@ const envAllowedOrigins = (process.env.CLIENT_URL || '')
 const allowedOrigins = [
   'http://localhost:5173',
   'http://127.0.0.1:5173',
+  'http://localhost:5174',
+  'http://127.0.0.1:5174',
   'https://farmstay-eight.vercel.app',
   'https://stays.browncowsdairy.com',
   'https://browncowsorganicfarms.com',

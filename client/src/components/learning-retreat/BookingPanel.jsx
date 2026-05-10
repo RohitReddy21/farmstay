@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import axios from 'axios';
 import { motion } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import { 
@@ -23,7 +22,6 @@ import {
 } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 import { useToast } from '../../context/ToastContext';
-import API_URL from '../../config';
 
 const BookingPanel = ({
     experience,
@@ -71,11 +69,6 @@ const BookingPanel = ({
     const getTenDigitPhone = (value = '') => value.replace(/\D/g, '').slice(0, 10);
     const [showConfirmation, setShowConfirmation] = useState(false);
     const [formErrors, setFormErrors] = useState({});
-    const [phoneOtpSessionId, setPhoneOtpSessionId] = useState('');
-    const [phoneOtp, setPhoneOtp] = useState('');
-    const [phoneOtpStatus, setPhoneOtpStatus] = useState('');
-    const [phoneVerified, setPhoneVerified] = useState(false);
-    const [isPhoneOtpBusy, setIsPhoneOtpBusy] = useState(false);
     const [confirmationForm, setConfirmationForm] = useState({
         name: '',
         email: '',
@@ -95,13 +88,13 @@ const BookingPanel = ({
     const stayTypeHelp = {
         Shared: 'Pay per guest in shared mud cottage accommodation.',
         Couple: 'Book one private couple cottage for up to 2 guests.',
-        Group: 'Book the limestone villa for a private group stay.'
+        Group: 'Book one Limestone Villa for up to 4 guests. The second villa has the other 4 group slots.'
     };
     const guestHelpText = experience === 'stay'
         ? selectedStay.type === 'Couple'
             ? 'Choose 1 or 2 guests. One couple cottage slot is used for this booking.'
             : selectedStay.type === 'Group'
-                ? 'Choose the total people in your group. Limestone villa capacity is limited.'
+                ? 'Choose the people staying in this villa. One Limestone Villa allows max 4 guests.'
                 : 'Choose total guests. Shared accommodation is priced per guest.'
         : 'Choose how many people are joining the day farm experience.';
     const packagePriceNote = experience === 'day'
@@ -192,83 +185,6 @@ const BookingPanel = ({
             guests: Number.isNaN(parsedGuests) ? 1 : Math.min(maxGuests, Math.max(1, parsedGuests))
         }));
     }, [guests, maxGuests]);
-
-    useEffect(() => {
-        setPhoneVerified(false);
-        setPhoneOtpSessionId('');
-        setPhoneOtp('');
-        setPhoneOtpStatus('');
-    }, [confirmationForm.phone]);
-
-    const requestPhoneOtp = async () => {
-        const phone = getTenDigitPhone(confirmationForm.phone);
-        const errors = {};
-
-        if (!confirmationForm.name.trim()) errors.name = 'Name is required before sending OTP';
-        if (!confirmationForm.email.trim()) errors.email = 'Email is required before sending OTP';
-        else if (!/\S+@\S+\.\S+/.test(confirmationForm.email)) errors.email = 'Email is invalid';
-        if (phone.length !== 10) errors.phone = 'Phone must be exactly 10 digits';
-
-        setFormErrors((current) => ({ ...current, ...errors }));
-        const firstError = Object.values(errors)[0];
-        if (firstError) {
-            showToast({ type: 'error', title: 'Phone OTP details missing', message: firstError });
-            return;
-        }
-
-        setIsPhoneOtpBusy(true);
-        setPhoneOtpStatus('Sending OTP...');
-
-        try {
-            const { data } = await axios.post(`${API_URL}/api/leads/send-phone-otp`, {
-                name: confirmationForm.name,
-                email: confirmationForm.email,
-                phone,
-                guests: confirmationForm.guests,
-                source: 'learning-retreat-phone-otp',
-                retreatName: retreatContent.retreatName,
-                marketingConsent: true
-            });
-            setPhoneOtpSessionId(data.smsSent ? (data.otpSessionId || '') : '');
-            setPhoneOtpStatus(data.smsSent
-                ? 'OTP sent. Enter it below to verify your number.'
-                : 'Lead saved. SMS could not be sent right now, so our team can still follow up by phone.');
-            showToast({ type: 'success', title: 'Phone saved', message: 'Customer number saved for follow-up.' });
-        } catch (error) {
-            const message = error.response?.data?.message || 'Could not send OTP right now.';
-            setPhoneOtpStatus(message);
-            showToast({ type: 'error', title: 'OTP failed', message });
-        } finally {
-            setIsPhoneOtpBusy(false);
-        }
-    };
-
-    const verifyPhoneOtp = async () => {
-        if (!phoneOtpSessionId || !phoneOtp.trim()) {
-            setPhoneOtpStatus('Enter the OTP sent to your phone.');
-            return;
-        }
-
-        setIsPhoneOtpBusy(true);
-        setPhoneOtpStatus('Verifying OTP...');
-
-        try {
-            await axios.post(`${API_URL}/api/leads/verify-phone-otp`, {
-                otpSessionId: phoneOtpSessionId,
-                phone: getTenDigitPhone(confirmationForm.phone),
-                otp: phoneOtp.trim()
-            });
-            setPhoneVerified(true);
-            setPhoneOtpStatus('Phone number verified.');
-            showToast({ type: 'success', title: 'Phone verified', message: 'Phone OTP verified successfully.' });
-        } catch (error) {
-            const message = error.response?.data?.message || 'Invalid OTP.';
-            setPhoneOtpStatus(message);
-            showToast({ type: 'error', title: 'OTP not verified', message });
-        } finally {
-            setIsPhoneOtpBusy(false);
-        }
-    };
 
     const selectStayVariation = (variation) => {
         setSelectedStayVariation(variation);
@@ -775,42 +691,6 @@ const BookingPanel = ({
                                                     <div className="absolute -bottom-0.5 left-0 h-0.5 w-full rounded-full bg-gradient-to-r from-[#7a5527]/20 via-[#d6a23d]/30 to-[#7a5527]/20 opacity-0 transition-opacity duration-300 group-focus-within:opacity-100"></div>
                                                 </div>
                                                 {formErrors.phone && <p className="text-red-600 text-xs mt-1">{formErrors.phone}</p>}
-                                                <div className="mt-3 rounded-2xl border border-[#ead8b9] bg-white/70 p-3 dark:border-[#31392f] dark:bg-[#171d17]">
-                                                    <div className="flex flex-col gap-2 sm:flex-row">
-                                                        <button
-                                                            type="button"
-                                                            onClick={requestPhoneOtp}
-                                                            disabled={isPhoneOtpBusy || phoneVerified}
-                                                            className="flex-1 rounded-xl border border-[#7a5527] px-3 py-2 text-xs font-bold text-[#7a5527] transition hover:bg-[#f6ead8] disabled:cursor-not-allowed disabled:opacity-55 dark:border-[#e7c678] dark:text-[#e7c678] dark:hover:bg-[#232823]"
-                                                        >
-                                                            {phoneVerified ? 'Phone Verified' : phoneOtpSessionId ? 'Resend OTP' : 'Send Phone OTP'}
-                                                        </button>
-                                                        {phoneOtpSessionId && !phoneVerified && (
-                                                            <div className="flex flex-1 gap-2">
-                                                                <input
-                                                                    type="text"
-                                                                    inputMode="numeric"
-                                                                    maxLength="6"
-                                                                    value={phoneOtp}
-                                                                    onChange={(event) => setPhoneOtp(event.target.value.replace(/\D/g, '').slice(0, 6))}
-                                                                    placeholder="OTP"
-                                                                    className="min-w-0 flex-1 rounded-xl border border-[#dfd1bb] px-3 py-2 text-xs font-bold outline-none focus:border-[#7a5527] dark:border-[#31392f] dark:bg-[#232823] dark:text-white"
-                                                                />
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={verifyPhoneOtp}
-                                                                    disabled={isPhoneOtpBusy}
-                                                                    className="rounded-xl bg-[#7a5527] px-3 py-2 text-xs font-bold text-white disabled:opacity-55"
-                                                                >
-                                                                    Verify
-                                                                </button>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                    <p className="mt-2 text-[11px] leading-relaxed text-[#7a5527] dark:text-[#d5c9b7]">
-                                                        {phoneOtpStatus || 'Optional: verify phone now so our team can follow up even if you do not finish booking.'}
-                                                    </p>
-                                                </div>
                                             </div>
 
                                             {/* Guests Field */}

@@ -42,10 +42,10 @@ const retreatContent = {
             {
                 type: 'Group',
                 title: 'Group Farm Visit',
-                subtitle: 'Limestone Villa',
+                subtitle: 'Limestone Villa (max 4 guests per villa)',
                 basePrice: 7000,
                 pricingMode: 'flat',
-                maxGuests: 8,
+                maxGuests: 4,
                 propertyTitleHint: 'Luxury Limestone Villa',
                 inclusions: ['Event access', 'Private villa stay', 'Meals']
             }
@@ -103,7 +103,7 @@ const retreatContent = {
         },
         {
             title: 'Limestone Villa',
-            text: 'A private villa stay for groups who want comfort with farm access.',
+            text: 'A private villa stay for groups who want comfort with farm access. Each Limestone Villa holds up to 4 guests, with 8 group slots across both villas.',
             image: 'https://browncowsdairy.com/cdn/shop/files/IJJU8350_1.jpg?v=1775652524&width=1000',
             images: [
                 'https://browncowsdairy.com/cdn/shop/files/DSC00331.jpg?v=1776069148&width=1200',

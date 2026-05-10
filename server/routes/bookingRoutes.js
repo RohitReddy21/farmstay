@@ -20,6 +20,7 @@ const RETREAT_STAY_SLOT_LIMITS = {
     couple: 2,
     group: 8
 };
+const RETREAT_GROUP_MAX_GUESTS_PER_BOOKING = Number(process.env.RETREAT_GROUP_MAX_GUESTS_PER_BOOKING || 4);
 const RETREAT_DAY_EXPERIENCE_LIMIT = Number(process.env.RETREAT_DAY_EXPERIENCE_LIMIT || 25);
 const BOOKING_CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
@@ -369,6 +370,11 @@ async function validateBookingAvailability({ propertyId, roomId, startDate, endD
         } else if (isStayRetreat(retreatMeta)) {
             const slotAvailability = await getRetreatStaySlotAvailability(start, retreatMeta.stayType || retreatMeta.package, excludeBookingId);
             const requestedSlots = slotAvailability.slotType === 'couple' ? 1 : getBookingGuestCount(guests);
+            if (slotAvailability.slotType === 'group' && requestedSlots > RETREAT_GROUP_MAX_GUESTS_PER_BOOKING) {
+                const error = new Error(`One Limestone Villa allows maximum ${RETREAT_GROUP_MAX_GUESTS_PER_BOOKING} guests. Please book the second villa separately for additional guests.`);
+                error.statusCode = 400;
+                throw error;
+            }
             if (slotAvailability.available < requestedSlots) {
                 const error = new Error('Selected retreat stay slots are not available.');
                 error.statusCode = 409;

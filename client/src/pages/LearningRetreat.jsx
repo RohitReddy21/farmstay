@@ -50,6 +50,7 @@ const RETREAT_STAY_SLOT_LIMITS = {
     couple: 2,
     group: 8
 };
+const RETREAT_GROUP_MAX_GUESTS_PER_BOOKING = 4;
 const RETREAT_DAY_EXPERIENCE_LIMIT = 25;
 
 const normalizeRetreatStayType = (value = '') => {
@@ -221,13 +222,13 @@ const LearningRetreat = () => {
                 type: farm._id || farm.title || `limestone-villa-${index + 1}`,
                 label: farm.title || `Luxury Limestone Villa - ${index + 1}`,
                 price: farm.price || selectedStay.basePrice,
-                capacity: farm.capacity || selectedStay.maxGuests,
+                capacity: Math.min(Number(farm.capacity || selectedStay.maxGuests || RETREAT_GROUP_MAX_GUESTS_PER_BOOKING), RETREAT_GROUP_MAX_GUESTS_PER_BOOKING),
                 amenities: farm.amenities || [],
                 availableCottages: [farm.title || `Luxury Limestone Villa - ${index + 1}`],
                 farmId: farm._id
             }));
     }, [experience, farms, linkedFarm, selectedStay, stayType]);
-    const selectedStayCapacity = Math.max(Number(selectedStayVariation?.capacity || 0), Number(selectedStay.maxGuests || 1));
+    const selectedStayCapacity = Number(selectedStayVariation?.capacity || selectedStay.maxGuests || 1);
     const seasonalMultiplier = selectedDate ? (retreatContent.seasonalPricing[selectedDate] || 1) : 1;
     const dayExperiencePrice = retreatContent.packages.day.basePrice;
     const isFlatStayPrice = selectedStay.pricingMode === 'flat';
