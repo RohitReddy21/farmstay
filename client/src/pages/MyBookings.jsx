@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
-import { Calendar, Edit2, Loader, MapPin, MessageCircle, X } from 'lucide-react';
+import { Calendar, Loader, MapPin, MessageCircle, X } from 'lucide-react';
 import API_URL from '../config';
 import {
     getGuestBookingContact,
@@ -122,6 +122,42 @@ const getStatusBadge = (status = 'Pending') => {
         </span>
     );
 };
+
+const getBookingNumber = (booking) => booking?.bookingCode || booking?._id || '';
+
+const getBookingWhatsAppUrl = (booking, action) => {
+    const bookingNumber = getBookingNumber(booking);
+    const title = booking?.property?.title || booking?.propertyTitle || booking?.farm?.title || 'Brown Cows Dairy booking';
+    const dateText = `${formatDate(booking?.startDate)} to ${formatDate(booking?.endDate)}`;
+    const message = action === 'cancel'
+        ? `Hi, I want to cancel my Brown Cows Dairy booking. Booking Number: ${bookingNumber}. Stay: ${title}. Dates: ${dateText}.`
+        : `Hi, I want to edit/reschedule my Brown Cows Dairy booking. Booking Number: ${bookingNumber}. Stay: ${title}. Dates: ${dateText}.`;
+
+    return `https://wa.me/919989854411?text=${encodeURIComponent(message)}`;
+};
+
+const BookingWhatsAppActions = ({ booking, className = '' }) => (
+    <div className={`grid gap-2 sm:grid-cols-2 ${className}`}>
+        <a
+            href={getBookingWhatsAppUrl(booking, 'edit')}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#7a5527] px-4 py-2.5 text-sm font-bold text-[#7a5527] transition hover:bg-[#fffaf1] dark:border-[#e7c678] dark:text-[#e7c678] dark:hover:bg-[#171d17]"
+        >
+            <MessageCircle size={15} />
+            Edit Booking
+        </a>
+        <a
+            href={getBookingWhatsAppUrl(booking, 'cancel')}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-300 px-4 py-2.5 text-sm font-bold text-red-700 transition hover:bg-red-50"
+        >
+            <MessageCircle size={15} />
+            Cancel Booking
+        </a>
+    </div>
+);
 
 const MyBookings = () => {
     const { user } = useAuth();
@@ -431,16 +467,8 @@ const MyBookings = () => {
                                             >
                                                 Open Details
                                             </button>
-                                            {isEditableBooking(booking) && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => openEditBooking(booking)}
-                                                    className="flex-1 rounded-xl border border-[#7a5527] px-5 py-3 font-bold text-[#7a5527] transition hover:bg-[#fffaf1] dark:border-[#e7c678] dark:text-[#e7c678] dark:hover:bg-[#171d17]"
-                                                >
-                                                    Edit Booking
-                                                </button>
-                                            )}
                                         </div>
+                                        <BookingWhatsAppActions booking={booking} className="mt-3" />
                                     </div>
                                 );
                             })}
@@ -505,6 +533,7 @@ const MyBookings = () => {
                             >
                                 Open Full Details
                             </button>
+                            <BookingWhatsAppActions booking={guestBooking} className="mt-3" />
                         </div>
                     )}
 
@@ -775,37 +804,20 @@ const MyBookings = () => {
                                             </div>
                                         </div>
 
-                                        <div className="mt-4 flex items-center justify-between gap-3">
+                                        <div className="mt-4 flex flex-col gap-3">
                                             <span className="text-xs font-semibold text-[#8b7a66]">
                                                 Booked {formatDate(booking.createdAt)}
                                             </span>
-                                            {isEditableBooking(booking) ? (
-                                                <div className="flex items-center gap-2">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => navigate(`/bookings/${booking._id}`)}
-                                                        className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-white transition hover:bg-primary-800"
-                                                    >
-                                                        Details
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => openEditBooking(booking)}
-                                                        className="inline-flex items-center gap-2 rounded-xl border border-[#8a642d] px-4 py-2 text-sm font-bold text-[#7a5527] transition hover:bg-[#f8efdf]"
-                                                    >
-                                                        <Edit2 size={15} />
-                                                        Edit
-                                                    </button>
-                                                </div>
-                                            ) : (
+                                            <div className="flex flex-col gap-2 sm:flex-row">
                                                 <button
                                                     type="button"
                                                     onClick={() => navigate(`/bookings/${booking._id}`)}
-                                                    className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-white transition hover:bg-primary-800"
+                                                    className="rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-white transition hover:bg-primary-800"
                                                 >
                                                     Details
                                                 </button>
-                                            )}
+                                                <BookingWhatsAppActions booking={booking} className="flex-1 sm:grid-cols-2" />
+                                            </div>
                                         </div>
                                     </article>
                                 </div>
@@ -862,7 +874,7 @@ const MyBookings = () => {
                                             <td className="px-5 py-4">{getStatusBadge(booking.status)}</td>
                                             <td className="px-5 py-4 text-[#645747]">{formatDate(booking.createdAt)}</td>
                                             <td className="px-5 py-4">
-                                                <div className="flex min-w-[150px] flex-col gap-2">
+                                                <div className="flex min-w-[190px] flex-col gap-2">
                                                     <button
                                                         type="button"
                                                         onClick={() => navigate(`/bookings/${booking._id}`)}
@@ -870,18 +882,7 @@ const MyBookings = () => {
                                                     >
                                                         Details
                                                     </button>
-                                                {isEditableBooking(booking) ? (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => openEditBooking(booking)}
-                                                        className="inline-flex items-center gap-2 rounded-xl border border-[#8a642d] px-4 py-2 text-sm font-bold text-[#7a5527] transition hover:bg-[#f8efdf]"
-                                                    >
-                                                        <Edit2 size={15} />
-                                                        Edit
-                                                    </button>
-                                                ) : (
-                                                    <span className="text-xs font-semibold text-[#8b7a66]">Locked</span>
-                                                )}
+                                                    <BookingWhatsAppActions booking={booking} className="grid-cols-1" />
                                                 </div>
                                             </td>
                                         </tr>

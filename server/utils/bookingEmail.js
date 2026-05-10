@@ -19,10 +19,21 @@ const getPaymentLabel = (booking) => (
 
 const getBookingTotal = (booking) => Number(booking.totalPrice || 0) + Number(booking.tax || 0);
 const getBookingNumber = (booking) => String(booking.bookingCode || booking._id || booking.id || '-');
+const WHATSAPP_NUMBER = '919989854411';
+const WHATSAPP_DISPLAY = '+91 99898 54411';
 const isOnlinePaidBooking = (booking) => (
     String(booking.paymentMethod || '').toLowerCase() === 'razorpay'
     || ['Authorized', 'Captured'].includes(booking.paymentStatus)
 );
+
+const getBookingSupportNote = (booking) => (
+    `For edit, reschedule, or cancellation requests, contact us on WhatsApp ${WHATSAPP_DISPLAY} with your booking number ${getBookingNumber(booking)}. Online payment refunds, when approved, are processed to the original payment method within 7 working days.`
+);
+
+const getBookingSupportWhatsAppUrl = (booking, propertyTitle, dates) => {
+    const message = `Hi, I need help with my Brown Cows Dairy booking. Booking Number: ${getBookingNumber(booking)}. Stay: ${propertyTitle}. Dates: ${dates}.`;
+    return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+};
 
 const buildBookingEmail = (booking, user = {}) => {
     const guestName = booking.guestDetails?.name || user.name || 'Guest';
@@ -32,7 +43,8 @@ const buildBookingEmail = (booking, user = {}) => {
     const amount = getBookingTotal(booking);
     const payment = getPaymentLabel(booking);
     const bookingId = getBookingNumber(booking);
-    const supportNote = 'Need to reschedule or request a refund? Reply to this email or contact WhatsApp +91 99898 54411 with your booking number. Online payment refunds, when approved, are processed to the original payment method within 7 working days.';
+    const supportNote = getBookingSupportNote(booking);
+    const supportWhatsAppUrl = getBookingSupportWhatsAppUrl(booking, propertyTitle, dates);
 
     const text = [
         `Hi ${guestName},`,
@@ -87,7 +99,10 @@ const buildBookingEmail = (booking, user = {}) => {
                         </tbody>
                     </table>
                     <div style="margin:20px 0 0;padding:14px 16px;border:1px solid #ead7b8;background:#fff7e8;border-radius:14px;color:#645747;font-size:14px;line-height:1.5;">
-                        <strong>Reschedule or refund help:</strong> ${supportNote}
+                        <strong>Edit, reschedule, or cancel:</strong> ${supportNote}
+                        <div style="margin-top:14px;">
+                            <a href="${supportWhatsAppUrl}" style="display:inline-block;background:#25D366;color:#ffffff;text-decoration:none;font-weight:700;border-radius:999px;padding:10px 16px;">Contact on WhatsApp</a>
+                        </div>
                     </div>
                     <p style="margin:20px 0 0;color:#645747;font-size:14px;">You can view the latest status in My Bookings.</p>
                     <p style="margin:20px 0 0;font-size:14px;">Brown Cows Organic Dairy</p>
@@ -107,7 +122,8 @@ const buildBookingStatusEmail = (booking, user = {}, status = 'Confirmed', rejec
     const amount = getBookingTotal(booking);
     const payment = getPaymentLabel(booking);
     const bookingId = getBookingNumber(booking);
-    const supportNote = 'Need to reschedule or request a refund? Reply to this email or contact WhatsApp +91 99898 54411 with your booking number. Online payment refunds, when approved, are processed to the original payment method within 7 working days.';
+    const supportNote = getBookingSupportNote(booking);
+    const supportWhatsAppUrl = getBookingSupportWhatsAppUrl(booking, propertyTitle, dates);
     const isRejected = status === 'Rejected';
     const heading = isRejected ? 'Booking Not Approved' : 'Booking Confirmed';
     const message = isRejected
@@ -179,7 +195,10 @@ const buildBookingStatusEmail = (booking, user = {}, status = 'Confirmed', rejec
                         </tbody>
                     </table>
                     <div style="margin:20px 0 0;padding:14px 16px;border:1px solid #ead7b8;background:#fff7e8;border-radius:14px;color:#645747;font-size:14px;line-height:1.5;">
-                        <strong>Reschedule or refund help:</strong> ${supportNote}
+                        <strong>Edit, reschedule, or cancel:</strong> ${supportNote}
+                        <div style="margin-top:14px;">
+                            <a href="${supportWhatsAppUrl}" style="display:inline-block;background:#25D366;color:#ffffff;text-decoration:none;font-weight:700;border-radius:999px;padding:10px 16px;">Contact on WhatsApp</a>
+                        </div>
                     </div>
                     <p style="margin:20px 0 0;color:#645747;font-size:14px;">You can view the latest status in My Bookings.</p>
                     <p style="margin:20px 0 0;font-size:14px;">Brown Cows Organic Dairy</p>
