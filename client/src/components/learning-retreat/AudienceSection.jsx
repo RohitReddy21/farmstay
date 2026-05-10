@@ -21,7 +21,7 @@ const AudienceSection = ({ audience }) => {
                         Designed for curious guests
                     </h2>
                     <p className="mx-auto max-w-2xl text-base leading-relaxed text-[#645747] dark:text-[#d5c9b7] sm:text-lg">
-                        Whether you're seeking peace, learning, or quality time with loved ones, our farm retreat offers something meaningful for everyone.
+                        Whether you're seeking peace, learning, or quality time with loved ones, our farm visit offers something meaningful for everyone.
                     </p>
                 </motion.div>
 

@@ -4,6 +4,12 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { Calendar, Edit2, Loader, MapPin, MessageCircle, X } from 'lucide-react';
 import API_URL from '../config';
+import {
+    getGuestBookingContact,
+    getGuestBookingRefs,
+    rememberGuestBooking,
+    updateStoredGuestBooking
+} from '../utils/guestBookings';
 
 const formatDate = (date) => date ? new Date(date).toLocaleDateString('en-IN') : '-';
 const formatCurrency = (amount) => `Rs ${Number(amount || 0).toLocaleString('en-IN')}`;
@@ -128,15 +134,20 @@ const MyBookings = () => {
     const [editForm, setEditForm] = useState(null);
     const [editError, setEditError] = useState('');
     const [editSaving, setEditSaving] = useState(false);
+    const [guestBookingNumber, setGuestBookingNumber] = useState('');
+    const [guestContact, setGuestContact] = useState('');
+    const [guestLookupError, setGuestLookupError] = useState('');
+    const [guestLookupLoading, setGuestLookupLoading] = useState(false);
+    const [showGuestLookup, setShowGuestLookup] = useState(false);
 
     useEffect(() => {
         if (!user) {
-            navigate('/login');
+            fetchGuestBookings();
             return;
         }
 
         fetchBookings();
-    }, [user, navigate]);
+    }, [user]);
 
     const fetchBookings = async () => {
         try {
@@ -152,6 +163,66 @@ const MyBookings = () => {
         }
     };
 
+    const fetchGuestBookings = async () => {
+        const refs = getGuestBookingRefs();
+        if (!refs.length) {
+            setBookings([]);
+            setLoading(false);
+            return;
+        }
+
+        try {
+            setLoading(true);
+            const results = await Promise.allSettled(refs.map((item) => (
+                axios.get(`${API_URL}/api/bookings/guest/${item.id}`, {
+                    params: { contact: item.contact }
+                })
+            )));
+
+            const loadedBookings = results
+                .filter((result) => result.status === 'fulfilled')
+                .map((result) => result.value.data);
+
+            loadedBookings.forEach(updateStoredGuestBooking);
+            setBookings(loadedBookings);
+        } catch (error) {
+            console.error('Error fetching guest bookings:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const lookupGuestBooking = async (event) => {
+        event.preventDefault();
+        setGuestLookupError('');
+
+        const bookingNumber = guestBookingNumber.trim();
+        const contact = guestContact.trim();
+        if (!bookingNumber || !contact) {
+            setGuestLookupError('Enter your booking number and phone/email.');
+            return;
+        }
+
+        try {
+            setGuestLookupLoading(true);
+            const { data } = await axios.get(`${API_URL}/api/bookings/guest/${bookingNumber}`, {
+                params: { contact }
+            });
+            setBookings([data]);
+            rememberGuestBooking({ bookingId: data._id, contact, booking: data });
+            sessionStorage.setItem('guest_booking_lookup', JSON.stringify({
+                id: data._id,
+                contact,
+                booking: data
+            }));
+        } catch (error) {
+            setBookings([]);
+            setGuestLookupError(error.response?.data?.message || 'Could not find a booking with those details.');
+        } finally {
+            setGuestLookupLoading(false);
+        }
+    };
+
     const openEditBooking = (booking) => {
         setEditingBooking(booking);
         setEditForm({
@@ -159,7 +230,8 @@ const MyBookings = () => {
             endDate: formatDateInput(booking.endDate),
             guests: getGuestNumber(booking.guests),
             name: booking.guestDetails?.name || user?.name || '',
-            phone: booking.guestDetails?.phone || user?.phone || ''
+            phone: booking.guestDetails?.phone || user?.phone || '',
+            email: booking.guestDetails?.email || user?.email || ''
         });
         setEditError('');
     };
@@ -204,6 +276,11 @@ const MyBookings = () => {
             return;
         }
 
+        if (!/\S+@\S+\.\S+/.test(String(editForm.email || '').trim())) {
+            setEditError('Please enter the booking email.');
+            return;
+        }
+
         if (phoneDigits.length !== 10) {
             setEditError('Mobile number must be exactly 10 digits.');
             return;
@@ -211,22 +288,30 @@ const MyBookings = () => {
 
         try {
             setEditSaving(true);
-            const token = localStorage.getItem('token');
-            const { data } = await axios.put(`${API_URL}/api/users/bookings/${editingBooking._id}`, {
+            const payload = {
                 startDate: editForm.startDate,
                 endDate: editForm.endDate,
                 guests: guestCount,
                 guestDetails: {
                     name: editForm.name.trim(),
-                    phone: phoneDigits
+                    phone: phoneDigits,
+                    email: String(editForm.email || '').trim().toLowerCase()
                 }
-            }, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            };
+            const guestEditContact = getGuestBookingContact(editingBooking._id);
+            const { data } = user
+                ? await axios.put(`${API_URL}/api/users/bookings/${editingBooking._id}`, payload, {
+                    headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+                })
+                : await axios.put(`${API_URL}/api/bookings/guest/${editingBooking._id}`, {
+                    ...payload,
+                    contact: guestEditContact || editForm.email || editForm.phone
+                });
 
             setBookings((current) => current.map((booking) => (
                 booking._id === editingBooking._id ? data.booking : booking
             )));
+            updateStoredGuestBooking(data.booking);
             setEditingBooking(null);
             setEditForm(null);
             setEditError('');
@@ -286,6 +371,283 @@ const MyBookings = () => {
                             </div>
                         ))}
                     </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (!user) {
+        const guestBooking = bookings[0];
+        const guestTotal = guestBooking
+            ? Number(guestBooking.totalPrice || 0) + Number(guestBooking.tax || 0)
+            : 0;
+
+        return (
+            <div className="mx-auto max-w-3xl px-4 py-10">
+                <div className="rounded-3xl border border-[#ead7b8] bg-[#fffaf1] p-6 shadow-xl dark:border-[#31392f] dark:bg-[#151b15] sm:p-10">
+                    <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-[#f4ead8] text-[#7a5527] dark:bg-[#232823] dark:text-[#e7c678]">
+                        <Calendar size={30} />
+                    </div>
+                    <div className="text-center">
+                        <p className="mb-2 text-xs font-bold uppercase tracking-[0.28em] text-[#8a642d] dark:text-[#e7c678]">Brown Cows Dairy</p>
+                        <h1 className="text-3xl font-bold text-[#211b14] dark:text-[#fff8ea]">My Bookings</h1>
+                        <p className="mx-auto mt-3 max-w-xl text-[#645747] dark:text-[#d5c9b7]">
+                            Bookings made on this device appear here automatically. You can open details or edit eligible upcoming bookings without logging in.
+                        </p>
+                    </div>
+
+                    {bookings.length > 0 && (
+                        <div className="mt-7 space-y-4">
+                            {bookings.map((booking) => {
+                                const total = Number(booking.totalPrice || 0) + Number(booking.tax || 0);
+                                return (
+                                    <div key={booking._id} className="rounded-2xl border border-[#ead7b8] bg-[#f8efdf] p-4 dark:border-[#31392f] dark:bg-[#232823]">
+                                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                            <div>
+                                                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8a642d] dark:text-[#e7c678]">Booking Number</p>
+                                                <p className="mt-1 break-all text-sm font-bold text-[#211b14] dark:text-[#fff8ea]">{booking.bookingCode || booking._id}</p>
+                                                <h2 className="mt-3 text-xl font-bold text-[#211b14] dark:text-[#fff8ea]">
+                                                    {booking.property?.title || booking.propertyTitle || 'Brown Cows Dairy Stay'}
+                                                </h2>
+                                                <p className="mt-1 text-sm text-[#645747] dark:text-[#d5c9b7]">
+                                                    {formatDate(booking.startDate)} to {formatDate(booking.endDate)} · {formatCurrency(total)}
+                                                </p>
+                                            </div>
+                                            {getStatusBadge(booking.status)}
+                                        </div>
+
+                                        <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    sessionStorage.setItem('guest_booking_lookup', JSON.stringify({
+                                                        id: booking._id,
+                                                        contact: getGuestBookingContact(booking._id),
+                                                        booking
+                                                    }));
+                                                    navigate(`/bookings/${booking._id}`);
+                                                }}
+                                                className="flex-1 rounded-xl bg-primary px-5 py-3 font-bold text-white transition hover:bg-primary-800"
+                                            >
+                                                Open Details
+                                            </button>
+                                            {isEditableBooking(booking) && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => openEditBooking(booking)}
+                                                    className="flex-1 rounded-xl border border-[#7a5527] px-5 py-3 font-bold text-[#7a5527] transition hover:bg-[#fffaf1] dark:border-[#e7c678] dark:text-[#e7c678] dark:hover:bg-[#171d17]"
+                                                >
+                                                    Edit Booking
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+
+                    {(showGuestLookup || bookings.length === 0) && (
+                    <form onSubmit={lookupGuestBooking} className="mt-7 space-y-4 rounded-2xl border border-[#ead7b8] bg-white/70 p-4 dark:border-[#31392f] dark:bg-[#1a2118]">
+                        <div>
+                            <label className="mb-2 block text-sm font-bold text-[#7a5527] dark:text-[#e7c678]">Booking Number</label>
+                            <input
+                                type="text"
+                                value={guestBookingNumber}
+                                onChange={(event) => setGuestBookingNumber(event.target.value)}
+                                placeholder="Paste booking number from email"
+                                className="w-full rounded-xl border border-[#dfd1bb] px-4 py-3 text-[#211b14] outline-none focus:border-[#7a5527] dark:border-[#31392f] dark:bg-[#232823] dark:text-white"
+                            />
+                        </div>
+                        <div>
+                            <label className="mb-2 block text-sm font-bold text-[#7a5527] dark:text-[#e7c678]">Phone or Email used for booking</label>
+                            <input
+                                type="text"
+                                value={guestContact}
+                                onChange={(event) => setGuestContact(event.target.value)}
+                                placeholder="10-digit phone or email"
+                                className="w-full rounded-xl border border-[#dfd1bb] px-4 py-3 text-[#211b14] outline-none focus:border-[#7a5527] dark:border-[#31392f] dark:bg-[#232823] dark:text-white"
+                            />
+                        </div>
+                        {guestLookupError && (
+                            <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
+                                {guestLookupError}
+                            </p>
+                        )}
+                        <button
+                            type="submit"
+                            disabled={guestLookupLoading}
+                            className="w-full rounded-xl bg-[#7a5527] px-6 py-3 font-bold text-white shadow-lg transition hover:bg-[#5d3d19] disabled:opacity-60"
+                        >
+                            {guestLookupLoading ? 'Checking...' : 'View Booking'}
+                        </button>
+                    </form>
+                    )}
+
+                    {showGuestLookup && guestBooking && (
+                        <div className="mt-5 rounded-2xl border border-[#ead7b8] bg-[#f8efdf] p-4 dark:border-[#31392f] dark:bg-[#232823]">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                <div>
+                                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8a642d] dark:text-[#e7c678]">Booking found</p>
+                                    <h2 className="mt-1 text-xl font-bold text-[#211b14] dark:text-[#fff8ea]">
+                                        {guestBooking.property?.title || guestBooking.propertyTitle || 'Brown Cows Dairy Stay'}
+                                    </h2>
+                                    <p className="mt-1 text-sm text-[#645747] dark:text-[#d5c9b7]">
+                                        {formatDate(guestBooking.startDate)} to {formatDate(guestBooking.endDate)} · {formatCurrency(guestTotal)}
+                                    </p>
+                                </div>
+                                {getStatusBadge(guestBooking.status)}
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => navigate(`/bookings/${guestBooking._id}`)}
+                                className="mt-4 w-full rounded-xl border border-[#7a5527] px-5 py-3 font-bold text-[#7a5527] transition hover:bg-[#fffaf1] dark:border-[#e7c678] dark:text-[#e7c678] dark:hover:bg-[#171d17]"
+                            >
+                                Open Full Details
+                            </button>
+                        </div>
+                    )}
+
+                    <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+                        <button
+                            onClick={() => setShowGuestLookup((current) => !current)}
+                            className="rounded-xl bg-[#7a5527] px-6 py-3 font-bold text-white shadow-lg transition hover:bg-[#5d3d19]"
+                        >
+                            {showGuestLookup ? 'Hide Manual Search' : 'Find Another Booking'}
+                        </button>
+                        <a
+                            href="https://wa.me/919989854411?text=Hi%2C+I+want+to+check+my+booking+status.+My+booking+number+is+"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="rounded-xl border border-[#7a5527] px-6 py-3 font-bold text-[#7a5527] transition hover:bg-[#f4ead8] dark:border-[#e7c678] dark:text-[#e7c678] dark:hover:bg-[#232823]"
+                        >
+                            Check by WhatsApp
+                        </a>
+                    </div>
+
+                    {editingBooking && editForm && (
+                        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 p-0 sm:items-center sm:p-4">
+                            <form
+                                onSubmit={saveBookingEdit}
+                                className="max-h-[92dvh] w-full max-w-xl overflow-y-auto rounded-t-3xl border border-[#ead7b8] bg-[#fffaf1] p-5 shadow-2xl sm:rounded-3xl sm:p-6"
+                            >
+                                <div className="mb-5 flex items-start justify-between gap-4">
+                                    <div>
+                                        <p className="text-xs font-bold uppercase tracking-[0.24em] text-[#8a642d]">Edit Booking</p>
+                                        <h2 className="mt-1 text-2xl font-bold text-[#211b14]">
+                                            {editingBooking.property?.title || editingBooking.propertyTitle || 'Farm Stay'}
+                                        </h2>
+                                        <p className="mt-1 text-sm text-[#645747]">
+                                            Your saved booking contact is used to verify this edit.
+                                        </p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={closeEditBooking}
+                                        className="rounded-full border border-[#ead7b8] p-2 text-[#645747] transition hover:bg-[#f8efdf]"
+                                        aria-label="Close edit booking"
+                                    >
+                                        <X size={20} />
+                                    </button>
+                                </div>
+
+                                {editError && (
+                                    <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700">
+                                        {editError}
+                                    </div>
+                                )}
+
+                                <div className="grid gap-4 sm:grid-cols-2">
+                                    <label className="text-sm font-bold text-[#211b14]">
+                                        Check-in
+                                        <input
+                                            type="date"
+                                            min={getTodayInput()}
+                                            value={editForm.startDate}
+                                            onChange={(event) => handleEditChange('startDate', event.target.value)}
+                                            className="mt-2 w-full rounded-xl border border-[#ead7b8] bg-white px-4 py-3 text-base outline-none transition focus:border-[#8a642d] focus:ring-2 focus:ring-[#ead7b8]"
+                                        />
+                                    </label>
+                                    <label className="text-sm font-bold text-[#211b14]">
+                                        Check-out
+                                        <input
+                                            type="date"
+                                            min={editForm.startDate || getTodayInput()}
+                                            value={editForm.endDate}
+                                            onChange={(event) => handleEditChange('endDate', event.target.value)}
+                                            className="mt-2 w-full rounded-xl border border-[#ead7b8] bg-white px-4 py-3 text-base outline-none transition focus:border-[#8a642d] focus:ring-2 focus:ring-[#ead7b8]"
+                                        />
+                                    </label>
+                                </div>
+
+                                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                                    <label className="text-sm font-bold text-[#211b14]">
+                                        Guest Name
+                                        <input
+                                            type="text"
+                                            value={editForm.name}
+                                            onChange={(event) => handleEditChange('name', event.target.value)}
+                                            className="mt-2 w-full rounded-xl border border-[#ead7b8] bg-white px-4 py-3 text-base outline-none transition focus:border-[#8a642d] focus:ring-2 focus:ring-[#ead7b8]"
+                                        />
+                                    </label>
+                                    <label className="text-sm font-bold text-[#211b14]">
+                                        Mobile Number
+                                        <input
+                                            type="tel"
+                                            inputMode="numeric"
+                                            maxLength={10}
+                                            value={editForm.phone}
+                                            onChange={(event) => handleEditChange('phone', event.target.value.replace(/\D/g, '').slice(0, 10))}
+                                            className="mt-2 w-full rounded-xl border border-[#ead7b8] bg-white px-4 py-3 text-base outline-none transition focus:border-[#8a642d] focus:ring-2 focus:ring-[#ead7b8]"
+                                        />
+                                    </label>
+                                </div>
+
+                                <label className="mt-4 block text-sm font-bold text-[#211b14]">
+                                    Booking Email
+                                    <input
+                                        type="email"
+                                        value={editForm.email}
+                                        onChange={(event) => handleEditChange('email', event.target.value)}
+                                        className="mt-2 w-full rounded-xl border border-[#ead7b8] bg-white px-4 py-3 text-base outline-none transition focus:border-[#8a642d] focus:ring-2 focus:ring-[#ead7b8]"
+                                    />
+                                </label>
+
+                                <label className="mt-4 block text-sm font-bold text-[#211b14]">
+                                    Number of Guests
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max={getBookingGuestLimit(editingBooking)}
+                                        value={editForm.guests}
+                                        onChange={(event) => handleEditChange('guests', event.target.value)}
+                                        className="mt-2 w-full rounded-xl border border-[#ead7b8] bg-white px-4 py-3 text-base outline-none transition focus:border-[#8a642d] focus:ring-2 focus:ring-[#ead7b8]"
+                                    />
+                                    <span className="mt-1 block text-xs font-medium text-[#8b7a66]">
+                                        Maximum {getBookingGuestLimit(editingBooking)} guests
+                                    </span>
+                                </label>
+
+                                <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                                    <button
+                                        type="button"
+                                        onClick={closeEditBooking}
+                                        className="rounded-xl border border-[#8a642d] px-5 py-3 font-bold text-[#7a5527] transition hover:bg-[#f8efdf]"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={editSaving}
+                                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 font-bold text-white transition hover:bg-primary-800 disabled:opacity-60"
+                                    >
+                                        {editSaving && <Loader size={18} className="animate-spin" />}
+                                        Save Changes
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    )}
                 </div>
             </div>
         );
@@ -611,6 +973,16 @@ const MyBookings = () => {
                                 />
                             </label>
                         </div>
+
+                        <label className="mt-4 block text-sm font-bold text-[#211b14]">
+                            Booking Email
+                            <input
+                                type="email"
+                                value={editForm.email}
+                                onChange={(event) => handleEditChange('email', event.target.value)}
+                                className="mt-2 w-full rounded-xl border border-[#ead7b8] bg-white px-4 py-3 text-base outline-none transition focus:border-[#8a642d] focus:ring-2 focus:ring-[#ead7b8]"
+                            />
+                        </label>
 
                         <label className="mt-4 block text-sm font-bold text-[#211b14]">
                             Number of Guests

@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
 const bookingSchema = new mongoose.Schema({
+    bookingCode: { type: String, unique: true, sparse: true, index: true },
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     property: { type: mongoose.Schema.Types.ObjectId, ref: 'Farm', required: true },
     propertyTitle: { type: String, default: '' },

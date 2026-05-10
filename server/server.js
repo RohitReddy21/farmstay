@@ -190,6 +190,7 @@ app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/favorites', require('./routes/favoriteRoutes'));
 app.use('/api/reviews', require('./routes/reviewRoutes'));
 app.use('/api/analytics', require('./routes/analyticsRoutes'));
+app.use('/api/leads', require('./routes/leadRoutes'));
 
 // Error Handling Middleware
 app.use((err, req, res, next) => {

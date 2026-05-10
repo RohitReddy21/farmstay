@@ -23,7 +23,7 @@ const HeroSection = ({ retreatContent, setShowBrochure, onBookNow }) => {
                 >
                     <div className="mb-4 inline-flex max-w-full items-center gap-2 rounded-full border border-[#d8b66a]/40 bg-[#fff7e8]/12 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#f4d88b] backdrop-blur sm:mb-6 sm:px-4 sm:text-sm sm:tracking-[0.22em]">
                         <Sparkles size={16} />
-                        <span className="truncate">Brown Cows Farm Retreat</span>
+                        <span className="truncate">Brown Cows Farm Visit</span>
                     </div>
                     <h1 className="text-3xl font-semibold leading-[1.08] tracking-tight text-[#fff8ea] sm:text-5xl lg:text-7xl">
                         {retreatContent.title}
@@ -36,7 +36,7 @@ const HeroSection = ({ retreatContent, setShowBrochure, onBookNow }) => {
                             onClick={onBookNow} 
                             className="inline-flex items-center justify-center rounded-full bg-[#7a5527] px-6 py-3.5 font-semibold text-white shadow-2xl transition hover:bg-[#5d3d19] sm:px-7 sm:py-4"
                         >
-                            Book Your Stay <ArrowRight className="ml-2" size={19} />
+                            Book Now <ArrowRight className="ml-2" size={19} />
                         </button>
                         <button 
                             onClick={() => setShowBrochure(true)} 

@@ -41,11 +41,11 @@ const retreatContent = {
             },
             {
                 type: 'Group',
-                title: 'Group Farm Retreat',
+                title: 'Group Farm Visit',
                 subtitle: 'Limestone Villa',
                 basePrice: 7000,
                 pricingMode: 'flat',
-                maxGuests: 4,
+                maxGuests: 8,
                 propertyTitleHint: 'Luxury Limestone Villa',
                 inclusions: ['Event access', 'Private villa stay', 'Meals']
             }
@@ -113,11 +113,11 @@ const retreatContent = {
         }
     ],
     gallery: [
-        'https://browncowsdairy.com/cdn/shop/files/IJJU8350_1.jpg?v=1775652524&width=1200',
         'https://browncowsdairy.com/cdn/shop/files/give-me-other-image.png?v=1775656183&width=1200',
         'https://browncowsdairy.com/cdn/shop/files/families-in-farms.png?v=1775656252&width=1200',
         'https://browncowsdairy.com/cdn/shop/files/students-in-farms.png?v=1775656385&width=1200',
         'https://browncowsdairy.com/cdn/shop/files/nature-lovers-in-farms.png?v=1775656472&width=1200',
+        'https://browncowsdairy.com/cdn/shop/files/IJJU8350_1.jpg?v=1775652524&width=1200',
         'https://browncowsdairy.com/cdn/shop/files/WhatsAppImage2025-12-16at5.07.08PM.jpg?v=1777122827&width=1200',
         'https://browncowsdairy.com/cdn/shop/files/DSC00331.jpg?v=1776069148&width=1200',
         'https://browncowsdairy.com/cdn/shop/files/DSC00332.jpg?v=1776069148&width=1200',

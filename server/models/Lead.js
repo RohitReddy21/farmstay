@@ -7,6 +7,8 @@ const leadSchema = new mongoose.Schema({
     guests: { type: Number, default: 1 },
     source: { type: String, default: 'website', trim: true },
     retreatName: { type: String, trim: true },
+    phoneVerified: { type: Boolean, default: false },
+    marketingConsent: { type: Boolean, default: false },
     status: {
         type: String,
         enum: ['New', 'Contacted', 'Converted', 'Closed'],

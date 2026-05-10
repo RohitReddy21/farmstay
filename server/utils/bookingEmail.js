@@ -18,6 +18,7 @@ const getPaymentLabel = (booking) => (
 );
 
 const getBookingTotal = (booking) => Number(booking.totalPrice || 0) + Number(booking.tax || 0);
+const getBookingNumber = (booking) => String(booking.bookingCode || booking._id || booking.id || '-');
 const isOnlinePaidBooking = (booking) => (
     String(booking.paymentMethod || '').toLowerCase() === 'razorpay'
     || ['Authorized', 'Captured'].includes(booking.paymentStatus)
@@ -30,20 +31,23 @@ const buildBookingEmail = (booking, user = {}) => {
     const guests = getGuestCount(booking.guests);
     const amount = getBookingTotal(booking);
     const payment = getPaymentLabel(booking);
-    const bookingId = String(booking._id || booking.id || '-');
+    const bookingId = getBookingNumber(booking);
+    const supportNote = 'Need to reschedule or request a refund? Reply to this email or contact WhatsApp +91 99898 54411 with your booking number. Online payment refunds, when approved, are processed to the original payment method within 7 working days.';
 
     const text = [
         `Hi ${guestName},`,
         '',
         'Your Brown Cows Dairy booking request has been received and is pending approval.',
         '',
-        `Booking ID: ${bookingId}`,
+        `Booking Number: ${bookingId}`,
         `Stay: ${propertyTitle}`,
         `Dates: ${dates}`,
         `Guests: ${guests}`,
         `Amount: Rs ${amount}`,
         `Payment: ${payment}`,
         `Status: Pending approval`,
+        '',
+        supportNote,
         '',
         'You can view the latest status in My Bookings.',
         '',
@@ -60,10 +64,14 @@ const buildBookingEmail = (booking, user = {}) => {
                 <div style="padding:24px;">
                     <p style="margin:0 0 14px;">Hi <strong>${guestName}</strong>,</p>
                     <p style="margin:0 0 20px;color:#645747;">Your booking request has been received and is pending approval.</p>
+                    <div style="margin:0 0 20px;padding:16px;border:1px solid #e4c58f;background:#f8efdf;border-radius:14px;">
+                        <div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#8b5e34;font-weight:700;">Booking Number</div>
+                        <div style="margin-top:6px;font-size:22px;line-height:1.2;font-weight:800;color:#211b14;">${bookingId}</div>
+                    </div>
                     <table style="width:100%;border-collapse:collapse;background:#f8efdf;border:1px solid #ead7b8;border-radius:14px;overflow:hidden;">
                         <tbody>
                             ${[
-                                ['Booking ID', bookingId],
+                                ['Booking Number', bookingId],
                                 ['Stay', propertyTitle],
                                 ['Dates', dates],
                                 ['Guests', guests],
@@ -78,6 +86,9 @@ const buildBookingEmail = (booking, user = {}) => {
                             `).join('')}
                         </tbody>
                     </table>
+                    <div style="margin:20px 0 0;padding:14px 16px;border:1px solid #ead7b8;background:#fff7e8;border-radius:14px;color:#645747;font-size:14px;line-height:1.5;">
+                        <strong>Reschedule or refund help:</strong> ${supportNote}
+                    </div>
                     <p style="margin:20px 0 0;color:#645747;font-size:14px;">You can view the latest status in My Bookings.</p>
                     <p style="margin:20px 0 0;font-size:14px;">Brown Cows Organic Dairy</p>
                 </div>
@@ -95,7 +106,8 @@ const buildBookingStatusEmail = (booking, user = {}, status = 'Confirmed', rejec
     const guests = getGuestCount(booking.guests);
     const amount = getBookingTotal(booking);
     const payment = getPaymentLabel(booking);
-    const bookingId = String(booking._id || booking.id || '-');
+    const bookingId = getBookingNumber(booking);
+    const supportNote = 'Need to reschedule or request a refund? Reply to this email or contact WhatsApp +91 99898 54411 with your booking number. Online payment refunds, when approved, are processed to the original payment method within 7 working days.';
     const isRejected = status === 'Rejected';
     const heading = isRejected ? 'Booking Not Approved' : 'Booking Confirmed';
     const message = isRejected
@@ -109,7 +121,7 @@ const buildBookingStatusEmail = (booking, user = {}, status = 'Confirmed', rejec
     const codNotice = 'This was a COD / Pay at Farm booking, so no online amount was collected and no refund action is required.';
     const paymentNotice = isOnlinePaidBooking(booking) ? refundNotice : codNotice;
     const rows = [
-        ['Booking ID', bookingId],
+        ['Booking Number', bookingId],
         ['Stay', propertyTitle],
         ['Dates', dates],
         ['Guests', guests],
@@ -126,13 +138,15 @@ const buildBookingStatusEmail = (booking, user = {}, status = 'Confirmed', rejec
         rejectionReason ? `Reason: ${rejectionReason}` : '',
         showPaymentNotice ? paymentNotice : '',
         '',
-        `Booking ID: ${bookingId}`,
+        `Booking Number: ${bookingId}`,
         `Stay: ${propertyTitle}`,
         `Dates: ${dates}`,
         `Guests: ${guests}`,
         `Amount: Rs ${amount}`,
         `Payment: ${payment}`,
         `Status: ${statusLabel}`,
+        '',
+        supportNote,
         '',
         'You can view the latest status in My Bookings.',
         '',
@@ -164,6 +178,9 @@ const buildBookingStatusEmail = (booking, user = {}, status = 'Confirmed', rejec
                             `).join('')}
                         </tbody>
                     </table>
+                    <div style="margin:20px 0 0;padding:14px 16px;border:1px solid #ead7b8;background:#fff7e8;border-radius:14px;color:#645747;font-size:14px;line-height:1.5;">
+                        <strong>Reschedule or refund help:</strong> ${supportNote}
+                    </div>
                     <p style="margin:20px 0 0;color:#645747;font-size:14px;">You can view the latest status in My Bookings.</p>
                     <p style="margin:20px 0 0;font-size:14px;">Brown Cows Organic Dairy</p>
                 </div>
@@ -187,6 +204,7 @@ const sendBookingConfirmationEmail = async (booking, user = {}) => {
 
     console.log('BOOKING EMAIL DEBUG:', {
         bookingId: String(booking._id || booking.id),
+        bookingCode: booking.bookingCode || undefined,
         guestDetailsEmail: guestEmail || undefined,
         userEmail: userEmail || undefined,
         selectedRecipient: to || undefined,
@@ -197,6 +215,7 @@ const sendBookingConfirmationEmail = async (booking, user = {}) => {
     if (!to) {
         console.log('Booking confirmation email skipped:', {
             bookingId: String(booking._id || booking.id),
+            bookingCode: booking.bookingCode || undefined,
             to: undefined,
             emailConfigured: Boolean(process.env.RESEND_API_KEY)
         });
@@ -217,6 +236,7 @@ const sendBookingConfirmationEmail = async (booking, user = {}) => {
         if (!success) {
             console.error('Booking confirmation email provider returned failure:', {
                 bookingId: String(booking._id || booking.id),
+                bookingCode: booking.bookingCode || undefined,
                 to
             });
             return { success: false };
@@ -224,12 +244,14 @@ const sendBookingConfirmationEmail = async (booking, user = {}) => {
 
         console.log('Booking confirmation email sent:', {
             bookingId: String(booking._id || booking.id),
+            bookingCode: booking.bookingCode || undefined,
             to
         });
         return { success: true };
     } catch (error) {
         console.error('Booking confirmation email failed:', {
             bookingId: String(booking._id || booking.id),
+            bookingCode: booking.bookingCode || undefined,
             to,
             message: error.message
         });

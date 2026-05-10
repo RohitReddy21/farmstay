@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CalendarDays, CheckCircle2, CreditCard, Home, MessageCircle, ShoppingBag, Sprout, Utensils, X } from 'lucide-react';
+import { CalendarDays, CheckCircle2, CreditCard, Home, ShoppingBag, Sprout, Utensils, X } from 'lucide-react';
 import API_URL from '../config';
 import { useCart } from '../context/CartContext';
 import { useToast } from '../context/ToastContext';
@@ -48,8 +48,9 @@ const isSaturday = (dateValue) => {
 const RETREAT_STAY_SLOT_LIMITS = {
     shared: 4,
     couple: 2,
-    group: 2
+    group: 8
 };
+const RETREAT_DAY_EXPERIENCE_LIMIT = 25;
 
 const normalizeRetreatStayType = (value = '') => {
     const text = String(value).toLowerCase();
@@ -70,12 +71,13 @@ const getRetreatWeekendStart = (dateValue) => {
 const getSlotLabel = (stayType) => {
     const slotType = normalizeRetreatStayType(stayType);
     if (slotType === 'couple') return 'Couple';
-    if (slotType === 'group') return 'Group';
+    if (slotType === 'group') return 'Limestone Villa';
     return 'Single/Shared';
 };
 
 const getSlotUnitLabel = (stayType) => {
-    return normalizeRetreatStayType(stayType) === 'shared' ? 'guest slots' : 'stay slots';
+    const slotType = normalizeRetreatStayType(stayType);
+    return slotType === 'couple' ? 'stay slots' : 'guest slots';
 };
 
 const getAlternativeStayRecommendation = (availability = {}, currentSlotType = 'shared') => {
@@ -95,19 +97,6 @@ const getAlternativeStayRecommendation = (availability = {}, currentSlotType = '
 
     return `You can also try ${availableOptions.join(' or ')} for this weekend.`;
 };
-
-// Floating WhatsApp Component
-const FloatingWhatsApp = ({ phone }) => (
-    <a
-        href={`https://wa.me/${phone.replace(/\D/g, '')}?text=Hi! I'm interested in the Learning Retreat`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg transition-transform hover:scale-110 lg:bottom-8 lg:right-8"
-        aria-label="Contact on WhatsApp"
-    >
-        <MessageCircle size={24} />
-    </a>
-);
 
 const RetreatExperienceStrip = ({ experience, stayType, retreatContent, selectedStay }) => {
     const stayImage = experience === 'day'
@@ -238,7 +227,7 @@ const LearningRetreat = () => {
                 farmId: farm._id
             }));
     }, [experience, farms, linkedFarm, selectedStay, stayType]);
-    const selectedStayCapacity = selectedStayVariation?.capacity || selectedStay.maxGuests;
+    const selectedStayCapacity = Math.max(Number(selectedStayVariation?.capacity || 0), Number(selectedStay.maxGuests || 1));
     const seasonalMultiplier = selectedDate ? (retreatContent.seasonalPricing[selectedDate] || 1) : 1;
     const dayExperiencePrice = retreatContent.packages.day.basePrice;
     const isFlatStayPrice = selectedStay.pricingMode === 'flat';
@@ -298,6 +287,15 @@ const LearningRetreat = () => {
             available: RETREAT_STAY_SLOT_LIMITS[selectedSlotType]
         };
     }, [experience, retreatAvailability, selectedDate, selectedSlotType]);
+    const selectedDayAvailability = useMemo(() => {
+        if (experience !== 'day' || !selectedDate) return null;
+
+        return retreatAvailability[selectedDate]?.day || {
+            booked: 0,
+            limit: RETREAT_DAY_EXPERIENCE_LIMIT,
+            available: RETREAT_DAY_EXPERIENCE_LIMIT
+        };
+    }, [experience, retreatAvailability, selectedDate]);
     const selectedWeekendAvailability = selectedDate
         ? retreatAvailability[getRetreatWeekendStart(selectedDate)] || {}
         : {};
@@ -309,9 +307,19 @@ const LearningRetreat = () => {
             .filter(([, slots]) => (slots?.[selectedSlotType]?.available ?? RETREAT_STAY_SLOT_LIMITS[selectedSlotType]) <= 0)
             .flatMap(([weekendStart]) => [weekendStart, addDays(weekendStart, 1)]);
     }, [experience, retreatAvailability, selectedSlotType]);
+    const fullyBookedDayDates = useMemo(() => {
+        if (experience !== 'day') return [];
+
+        return Object.entries(retreatAvailability)
+            .filter(([, slots]) => (slots?.day?.available ?? RETREAT_DAY_EXPERIENCE_LIMIT) <= 0)
+            .map(([dateValue]) => dateValue);
+    }, [experience, retreatAvailability]);
     const visibleBlockedDates = useMemo(
-        () => Array.from(new Set([...retreatContent.blockedDates, ...fullyBookedStayDates])),
-        [fullyBookedStayDates]
+        () => Array.from(new Set([
+            ...retreatContent.blockedDates,
+            ...(experience === 'day' ? fullyBookedDayDates : fullyBookedStayDates)
+        ])),
+        [experience, fullyBookedDayDates, fullyBookedStayDates]
     );
 
     useEffect(() => {
@@ -460,6 +468,24 @@ const LearningRetreat = () => {
                 setIsSubmitting(false);
                 return;
             }
+
+            if (experience === 'day') {
+                const dayAvailability = retreatAvailability[selectedDate]?.day || { available: RETREAT_DAY_EXPERIENCE_LIMIT };
+                if (dayAvailability.available <= 0) {
+                    const message = 'Day experience is full for this date. Please choose another Saturday.';
+                    setCalendarError(message);
+                    showToast({ type: 'error', title: 'Date full', message });
+                    setIsSubmitting(false);
+                    return;
+                }
+                if (bookingGuests > dayAvailability.available) {
+                    const message = `Only ${dayAvailability.available} day experience seats are available for this date.`;
+                    setCalendarError(message);
+                    showToast({ type: 'error', title: 'Reduce guests', message });
+                    setIsSubmitting(false);
+                    return;
+                }
+            }
             
             if (experience === 'stay' && !isSat && !isSun) {
                 setCalendarError('Only Saturdays and Sundays are available for 2-day retreats.');
@@ -485,8 +511,8 @@ const LearningRetreat = () => {
                 return;
             }
 
-            if (experience === 'stay' && selectedSlotType === 'shared' && bookingGuests > selectedStayAvailability?.available) {
-                const message = `Only ${selectedStayAvailability.available} of 4 Single/Shared guest slots are available for this weekend. Reduce guests or try another stay type.`;
+            if (experience === 'stay' && selectedSlotType !== 'couple' && bookingGuests > selectedStayAvailability?.available) {
+                const message = `Only ${selectedStayAvailability.available} of ${selectedStayAvailability.limit} ${selectedSlotLabel} guest slots are available for this weekend. Reduce guests or try another stay type.`;
                 setCalendarError(message);
                 showToast({
                     type: 'error',
@@ -506,7 +532,7 @@ const LearningRetreat = () => {
 
             const bookingStartDate = experience === 'day' ? selectedDate : getRetreatWeekendStart(selectedDate);
             const endDate = experience === 'day' ? selectedDate : addDays(bookingStartDate, 1);
-            const packageLabel = experience === 'day' ? 'Day Experience' : `${selectedStayVariation?.label || stayType} 2-Day Farm Stay`;
+            const packageLabel = experience === 'day' ? 'Day Experience' : `${selectedStayVariation?.label || stayType} 2 Days Farm Stay + Experience`;
             const isDayExperience = experience === 'day';
 
             // Match the farmstay flow: add selection to cart, then checkout creates the booking/payment order.
@@ -610,8 +636,6 @@ const LearningRetreat = () => {
 
     return (
         <div className="-mx-4 -my-8 overflow-x-hidden bg-[#f5efe3] text-[#211b14] dark:bg-[#111611] dark:text-[#f7f0e4]">
-            <FloatingWhatsApp phone={retreatContent.whatsapp} />
-
             <HeroSection
                 retreatContent={retreatContent}
                 setShowBrochure={setShowBrochure}
@@ -675,6 +699,7 @@ const LearningRetreat = () => {
                             calendarError={calendarError}
                             setCalendarError={setCalendarError}
                             slotAvailability={selectedStayAvailability}
+                            dayAvailability={selectedDayAvailability}
                             slotLabel={selectedSlotLabel}
                             slotUnitLabel={selectedSlotUnitLabel}
                             baseTotal={baseTotal}
@@ -808,6 +833,9 @@ const LearningRetreat = () => {
                             <div className="pointer-events-auto w-full max-w-[380px]">
                                 <CalendarModal
                                     experience={experience}
+                                    selectedSlotType={selectedSlotType}
+                                    slotLabel={selectedSlotLabel}
+                                    slotUnitLabel={selectedSlotUnitLabel}
                                     selectedDate={selectedDate}
                                     setSelectedDate={setSelectedDate}
                                     selectedMonth={selectedMonth}
@@ -815,6 +843,7 @@ const LearningRetreat = () => {
                                     monthDates={monthDates}
                                     monthLabel={monthLabel}
                                     blockedDates={visibleBlockedDates}
+                                    availability={retreatAvailability}
                                     setCalendarError={setCalendarError}
                                     onClose={() => setIsCalendarOpen(false)}
                                 />

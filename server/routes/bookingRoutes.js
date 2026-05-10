@@ -6,6 +6,7 @@ const Booking = require('../models/Booking');
 const Farm = require('../models/Farm');
 const Payment = require('../models/Payment');
 const BlockedDate = require('../models/BlockedDate');
+const mongoose = require('mongoose');
 const { optionalAuth } = require('../middleware/authMiddleware');
 const { sendBookingNotification } = require('../utils/notifications');
 const { sendBookingWhatsAppConfirmation } = require('../utils/whatsapp');
@@ -17,8 +18,10 @@ const RETREAT_STAY_SLOT_LIMITS = {
     shared: 4,
     single: 4,
     couple: 2,
-    group: 2
+    group: 8
 };
+const RETREAT_DAY_EXPERIENCE_LIMIT = Number(process.env.RETREAT_DAY_EXPERIENCE_LIMIT || 25);
+const BOOKING_CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 // Initialize Razorpay
 const razorpay = new Razorpay({
@@ -27,7 +30,7 @@ const razorpay = new Razorpay({
 });
 
 // Helper function to check for date overlaps
-async function hasOverlap(propertyId, roomId, startDate, endDate, variation) {
+async function hasOverlap(propertyId, roomId, startDate, endDate, variation, excludeBookingId) {
     const selectedCottages = Array.isArray(variation?.cottages) && variation.cottages.length
         ? variation.cottages
         : (variation?.cottage ? [variation.cottage] : []);
@@ -42,6 +45,7 @@ async function hasOverlap(propertyId, roomId, startDate, endDate, variation) {
         }
         : (roomId && { room: roomId });
     const overlap = await Booking.findOne({
+        ...(excludeBookingId ? { _id: { $ne: excludeBookingId } } : {}),
         property: propertyId,
         ...(resourceFilter || {}),
         status: { $in: ['Confirmed', 'Pending', 'Approved'] },
@@ -146,7 +150,7 @@ function isStayRetreat(retreatMeta = {}) {
     return retreatMeta.experience === 'stay' || !!retreatMeta.stayType || /farm stay|retreat/i.test(retreatMeta.package || '');
 }
 
-async function getRetreatStaySlotAvailability(date, stayType) {
+async function getRetreatStaySlotAvailability(date, stayType, excludeBookingId) {
     const slotType = normalizeRetreatStayType(stayType);
     const limit = RETREAT_STAY_SLOT_LIMITS[slotType] || 0;
 
@@ -156,6 +160,7 @@ async function getRetreatStaySlotAvailability(date, stayType) {
 
     const { start, end } = getRetreatWeekendRange(date);
     const bookings = await Booking.find({
+        ...(excludeBookingId ? { _id: { $ne: excludeBookingId } } : {}),
         status: { $in: ACTIVE_BOOKING_STATUSES },
         retreatMeta: { $exists: true },
         $and: [{
@@ -171,7 +176,7 @@ async function getRetreatStaySlotAvailability(date, stayType) {
         if (!isStayRetreat(booking.retreatMeta)) return total;
         const bookingType = normalizeRetreatStayType(booking.retreatMeta?.stayType || booking.retreatMeta?.package);
         if (bookingType !== slotType) return total;
-        return total + (slotType === 'shared' ? getBookingGuestCount(booking.guests) : 1);
+        return total + (slotType === 'couple' ? 1 : getBookingGuestCount(booking.guests));
     }, 0);
 
     return {
@@ -179,6 +184,27 @@ async function getRetreatStaySlotAvailability(date, stayType) {
         limit,
         booked,
         available: Math.max(limit - booked, 0)
+    };
+}
+
+async function getRetreatDayAvailability(date, excludeBookingId) {
+    const start = startOfDay(date);
+    const bookings = await Booking.find({
+        ...(excludeBookingId ? { _id: { $ne: excludeBookingId } } : {}),
+        status: { $in: ACTIVE_BOOKING_STATUSES },
+        retreatMeta: { $exists: true },
+        startDate: start
+    }).select('retreatMeta guests');
+
+    const booked = bookings.reduce((total, booking) => {
+        if (!isDayRetreat(booking.retreatMeta)) return total;
+        return total + getBookingGuestCount(booking.guests);
+    }, 0);
+
+    return {
+        booked,
+        limit: RETREAT_DAY_EXPERIENCE_LIMIT,
+        available: Math.max(RETREAT_DAY_EXPERIENCE_LIMIT - booked, 0)
     };
 }
 
@@ -207,16 +233,33 @@ async function buildRetreatAvailability(startDate, endDate) {
                 .filter(([type]) => type !== 'single')
                 .map(([type, limit]) => [type, { booked: 0, limit, available: limit }])
         );
+        availability[weekendKey].day = {
+            booked: 0,
+            limit: RETREAT_DAY_EXPERIENCE_LIMIT,
+            available: RETREAT_DAY_EXPERIENCE_LIMIT
+        };
         cursor.setDate(cursor.getDate() + 7);
     }
 
     bookings.forEach((booking) => {
+        if (isDayRetreat(booking.retreatMeta)) {
+            const dayKey = toDateValue(startOfDay(booking.startDate));
+            if (!availability[dayKey]?.day) return;
+
+            availability[dayKey].day.booked += getBookingGuestCount(booking.guests);
+            availability[dayKey].day.available = Math.max(
+                availability[dayKey].day.limit - availability[dayKey].day.booked,
+                0
+            );
+            return;
+        }
+
         if (!isStayRetreat(booking.retreatMeta)) return;
         const weekendKey = toDateValue(getRetreatWeekendStart(booking.startDate));
         const slotType = normalizeRetreatStayType(booking.retreatMeta?.stayType || booking.retreatMeta?.package);
         if (!availability[weekendKey]?.[slotType]) return;
 
-        availability[weekendKey][slotType].booked += slotType === 'shared' ? getBookingGuestCount(booking.guests) : 1;
+        availability[weekendKey][slotType].booked += slotType === 'couple' ? 1 : getBookingGuestCount(booking.guests);
         availability[weekendKey][slotType].available = Math.max(
             availability[weekendKey][slotType].limit - availability[weekendKey][slotType].booked,
             0
@@ -228,6 +271,42 @@ async function buildRetreatAvailability(startDate, endDate) {
 
 const getPhoneDigits = (phone = '') => String(phone).replace(/\D/g, '');
 const isValidEmail = (email = '') => /\S+@\S+\.\S+/.test(String(email).trim());
+const CLOSED_BOOKING_STATUSES = ['Cancelled', 'Completed', 'Rejected'];
+
+function contactMatchesBooking(booking, contact = '') {
+    const normalizedContact = String(contact || '').trim().toLowerCase();
+    const contactDigits = getPhoneDigits(normalizedContact);
+    const guestEmail = String(booking.guestDetails?.email || '').trim().toLowerCase();
+    const userEmail = String(booking.user?.email || '').trim().toLowerCase();
+    const guestPhone = getPhoneDigits(booking.guestDetails?.phone);
+    const userPhone = getPhoneDigits(booking.user?.phone);
+    const phoneMatches = contactDigits.length >= 10 && (
+        (guestPhone && contactDigits.endsWith(guestPhone))
+        || (userPhone && contactDigits.endsWith(userPhone))
+    );
+    const emailMatches = normalizedContact.includes('@') && (
+        (guestEmail && normalizedContact === guestEmail)
+        || (userEmail && normalizedContact === userEmail)
+    );
+
+    return emailMatches || phoneMatches;
+}
+
+function getVariationConfig(property, bookingVariation = {}) {
+    if (!property?.variations?.length || !bookingVariation) return null;
+    return property.variations.find((variation) => (
+        (bookingVariation.type && variation.type === bookingVariation.type)
+        || (bookingVariation.label && variation.label === bookingVariation.label)
+    )) || null;
+}
+
+function calculateBookingPricing(property, booking, nights) {
+    const variationConfig = getVariationConfig(property, booking.variation);
+    const nightlyPrice = Number(variationConfig?.price || property.price || booking.totalPrice || 0);
+    const totalPrice = nightlyPrice * nights;
+    const tax = Math.round(totalPrice * 0.18);
+    return { totalPrice, tax };
+}
 
 function validateGuestPhone(guestDetails) {
     if (getPhoneDigits(guestDetails?.phone).length !== 10) {
@@ -245,7 +324,7 @@ function validateGuestEmail(guestDetails) {
     }
 }
 
-async function validateBookingAvailability({ propertyId, roomId, startDate, endDate, guests, guestDetails, variation, retreatMeta }) {
+async function validateBookingAvailability({ propertyId, roomId, startDate, endDate, guests, guestDetails, variation, retreatMeta, excludeBookingId }) {
     const property = await Farm.findById(propertyId);
     if (!property) {
         const error = new Error('Property not found');
@@ -259,7 +338,7 @@ async function validateBookingAvailability({ propertyId, roomId, startDate, endD
     const start = normalizeBookingDate(startDate);
     const end = normalizeBookingDate(endDate);
 
-    if (!(start < end)) {
+    if (!(start < end) && !isDayRetreat(retreatMeta)) {
         const error = new Error('Please select a valid date range with at least 1 night.');
         error.statusCode = 400;
         throw error;
@@ -279,9 +358,17 @@ async function validateBookingAvailability({ propertyId, roomId, startDate, endD
     }
 
     if (retreatMeta) {
-        if (isStayRetreat(retreatMeta)) {
-            const slotAvailability = await getRetreatStaySlotAvailability(start, retreatMeta.stayType || retreatMeta.package);
-            const requestedSlots = slotAvailability.slotType === 'shared' ? getBookingGuestCount(guests) : 1;
+        if (isDayRetreat(retreatMeta)) {
+            const dayAvailability = await getRetreatDayAvailability(start, excludeBookingId);
+            const requestedGuests = getBookingGuestCount(guests);
+            if (dayAvailability.available < requestedGuests) {
+                const error = new Error(`Only ${dayAvailability.available} day experience seats are available for this date.`);
+                error.statusCode = 409;
+                throw error;
+            }
+        } else if (isStayRetreat(retreatMeta)) {
+            const slotAvailability = await getRetreatStaySlotAvailability(start, retreatMeta.stayType || retreatMeta.package, excludeBookingId);
+            const requestedSlots = slotAvailability.slotType === 'couple' ? 1 : getBookingGuestCount(guests);
             if (slotAvailability.available < requestedSlots) {
                 const error = new Error('Selected retreat stay slots are not available.');
                 error.statusCode = 409;
@@ -289,7 +376,7 @@ async function validateBookingAvailability({ propertyId, roomId, startDate, endD
             }
         }
     } else {
-        const overlap = await hasOverlap(propertyId, roomId, start, end, variation);
+        const overlap = await hasOverlap(propertyId, roomId, start, end, variation, excludeBookingId);
         if (overlap) {
             const error = new Error('Selected dates are not available.');
             error.statusCode = 409;
@@ -300,16 +387,145 @@ async function validateBookingAvailability({ propertyId, roomId, startDate, endD
     return { property, start, end };
 }
 
+function getBookingPayloads(body = {}) {
+    return Array.isArray(body.items) && body.items.length ? body.items : [body];
+}
+
+function getBookingAmount(payload = {}) {
+    return Number(payload.totalPrice || 0) + Number(payload.tax || 0);
+}
+
+function generateBookingCode() {
+    let code = '';
+    for (let index = 0; index < 6; index += 1) {
+        code += BOOKING_CODE_CHARS[crypto.randomInt(BOOKING_CODE_CHARS.length)];
+    }
+    return code;
+}
+
+async function createUniqueBookingCode() {
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+        const bookingCode = generateBookingCode();
+        const exists = await Booking.exists({ bookingCode });
+        if (!exists) return bookingCode;
+    }
+
+    return generateBookingCode();
+}
+
+function getPublicBookingNumber(booking = {}) {
+    return String(booking.bookingCode || booking._id || booking.id || '');
+}
+
+function getBookingResponsePayload(bookings = []) {
+    return {
+        bookingId: bookings[0]?._id,
+        bookingIds: bookings.map((booking) => booking._id),
+        bookingCode: getPublicBookingNumber(bookings[0]),
+        bookingCodes: bookings.map(getPublicBookingNumber)
+    };
+}
+
+function getBookingFindFilter(id = '') {
+    const value = String(id || '').trim();
+    if (mongoose.Types.ObjectId.isValid(value)) {
+        return { _id: value };
+    }
+    return { bookingCode: value.toUpperCase() };
+}
+
+async function createBookingFromPayload(payload, req, paymentInfo = {}) {
+    const {
+        propertyId,
+        roomId,
+        startDate,
+        endDate,
+        guests,
+        guestDetails,
+        totalPrice,
+        tax,
+        variation,
+        retreatMeta
+    } = payload;
+    const bookingGuestDetails = {
+        ...guestDetails,
+        email: String(guestDetails?.email || '').trim().toLowerCase()
+    };
+
+    const { property, start, end } = await validateBookingAvailability({
+        propertyId,
+        roomId,
+        startDate,
+        endDate,
+        guests,
+        guestDetails: bookingGuestDetails,
+        variation,
+        retreatMeta
+    });
+
+    const booking = await Booking.create({
+        bookingCode: await createUniqueBookingCode(),
+        ...(req.user?._id ? { user: req.user._id } : {}),
+        property: propertyId,
+        propertyTitle: property.title || '',
+        propertyLocation: property.location || '',
+        room: roomId,
+        startDate: start,
+        endDate: end,
+        guests,
+        guestDetails: bookingGuestDetails,
+        variation,
+        retreatMeta,
+        totalPrice,
+        tax,
+        status: 'Pending',
+        paymentId: paymentInfo.paymentId,
+        paymentStatus: paymentInfo.paymentStatus,
+        paymentMethod: paymentInfo.paymentMethod
+    });
+
+    await Payment.create({
+        booking: booking._id,
+        ...(req.user?._id ? { user: req.user._id } : {}),
+        razorpayOrderId: paymentInfo.razorpayOrderId,
+        razorpayPaymentId: paymentInfo.razorpayPaymentId,
+        razorpaySignature: paymentInfo.razorpaySignature,
+        amount: getBookingAmount(payload),
+        status: paymentInfo.paymentStatus,
+        paymentMethod: paymentInfo.paymentMethod
+    });
+
+    sendBookingWhatsAppConfirmation(booking).catch((whatsappError) => {
+        console.error('WhatsApp notification error:', whatsappError);
+    });
+    await sendBookingConfirmationEmail(booking, req.user || null);
+    sendBookingSMSConfirmation(booking).catch((smsError) => {
+        console.error('Booking confirmation SMS error:', smsError);
+    });
+
+    return booking;
+}
+
 // @route   POST /api/bookings/create-order
 // @desc    Create a Razorpay order after pre-checking availability
 // @access  Public, attaches user when logged in
 router.post('/create-order', optionalAuth, async (req, res) => {
-    const { propertyId, roomId, startDate, endDate, guests, guestDetails, totalPrice, tax, variation, retreatMeta } = req.body;
-
     try {
-        await validateBookingAvailability({ propertyId, roomId, startDate, endDate, guests, guestDetails, variation, retreatMeta });
+        const payloads = getBookingPayloads(req.body);
+        for (const payload of payloads) {
+            await validateBookingAvailability({
+                propertyId: payload.propertyId,
+                roomId: payload.roomId,
+                startDate: payload.startDate,
+                endDate: payload.endDate,
+                guests: payload.guests,
+                guestDetails: payload.guestDetails,
+                variation: payload.variation,
+                retreatMeta: payload.retreatMeta
+            });
+        }
 
-        const amountInPaise = Math.round((totalPrice + tax) * 100);
+        const amountInPaise = Math.round(payloads.reduce((sum, payload) => sum + getBookingAmount(payload), 0) * 100);
 
         // Create Razorpay Order
         const options = {
@@ -368,84 +584,32 @@ router.post('/verify-payment', optionalAuth, async (req, res) => {
         if (razorpay_signature === expectedSign) {
             const existingPayment = await Payment.findOne({ razorpayPaymentId: razorpay_payment_id });
             if (existingPayment) {
+                const existingBooking = await Booking.findById(existingPayment.booking).select('_id bookingCode');
                 return res.json({
                     success: true,
                     message: 'Payment already verified. Booking pending approval.',
-                    bookingId: existingPayment.booking
+                    ...getBookingResponsePayload(existingBooking ? [existingBooking] : [{ _id: existingPayment.booking }])
                 });
             }
 
-            const {
-                propertyId,
-                roomId,
-                startDate,
-                endDate,
-                guests,
-                guestDetails,
-                totalPrice,
-                tax,
-                variation,
-                retreatMeta
-            } = bookingDetails;
-            const bookingGuestDetails = {
-                ...guestDetails,
-                email: String(guestDetails?.email || '').trim().toLowerCase()
-            };
-
-            const { property, start, end } = await validateBookingAvailability({
-                propertyId,
-                roomId,
-                startDate,
-                endDate,
-                guests,
-                guestDetails: bookingGuestDetails,
-                variation,
-                retreatMeta
-            });
-
-            const booking = await Booking.create({
-                ...(req.user?._id ? { user: req.user._id } : {}),
-                property: propertyId,
-                propertyTitle: property.title || '',
-                propertyLocation: property.location || '',
-                room: roomId,
-                startDate: start,
-                endDate: end,
-                guests,
-                guestDetails: bookingGuestDetails,
-                variation,
-                retreatMeta,
-                totalPrice,
-                tax,
-                status: 'Pending',
-                paymentId: razorpay_order_id,
-                paymentStatus: 'Authorized',
-                paymentMethod: 'Razorpay'
-            });
-
-            await Payment.create({
-                booking: booking._id,
-                ...(req.user?._id ? { user: req.user._id } : {}),
-                razorpayOrderId: razorpay_order_id,
-                razorpayPaymentId: razorpay_payment_id,
-                razorpaySignature: razorpay_signature,
-                amount: Number(totalPrice || 0) + Number(tax || 0),
-                status: 'Authorized',
-                paymentMethod: 'Razorpay'
-            });
-
-            sendBookingWhatsAppConfirmation(booking).catch((whatsappError) => {
-                console.error('WhatsApp notification error:', whatsappError);
-            });
-            await sendBookingConfirmationEmail(booking, req.user || null);
-            sendBookingSMSConfirmation(booking).catch((smsError) => {
-                console.error('Booking confirmation SMS error:', smsError);
-            });
+            const payloads = getBookingPayloads(bookingDetails);
+            const bookings = [];
+            for (const payload of payloads) {
+                const booking = await createBookingFromPayload(payload, req, {
+                    paymentId: razorpay_order_id,
+                    razorpayOrderId: razorpay_order_id,
+                    razorpayPaymentId: razorpay_payment_id,
+                    razorpaySignature: razorpay_signature,
+                    paymentStatus: 'Authorized',
+                    paymentMethod: 'Razorpay'
+                });
+                bookings.push(booking);
+            }
 
             return res.json({
                 success: true,
                 message: 'Payment verified. Booking pending approval.',
-                bookingId: booking._id
+                ...getBookingResponsePayload(bookings)
             });
         } else {
             return res.status(400).json({ success: false, message: 'Invalid payment signature' });
@@ -460,65 +624,21 @@ router.post('/verify-payment', optionalAuth, async (req, res) => {
 // @desc    Create a COD booking
 // @access  Public, attaches user when logged in
 router.post('/cod', optionalAuth, async (req, res) => {
-    const { propertyId, roomId, startDate, endDate, guests, guestDetails, totalPrice, tax, variation, retreatMeta } = req.body;
-
     try {
-        const bookingGuestDetails = {
-            ...guestDetails,
-            email: String(guestDetails?.email || '').trim().toLowerCase()
-        };
-        const { property, start, end } = await validateBookingAvailability({
-            propertyId,
-            roomId,
-            startDate,
-            endDate,
-            guests,
-            guestDetails: bookingGuestDetails,
-            variation,
-            retreatMeta
-        });
-
-        // Create a 'Pending' Booking with COD
-        const booking = await Booking.create({
-            ...(req.user?._id ? { user: req.user._id } : {}),
-            property: propertyId,
-            propertyTitle: property.title || '',
-            propertyLocation: property.location || '',
-            room: roomId,
-            startDate: start,
-            endDate: end,
-            guests,
-            guestDetails: bookingGuestDetails,
-            variation,
-            retreatMeta,
-            totalPrice,
-            tax,
-            status: 'Pending',
-            paymentStatus: 'COD',
-            paymentMethod: 'COD'
-        });
-
-        // Create Payment Record
-        await Payment.create({
-            booking: booking._id,
-            ...(req.user?._id ? { user: req.user._id } : {}),
-            amount: totalPrice + tax,
-            status: 'COD',
-            paymentMethod: 'COD'
-        });
-
-        sendBookingWhatsAppConfirmation(booking).catch((whatsappError) => {
-            console.error('WhatsApp notification error:', whatsappError);
-        });
-        await sendBookingConfirmationEmail(booking, req.user || null);
-        sendBookingSMSConfirmation(booking).catch((smsError) => {
-            console.error('Booking confirmation SMS error:', smsError);
-        });
+        const payloads = getBookingPayloads(req.body);
+        const bookings = [];
+        for (const payload of payloads) {
+            const booking = await createBookingFromPayload(payload, req, {
+                paymentStatus: 'COD',
+                paymentMethod: 'COD'
+            });
+            bookings.push(booking);
+        }
 
         res.json({
             success: true,
             message: 'COD booking placed successfully.',
-            bookingId: booking._id
+            ...getBookingResponsePayload(bookings)
         });
 
     } catch (error) {
@@ -542,6 +662,140 @@ router.get('/retreat/availability', async (req, res) => {
     } catch (error) {
         console.error('Error fetching retreat availability:', error);
         res.status(500).json({ message: 'Server Error' });
+    }
+});
+
+// @route   GET /api/bookings/guest/:id
+// @desc    Let guest checkout customers view a booking with booking number + phone/email
+// @access  Public
+router.get('/guest/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const contact = String(req.query.contact || '').trim().toLowerCase();
+
+        if (!contact) {
+            return res.status(400).json({ message: 'Phone number or email is required.' });
+        }
+
+        const booking = await Booking.findOne(getBookingFindFilter(id))
+            .populate('property', 'title location images price capacity variations')
+            .populate('user', 'name email phone')
+            .lean();
+
+        if (!booking) {
+            return res.status(404).json({ message: 'Booking not found.' });
+        }
+
+        if (!contactMatchesBooking(booking, contact)) {
+            return res.status(403).json({ message: 'Booking details do not match this phone/email.' });
+        }
+
+        res.json(booking);
+    } catch (error) {
+        console.error('Guest booking lookup error:', error);
+        res.status(500).json({ message: 'Server Error' });
+    }
+});
+
+// @route   PUT /api/bookings/guest/:id
+// @desc    Let guest checkout customers edit an eligible booking from the same saved contact
+// @access  Public with booking contact match
+router.put('/guest/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { contact, startDate, endDate, guests, guestDetails = {} } = req.body;
+
+        if (!contact) {
+            return res.status(400).json({ message: 'Phone number or email is required.' });
+        }
+
+        const booking = await Booking.findOne(getBookingFindFilter(id))
+            .populate('property', 'title location images price capacity variations')
+            .populate('user', 'name email phone');
+
+        if (!booking) {
+            return res.status(404).json({ message: 'Booking not found.' });
+        }
+
+        if (!contactMatchesBooking(booking, contact)) {
+            return res.status(403).json({ message: 'Booking details do not match this phone/email.' });
+        }
+
+        if (CLOSED_BOOKING_STATUSES.includes(booking.status)) {
+            return res.status(400).json({ message: 'This booking can no longer be edited.' });
+        }
+
+        const today = startOfDay(new Date());
+        const currentStart = startOfDay(booking.startDate);
+        if (currentStart < today) {
+            return res.status(400).json({ message: 'Past bookings cannot be edited.' });
+        }
+
+        const guestCount = Number(guests);
+        if (!Number.isInteger(guestCount) || guestCount < 1) {
+            return res.status(400).json({ message: 'Please enter a valid number of guests.' });
+        }
+
+        const nextGuestDetails = {
+            ...booking.guestDetails,
+            ...guestDetails,
+            name: String(guestDetails.name || booking.guestDetails?.name || '').trim(),
+            phone: getPhoneDigits(guestDetails.phone || booking.guestDetails?.phone),
+            email: String(guestDetails.email || booking.guestDetails?.email || '').trim().toLowerCase()
+        };
+
+        if (!nextGuestDetails.name) {
+            return res.status(400).json({ message: 'Guest name is required.' });
+        }
+
+        const property = booking.property;
+        if (!property) {
+            return res.status(404).json({ message: 'Property not found' });
+        }
+
+        const variationConfig = getVariationConfig(property, booking.variation);
+        const guestLimit = Number(variationConfig?.capacity || property.capacity || 1);
+        if (guestCount > guestLimit) {
+            return res.status(400).json({ message: `Maximum ${guestLimit} guests allowed for this stay.` });
+        }
+
+        const { start, end } = await validateBookingAvailability({
+            propertyId: property._id,
+            roomId: booking.room,
+            startDate,
+            endDate,
+            guests: { adults: guestCount, children: 0 },
+            guestDetails: nextGuestDetails,
+            variation: booking.variation,
+            retreatMeta: booking.retreatMeta,
+            excludeBookingId: booking._id
+        });
+
+        if (start < today) {
+            return res.status(400).json({ message: 'Check-in date cannot be in the past.' });
+        }
+
+        const nights = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)));
+        const pricing = calculateBookingPricing(property, booking, nights);
+
+        booking.startDate = start;
+        booking.endDate = end;
+        booking.guests = { adults: guestCount, children: 0 };
+        booking.guestDetails = nextGuestDetails;
+        booking.totalPrice = pricing.totalPrice;
+        booking.tax = pricing.tax;
+
+        await booking.save();
+
+        const updatedBooking = await Booking.findById(booking._id)
+            .populate('property', 'title location images price capacity variations')
+            .populate('user', 'name email phone')
+            .lean();
+
+        res.json({ message: 'Booking updated successfully', booking: updatedBooking });
+    } catch (error) {
+        console.error('Guest booking update error:', error);
+        res.status(error.statusCode || 500).json({ message: error.statusCode ? error.message : 'Server Error' });
     }
 });
 

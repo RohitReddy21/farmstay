@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import { ShieldCheck, ChevronLeft, Loader, CreditCard, Banknote } from 'lucide-react';
 import API_URL from '../config';
+import { rememberGuestBooking } from '../utils/guestBookings';
 
 const formatDate = (date) => date ? new Date(date).toLocaleDateString('en-IN') : '-';
 
@@ -19,7 +20,7 @@ const getGuestCountText = (guests) => {
 };
 
 const Checkout = () => {
-    const { cartItem, clearCart } = useCart();
+    const { cartItem, cartItems, clearCart } = useCart();
     const { user } = useAuth();
     const navigate = useNavigate();
     const [isProcessing, setIsProcessing] = useState(false);
@@ -34,15 +35,20 @@ const Checkout = () => {
             return;
         }
 
-        if (!cartItem) {
+        if (!cartItems.length) {
             navigate('/farms');
         }
-    }, [cartItem, navigate, isCheckoutComplete]);
+    }, [cartItems.length, navigate, isCheckoutComplete]);
 
-    if (!cartItem && !isCheckoutComplete) {
+    if (!cartItems.length && !isCheckoutComplete) {
         return null;
     }
 
+    const checkoutItems = cartItems.length ? cartItems : (cartItem ? [cartItem] : []);
+    const primaryItem = checkoutItems[0];
+    const subtotal = checkoutItems.reduce((sum, item) => sum + Number(item.pricing?.totalPrice || 0), 0);
+    const taxTotal = checkoutItems.reduce((sum, item) => sum + Number(item.pricing?.tax || 0), 0);
+    const grandTotal = subtotal + taxTotal;
     const propertyTitle = cartItem?.property?.title || completedBooking?.propertyTitle || 'Brown Cows Dairy Stay';
     const isDayExperience = cartItem?.retreatMeta?.experience === 'day'
         || cartItem?.retreatMeta?.package === 'Day Experience'
@@ -55,16 +61,50 @@ const Checkout = () => {
     const authConfig = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
 
     const finishCheckout = (message, bookingResponse = {}) => {
+        const bookingIds = bookingResponse.bookingIds?.length ? bookingResponse.bookingIds : (bookingResponse.bookingId ? [bookingResponse.bookingId] : []);
+        const bookingCodes = bookingResponse.bookingCodes?.length ? bookingResponse.bookingCodes : (bookingResponse.bookingCode ? [bookingResponse.bookingCode] : bookingIds);
         const nextCompletedBooking = {
-            bookingId: bookingResponse.bookingId,
-            propertyTitle,
-            total: cartItem?.pricing?.grandTotal,
+            bookingId: bookingIds[0],
+            bookingIds,
+            bookingCode: bookingCodes[0],
+            bookingCodes,
+            propertyTitle: checkoutItems.length > 1 ? `${checkoutItems.length} bookings` : propertyTitle,
+            total: grandTotal,
             paymentMethod,
             bookingTypeLabel,
-            startDate: cartItem?.startDate,
-            endDate: cartItem?.endDate,
-            guestsText: getGuestCountText(cartItem?.guests)
+            startDate: primaryItem?.startDate,
+            endDate: primaryItem?.endDate,
+            guestsText: checkoutItems.length > 1 ? 'Multiple guest details' : getGuestCountText(primaryItem?.guests)
         };
+
+        bookingIds.forEach((bookingId, index) => {
+            const item = checkoutItems[index] || primaryItem;
+            const guestContact = item?.guestDetails?.email || item?.guestDetails?.phone || user?.email || user?.phone;
+            rememberGuestBooking({
+                bookingId,
+                contact: guestContact,
+                booking: {
+                    _id: bookingId,
+                    bookingCode: bookingCodes[index] || bookingId,
+                    property: item?.property,
+                    propertyTitle: item?.property?.title,
+                    propertyLocation: item?.property?.location,
+                    room: item?.roomId,
+                    startDate: item?.startDate,
+                    endDate: item?.endDate,
+                    guests: item?.guests,
+                    guestDetails: item?.guestDetails,
+                    variation: item?.variation,
+                    retreatMeta: item?.retreatMeta,
+                    totalPrice: item?.pricing?.totalPrice,
+                    tax: item?.pricing?.tax,
+                    status: 'Pending',
+                    paymentStatus: paymentMethod === 'cod' ? 'COD' : 'Authorized',
+                    paymentMethod: paymentMethod === 'cod' ? 'COD' : 'Razorpay',
+                    createdAt: new Date().toISOString()
+                }
+            });
+        });
 
         setCompletedBooking(nextCompletedBooking);
         setIsCheckoutComplete(true);
@@ -74,21 +114,25 @@ const Checkout = () => {
     };
 
     const buildBookingPayload = () => {
-        const adults = Number(cartItem.guests?.adults ?? cartItem.guests) || 1;
-        const children = Number(cartItem.guests?.children) || 0;
+        const items = checkoutItems.map((item) => {
+            const adults = Number(item.guests?.adults ?? item.guests) || 1;
+            const children = Number(item.guests?.children) || 0;
 
-        return {
-            propertyId: cartItem.propertyId,
-            roomId: cartItem.roomId,
-            startDate: cartItem.startDate,
-            endDate: cartItem.endDate,
-            guests: { adults, children },
-            totalPrice: cartItem.pricing.totalPrice,
-            tax: cartItem.pricing.tax,
-            guestDetails: cartItem.guestDetails,
-            variation: cartItem.variation,
-            retreatMeta: cartItem.retreatMeta
-        };
+            return {
+                propertyId: item.propertyId,
+                roomId: item.roomId,
+                startDate: item.startDate,
+                endDate: item.endDate,
+                guests: { adults, children },
+                totalPrice: item.pricing.totalPrice,
+                tax: item.pricing.tax,
+                guestDetails: item.guestDetails,
+                variation: item.variation,
+                retreatMeta: item.retreatMeta
+            };
+        });
+
+        return items.length === 1 ? items[0] : { items };
     };
 
     const handlePayment = async () => {
@@ -114,7 +158,7 @@ const Checkout = () => {
                 amount: orderData.amount,
                 currency: 'INR',
                 name: 'Brown Cows Dairy',
-                description: `Booking for ${propertyTitle}`,
+                description: checkoutItems.length > 1 ? `${checkoutItems.length} Brown Cows bookings` : `Booking for ${propertyTitle}`,
                 order_id: orderData.orderId,
                 handler: async function (response) {
                     try {
@@ -134,9 +178,9 @@ const Checkout = () => {
                     }
                 },
                 prefill: {
-                    name: cartItem.guestDetails.name,
-                    contact: cartItem.guestDetails.phone,
-                    email: cartItem.guestDetails.email || user?.email || ''
+                    name: primaryItem.guestDetails.name,
+                    contact: primaryItem.guestDetails.phone,
+                    email: primaryItem.guestDetails.email || user?.email || ''
                 },
                 theme: { color: '#7a5527' },
                 modal: {
@@ -206,8 +250,10 @@ const Checkout = () => {
                     <div className="mt-8 rounded-2xl border border-[#ead7b8] bg-[#f8efdf] p-5 text-left">
                         {completedBooking?.bookingId ? (
                             <div className="mb-3 flex items-center justify-between gap-4">
-                                <span className="text-sm text-[#645747]">Booking ID</span>
-                                <span className="text-right font-bold text-[#211b14]">{completedBooking.bookingId}</span>
+                                <span className="text-sm text-[#645747]">{completedBooking.bookingIds?.length > 1 ? 'Booking Numbers' : 'Booking Number'}</span>
+                                <span className="text-right font-bold text-[#211b14]">
+                                    {completedBooking.bookingIds?.length > 1 ? completedBooking.bookingCodes?.join(', ') : completedBooking.bookingCode}
+                                </span>
                             </div>
                         ) : null}
                         <div className="flex items-center justify-between gap-4">
@@ -217,7 +263,9 @@ const Checkout = () => {
                         <div className="mt-3 flex items-center justify-between gap-4">
                             <span className="text-sm text-[#645747]">Dates</span>
                             <span className="text-right font-semibold text-[#211b14]">
-                                {formatDate(completedBooking?.startDate)} to {formatDate(completedBooking?.endDate)}
+                                {completedBooking?.bookingIds?.length > 1
+                                    ? 'Multiple dates'
+                                    : `${formatDate(completedBooking?.startDate)} to ${formatDate(completedBooking?.endDate)}`}
                             </span>
                         </div>
                         <div className="mt-3 flex items-center justify-between gap-4">
@@ -239,20 +287,18 @@ const Checkout = () => {
                     </div>
 
                     <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
-                        {user && (
-                            <button
-                                type="button"
-                                onClick={() => navigate('/bookings', {
-                                    state: {
-                                        bookingSuccess: true,
-                                        message: confirmationMessage
-                                    }
-                                })}
-                                className="rounded-xl bg-primary px-6 py-3 font-bold text-white shadow-lg transition hover:bg-primary-800"
-                            >
-                                View My Bookings
-                            </button>
-                        )}
+                        <button
+                            type="button"
+                            onClick={() => navigate('/bookings', {
+                                state: {
+                                    bookingSuccess: true,
+                                    message: confirmationMessage
+                                }
+                            })}
+                            className="rounded-xl bg-primary px-6 py-3 font-bold text-white shadow-lg transition hover:bg-primary-800"
+                        >
+                            View My Bookings
+                        </button>
                         <button
                             type="button"
                             onClick={() => navigate('/farms')}
@@ -315,17 +361,21 @@ const Checkout = () => {
 
                     <div className="mb-8 rounded-2xl border border-[#ead7b8] bg-gradient-to-br from-[#fffaf1] to-[#f4ead8] p-6">
                         <h3 className="mb-4 text-lg font-bold text-[#211b14]">Final Summary</h3>
-                        <div className="mb-2 flex items-center justify-between">
-                            <span className="text-[#645747]">{lineItemLabel}</span>
-                            <span className="font-semibold text-[#211b14]">Rs {cartItem.pricing.totalPrice}</span>
+                        <div className="mb-4 space-y-2">
+                            {checkoutItems.map((item) => (
+                                <div key={item.cartId} className="flex items-center justify-between gap-4">
+                                    <span className="min-w-0 truncate text-[#645747]">{item.property?.title || lineItemLabel}</span>
+                                    <span className="font-semibold text-[#211b14]">Rs {item.pricing.totalPrice}</span>
+                                </div>
+                            ))}
                         </div>
                         <div className="mb-4 flex items-center justify-between border-b border-[#ead7b8] pb-4">
                             <span className="text-[#645747]">Taxes</span>
-                            <span className="font-semibold text-[#211b14]">Rs {cartItem.pricing.tax}</span>
+                            <span className="font-semibold text-[#211b14]">Rs {taxTotal}</span>
                         </div>
                         <div className="flex items-center justify-between text-xl">
                             <span className="font-bold text-[#211b14]">Amount to Pay</span>
-                            <span className="font-bold text-primary">Rs {cartItem.pricing.grandTotal}</span>
+                            <span className="font-bold text-primary">Rs {grandTotal}</span>
                         </div>
                     </div>
 
@@ -413,7 +463,7 @@ const Checkout = () => {
                             ) : paymentMethod === 'cod' ? (
                                 'Confirm COD Booking'
                             ) : (
-                                `Pay Rs ${cartItem.pricing.grandTotal}`
+                                `Pay Rs ${grandTotal}`
                             )}
                         </button>
 

@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
-import { CalendarDays, ChevronLeft, CreditCard, MapPin, Phone, UserRound, Users } from 'lucide-react';
+import { CalendarDays, ChevronLeft, CreditCard, Hash, MapPin, Phone, UserRound, Users } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import API_URL from '../config';
+import { getGuestBookingContact, updateStoredGuestBooking } from '../utils/guestBookings';
 
 const formatDate = (date) => date ? new Date(date).toLocaleDateString('en-IN') : '-';
 const formatCurrency = (amount) => `Rs ${Number(amount || 0).toLocaleString('en-IN')}`;
@@ -45,7 +46,37 @@ const BookingDetails = () => {
 
     useEffect(() => {
         if (!user) {
-            navigate('/login');
+            const fetchGuestBooking = async () => {
+                try {
+                    const storedLookup = JSON.parse(sessionStorage.getItem('guest_booking_lookup') || '{}');
+                    const contact = storedLookup?.id === id
+                        ? storedLookup.contact
+                        : getGuestBookingContact(id);
+
+                    if (!contact && storedLookup?.id === id && storedLookup?.booking) {
+                        setBooking(storedLookup.booking);
+                        return;
+                    }
+
+                    if (!contact) {
+                        setBooking(null);
+                        return;
+                    }
+
+                    const { data } = await axios.get(`${API_URL}/api/bookings/guest/${id}`, {
+                        params: { contact }
+                    });
+                    updateStoredGuestBooking(data);
+                    setBooking(data);
+                } catch (error) {
+                    console.error('Error fetching guest booking details:', error);
+                    setBooking(null);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            fetchGuestBooking();
             return;
         }
 
@@ -64,7 +95,7 @@ const BookingDetails = () => {
         };
 
         fetchBooking();
-    }, [id, user, navigate]);
+    }, [id, user]);
 
     if (loading) {
         return (
@@ -129,6 +160,7 @@ const BookingDetails = () => {
                     <div className="grid gap-4 sm:grid-cols-2">
                         <DetailRow icon={CalendarDays} label="Check-in" value={formatDate(booking.startDate)} />
                         <DetailRow icon={CalendarDays} label="Check-out" value={formatDate(booking.endDate)} />
+                        <DetailRow icon={Hash} label="Booking Number" value={booking.bookingCode || booking._id} />
                         <DetailRow icon={UserRound} label="Guest Name" value={booking.guestDetails?.name || user?.name || '-'} />
                         <DetailRow icon={Phone} label="Phone" value={booking.guestDetails?.phone || user?.phone || '-'} />
                         <DetailRow icon={Users} label="Guests" value={getGuestCount(booking.guests)} />

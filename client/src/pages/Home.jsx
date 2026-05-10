@@ -42,7 +42,7 @@ const googleReviews = [
     location: "Pune",
     rating: 5,
     date: "November 2024",
-    text: "A truly transformative experience. The farm retreat opened my eyes to ethical dairy farming and sustainable living. I appreciated how they treat their animals with so much love and care. The yoga session at sunrise by the fields was breathtaking.",
+    text: "A truly transformative experience. The farm visit opened my eyes to ethical dairy farming and sustainable living. I appreciated how they treat their animals with so much love and care. The yoga session at sunrise by the fields was breathtaking.",
     avatar: "https://ui-avatars.com/api/?name=Priya+V&background=c0522d&color=fff&bold=true"
   },
   {
@@ -93,7 +93,7 @@ const Home = () => {
                                     Brown Cows Farm Stays <ArrowRight className="ml-2" size={20} />
                                 </Link>
                                 <Link to="/learning-retreat" className="inline-flex items-center justify-center bg-[#d6a23d] hover:bg-[#c0922e] text-[#211b14] px-6 md:px-8 py-3 md:py-4 rounded-full text-base md:text-lg font-semibold transition-all transform hover:scale-105 shadow-lg hover:shadow-[#d6a23d]/30">
-                                    Farm Retreat <ArrowRight className="ml-2" size={20} />
+                                    Farm Visit <ArrowRight className="ml-2" size={20} />
                                 </Link>
                             </div>
                         </motion.div>

@@ -1,12 +1,14 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
 import { useTheme } from '../context/ThemeContext';
-import { Menu, X, Moon, Sun } from 'lucide-react';
+import { Menu, X, Moon, Sun, ShoppingCart } from 'lucide-react';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const Navbar = () => {
     const { user, logout } = useAuth();
+    const { cartItem, cartCount } = useCart();
     const { theme, toggleTheme } = useTheme();
     const [isOpen, setIsOpen] = useState(false);
 
@@ -26,6 +28,12 @@ const Navbar = () => {
                     <div className="hidden md:flex items-center space-x-4 lg:space-x-6">
                         <Link to="/farms" className="px-2 py-1 text-[#645747] transition hover:text-[#7a5527] dark:text-[#d5c9b7] dark:hover:text-[#e7c678]">Explore Farms</Link>
                         <Link to="/2-day-learning-retreat" className="px-2 py-1 text-[#645747] transition hover:text-[#7a5527] dark:text-[#d5c9b7] dark:hover:text-[#e7c678]">Learning Retreat</Link>
+                        <Link to="/bookings" className="px-2 py-1 text-[#645747] transition hover:text-[#7a5527] dark:text-[#d5c9b7] dark:hover:text-[#e7c678]">My Bookings</Link>
+                        <Link to="/cart" className="relative inline-flex items-center gap-1 px-2 py-1 text-[#645747] transition hover:text-[#7a5527] dark:text-[#d5c9b7] dark:hover:text-[#e7c678]">
+                            <ShoppingCart size={18} />
+                            Cart
+                            {cartItem && <span className="absolute -right-2 -top-2 rounded-full bg-[#7a5527] px-1.5 text-[10px] font-bold text-white dark:bg-[#e7c678] dark:text-[#151b15]">{cartCount}</span>}
+                        </Link>
                         <a
                             href="https://browncowsdairy.com/"
                             target="_blank"
@@ -54,7 +62,6 @@ const Navbar = () => {
                                     </>
                                 )}
                                 <Link to="/profile" className="px-2 py-1 text-[#645747] transition hover:text-[#7a5527] dark:text-[#d5c9b7] dark:hover:text-[#e7c678]">Profile</Link>
-                                <Link to="/bookings" className="px-2 py-1 text-[#645747] transition hover:text-[#7a5527] dark:text-[#d5c9b7] dark:hover:text-[#e7c678]">My Bookings</Link>
                                 <Link to="/favorites" className="px-2 py-1 text-[#645747] transition hover:text-[#7a5527] dark:text-[#d5c9b7] dark:hover:text-[#e7c678]">Favorites</Link>
                                 <span className="hidden px-2 py-1 font-medium text-[#211b14] dark:text-[#fff8ea] lg:inline">Hi, {user.name}</span>
                                 <button onClick={logout} className="text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-500 transition px-2 py-1">Logout</button>
@@ -110,6 +117,24 @@ const Navbar = () => {
                             >
                                 Learning Retreat
                             </Link>
+                            <Link
+                                to="/bookings"
+                                onClick={() => setIsOpen(false)}
+                                className="rounded-lg px-4 py-3 font-medium text-[#645747] transition-all hover:bg-[#f4ead8] hover:text-[#7a5527] dark:text-[#d5c9b7] dark:hover:bg-[#232823] dark:hover:text-[#e7c678]"
+                            >
+                                My Bookings
+                            </Link>
+                            <Link
+                                to="/cart"
+                                onClick={() => setIsOpen(false)}
+                                className="flex items-center justify-between rounded-lg px-4 py-3 font-medium text-[#645747] transition-all hover:bg-[#f4ead8] hover:text-[#7a5527] dark:text-[#d5c9b7] dark:hover:bg-[#232823] dark:hover:text-[#e7c678]"
+                            >
+                                <span className="inline-flex items-center gap-2">
+                                    <ShoppingCart size={18} />
+                                    Cart
+                                </span>
+                                {cartItem && <span className="rounded-full bg-[#7a5527] px-2 py-0.5 text-xs font-bold text-white">{cartCount}</span>}
+                            </Link>
                             <a
                                 href="https://browncowsdairy.com/"
                                 target="_blank"
@@ -161,13 +186,6 @@ const Navbar = () => {
                                         className="rounded-lg px-4 py-3 font-medium text-[#645747] transition-all hover:bg-[#f4ead8] hover:text-[#7a5527] dark:text-[#d5c9b7] dark:hover:bg-[#232823] dark:hover:text-[#e7c678]"
                                     >
                                         Profile
-                                    </Link>
-                                    <Link
-                                        to="/bookings"
-                                        onClick={() => setIsOpen(false)}
-                                        className="rounded-lg px-4 py-3 font-medium text-[#645747] transition-all hover:bg-[#f4ead8] hover:text-[#7a5527] dark:text-[#d5c9b7] dark:hover:bg-[#232823] dark:hover:text-[#e7c678]"
-                                    >
-                                        My Bookings
                                     </Link>
                                     <Link
                                         to="/favorites"

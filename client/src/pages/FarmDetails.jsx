@@ -637,7 +637,7 @@ const FarmDetails = () => {
             const totalPrice = nights * basePrice;
             const tax = Math.round(totalPrice * 0.18); // 18% GST example
 
-            // Set Cart Data and Navigate to Cart
+            // Add this stay to the cart so customers can checkout multiple bookings together.
             addToCart({
                 property: {
                     _id: farm._id,
@@ -1705,7 +1705,7 @@ const FarmDetails = () => {
                                                 : 'bg-gradient-to-r from-[#7a5527] to-[#5d3d19] hover:from-[#8b6230] hover:to-[#6d441a]'
                                         }`}
                                     >
-                                        {isBookingBlocked || selectedIsBookedForDates ? 'Dates Unavailable' : 'Confirm Booking'}
+                                        {isBookingBlocked || selectedIsBookedForDates ? 'Dates Unavailable' : 'Book Now'}
                                     </button>
                                 </div>
                             </form>

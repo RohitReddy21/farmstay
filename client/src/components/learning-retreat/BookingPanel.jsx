@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import axios from 'axios';
 import { motion } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import { 
@@ -22,6 +23,7 @@ import {
 } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 import { useToast } from '../../context/ToastContext';
+import API_URL from '../../config';
 
 const BookingPanel = ({
     experience,
@@ -45,6 +47,7 @@ const BookingPanel = ({
     calendarError,
     setCalendarError,
     slotAvailability,
+    dayAvailability,
     slotLabel,
     slotUnitLabel = 'stay slots',
     baseTotal,
@@ -68,6 +71,11 @@ const BookingPanel = ({
     const getTenDigitPhone = (value = '') => value.replace(/\D/g, '').slice(0, 10);
     const [showConfirmation, setShowConfirmation] = useState(false);
     const [formErrors, setFormErrors] = useState({});
+    const [phoneOtpSessionId, setPhoneOtpSessionId] = useState('');
+    const [phoneOtp, setPhoneOtp] = useState('');
+    const [phoneOtpStatus, setPhoneOtpStatus] = useState('');
+    const [phoneVerified, setPhoneVerified] = useState(false);
+    const [isPhoneOtpBusy, setIsPhoneOtpBusy] = useState(false);
     const [confirmationForm, setConfirmationForm] = useState({
         name: '',
         email: '',
@@ -84,6 +92,18 @@ const BookingPanel = ({
     const stayPriceLabel = selectedStay.type === 'Group' ? 'villa' : selectedStay.type === 'Couple' ? 'cottage' : 'guest';
     const accommodationLabel = selectedStay.type === 'Group' ? 'limestone villa' : 'mud cottage';
     const selectedCottageName = selectedStayVariation?.availableCottages?.[0] || selectedStayVariation?.type;
+    const stayTypeHelp = {
+        Shared: 'Pay per guest in shared mud cottage accommodation.',
+        Couple: 'Book one private couple cottage for up to 2 guests.',
+        Group: 'Book the limestone villa for a private group stay.'
+    };
+    const guestHelpText = experience === 'stay'
+        ? selectedStay.type === 'Couple'
+            ? 'Choose 1 or 2 guests. One couple cottage slot is used for this booking.'
+            : selectedStay.type === 'Group'
+                ? 'Choose the total people in your group. Limestone villa capacity is limited.'
+                : 'Choose total guests. Shared accommodation is priced per guest.'
+        : 'Choose how many people are joining the day farm experience.';
     const packagePriceNote = experience === 'day'
         ? 'per person'
         : isFlatStayPrice
@@ -158,7 +178,7 @@ const BookingPanel = ({
 
     const dateRange = getDateRange();
     const todayValue = toDateValue(new Date());
-    const maxGuests = experience === 'stay' ? selectedStay.maxGuests : 50;
+    const maxGuests = experience === 'stay' ? selectedStay.maxGuests : Math.max(1, dayAvailability?.available ?? 25);
     const normalizeGuests = (value) => {
         const parsed = Number.parseInt(value, 10);
         if (Number.isNaN(parsed)) return 1;
@@ -173,9 +193,87 @@ const BookingPanel = ({
         }));
     }, [guests, maxGuests]);
 
+    useEffect(() => {
+        setPhoneVerified(false);
+        setPhoneOtpSessionId('');
+        setPhoneOtp('');
+        setPhoneOtpStatus('');
+    }, [confirmationForm.phone]);
+
+    const requestPhoneOtp = async () => {
+        const phone = getTenDigitPhone(confirmationForm.phone);
+        const errors = {};
+
+        if (!confirmationForm.name.trim()) errors.name = 'Name is required before sending OTP';
+        if (!confirmationForm.email.trim()) errors.email = 'Email is required before sending OTP';
+        else if (!/\S+@\S+\.\S+/.test(confirmationForm.email)) errors.email = 'Email is invalid';
+        if (phone.length !== 10) errors.phone = 'Phone must be exactly 10 digits';
+
+        setFormErrors((current) => ({ ...current, ...errors }));
+        const firstError = Object.values(errors)[0];
+        if (firstError) {
+            showToast({ type: 'error', title: 'Phone OTP details missing', message: firstError });
+            return;
+        }
+
+        setIsPhoneOtpBusy(true);
+        setPhoneOtpStatus('Sending OTP...');
+
+        try {
+            const { data } = await axios.post(`${API_URL}/api/leads/send-phone-otp`, {
+                name: confirmationForm.name,
+                email: confirmationForm.email,
+                phone,
+                guests: confirmationForm.guests,
+                source: 'learning-retreat-phone-otp',
+                retreatName: retreatContent.retreatName,
+                marketingConsent: true
+            });
+            setPhoneOtpSessionId(data.smsSent ? (data.otpSessionId || '') : '');
+            setPhoneOtpStatus(data.smsSent
+                ? 'OTP sent. Enter it below to verify your number.'
+                : 'Lead saved. SMS could not be sent right now, so our team can still follow up by phone.');
+            showToast({ type: 'success', title: 'Phone saved', message: 'Customer number saved for follow-up.' });
+        } catch (error) {
+            const message = error.response?.data?.message || 'Could not send OTP right now.';
+            setPhoneOtpStatus(message);
+            showToast({ type: 'error', title: 'OTP failed', message });
+        } finally {
+            setIsPhoneOtpBusy(false);
+        }
+    };
+
+    const verifyPhoneOtp = async () => {
+        if (!phoneOtpSessionId || !phoneOtp.trim()) {
+            setPhoneOtpStatus('Enter the OTP sent to your phone.');
+            return;
+        }
+
+        setIsPhoneOtpBusy(true);
+        setPhoneOtpStatus('Verifying OTP...');
+
+        try {
+            await axios.post(`${API_URL}/api/leads/verify-phone-otp`, {
+                otpSessionId: phoneOtpSessionId,
+                phone: getTenDigitPhone(confirmationForm.phone),
+                otp: phoneOtp.trim()
+            });
+            setPhoneVerified(true);
+            setPhoneOtpStatus('Phone number verified.');
+            showToast({ type: 'success', title: 'Phone verified', message: 'Phone OTP verified successfully.' });
+        } catch (error) {
+            const message = error.response?.data?.message || 'Invalid OTP.';
+            setPhoneOtpStatus(message);
+            showToast({ type: 'error', title: 'OTP not verified', message });
+        } finally {
+            setIsPhoneOtpBusy(false);
+        }
+    };
+
     const selectStayVariation = (variation) => {
         setSelectedStayVariation(variation);
-        setGuests((current) => Math.min(Math.max(current, 1), variation.capacity || selectedStay.maxGuests));
+        const capacity = Math.max(Number(variation.capacity || 0), Number(selectedStay.maxGuests || 1));
+        setGuests((current) => Math.min(Math.max(current, 1), capacity));
         setCalendarError('');
     };
 
@@ -232,7 +330,7 @@ const BookingPanel = ({
                 >
                     {[
                         ['day', 'Day Experience', Clock],
-                        ['stay', '2-Day Farm Stay', TreePine]
+                        ['stay', '2 Days Farm Stay + Experience', TreePine]
                     ].map(([value, label, Icon]) => (
                         <motion.button
                             key={value}
@@ -312,7 +410,12 @@ const BookingPanel = ({
                 {/* Stay Type Section */}
                 {experience === 'stay' && (
                     <div className="mt-8">
-                        <h3 className="mb-4 text-xl font-bold text-[#211b14] dark:text-[#fff8ea] sm:text-2xl">Choose Your Stay Type</h3>
+                        <div className="mb-4">
+                            <h3 className="text-xl font-bold text-[#211b14] dark:text-[#fff8ea] sm:text-2xl">Choose Accommodation</h3>
+                            <p className="mt-1 text-sm text-[#6b5d4c] dark:text-[#cfc2b2]">
+                                Pick the stay format first, then select the exact cottage or villa below.
+                            </p>
+                        </div>
                         <div className="grid grid-cols-3 gap-2 sm:gap-3">
                             {retreatContent.packages.stays.map((item) => (
                                 <button
@@ -328,17 +431,28 @@ const BookingPanel = ({
                                     }`}
                                 >
                                     <p className="text-xs font-bold sm:text-sm">{item.type}</p>
+                                    <p className={`mt-1 hidden text-[10px] leading-tight sm:block ${
+                                        stayType === item.type ? 'text-white/80' : 'text-[#6b5d4c] dark:text-[#cfc2b2]'
+                                    }`}>
+                                        {item.type === 'Shared' ? 'Per guest' : item.type === 'Couple' ? 'Private' : 'Villa'}
+                                    </p>
                                 </button>
                             ))}
                         </div>
+                        <p className="mt-3 rounded-2xl border border-[#ead8b9] bg-white/70 px-3 py-2 text-sm font-semibold text-[#6b5d4c] dark:border-[#31392f] dark:bg-[#232823] dark:text-[#d5c9b7]">
+                            {stayTypeHelp[selectedStay.type] || selectedStay.subtitle}
+                        </p>
                         {stayVariations.length > 0 && (
                             <div className="mt-6">
                                 <label className="mb-3 flex items-center gap-2 text-sm font-bold capitalize text-[#7a5527] dark:text-[#e7c678]">
                                     <div className="h-1 w-4 rounded-full bg-gradient-to-r from-[#7a5527] to-[#d6a23d]"></div>
-                                    Select {accommodationLabel}
+                                    Choose your {accommodationLabel}
                                     <div className="h-1 w-4 rounded-full bg-gradient-to-r from-[#d6a23d] to-[#7a5527]"></div>
                                 </label>
                                 <div className="rounded-3xl border border-[#dfd1bb] bg-gradient-to-br from-white via-[#fff9f0] to-[#f7ead5] p-3 shadow-[0_14px_35px_rgba(122,85,39,0.12)] dark:border-[#31392f] dark:from-[#1a211a] dark:via-[#20271f] dark:to-[#2b2a20]">
+                                    <p className="mb-2 text-xs font-bold uppercase tracking-[0.16em] text-[#8b5f25] dark:text-[#e7c678]">
+                                        Selected stay unit
+                                    </p>
                                     <div className="relative">
                                         <select
                                             value={selectedStayVariation?.type || ''}
@@ -350,7 +464,7 @@ const BookingPanel = ({
                                         >
                                             {stayVariations.map((variation) => (
                                                 <option key={variation.type} value={variation.type}>
-                                                    {variation.label} - {formatMoney(variation.price || stayPricePerGuest)} - Max {variation.capacity || selectedStay.maxGuests} guests
+                                                    {variation.label} | {formatMoney(variation.price || stayPricePerGuest)} | Max {variation.capacity || selectedStay.maxGuests} guests
                                                 </option>
                                             ))}
                                         </select>
@@ -359,13 +473,19 @@ const BookingPanel = ({
                                         </div>
                                     </div>
                                     {selectedStayVariation && (
-                                        <div className="mt-3 flex flex-wrap gap-2 rounded-2xl bg-white/70 p-3 dark:bg-[#1a211a]/70">
-                                            <span className="rounded-full bg-[#f0dfc5] px-3 py-1 text-[11px] font-black text-[#7a5527] dark:bg-[#2a2519] dark:text-[#e7c678]">
-                                                {formatMoney(stayPricePerGuest)} / {stayPriceLabel}
-                                            </span>
-                                            <span className="rounded-full bg-white px-3 py-1 text-[11px] font-black text-[#6b5d4c] dark:bg-[#232823] dark:text-[#d5c9b7]">
-                                                Max {selectedStayVariation.capacity || selectedStay.maxGuests} guests
-                                            </span>
+                                        <div className="mt-3 grid gap-2 rounded-2xl bg-white/70 p-3 dark:bg-[#1a211a]/70 sm:grid-cols-2">
+                                            <div className="rounded-2xl bg-[#f0dfc5] px-3 py-2 dark:bg-[#2a2519]">
+                                                <p className="text-[10px] font-black uppercase tracking-wider text-[#7a5527] dark:text-[#e7c678]">Price</p>
+                                                <p className="text-sm font-black text-[#211b14] dark:text-[#fff8ea]">
+                                                    {formatMoney(stayPricePerGuest)} / {stayPriceLabel}
+                                                </p>
+                                            </div>
+                                            <div className="rounded-2xl bg-white px-3 py-2 dark:bg-[#232823]">
+                                                <p className="text-[10px] font-black uppercase tracking-wider text-[#7a5527] dark:text-[#e7c678]">Capacity</p>
+                                                <p className="text-sm font-black text-[#211b14] dark:text-[#fff8ea]">
+                                                    Up to {Math.max(Number(selectedStayVariation.capacity || 0), Number(selectedStay.maxGuests || 1))} guests
+                                                </p>
+                                            </div>
                                         </div>
                                     )}
                                 </div>
@@ -376,7 +496,22 @@ const BookingPanel = ({
 
                 {/* Guests Section */}
                 <div className="mt-8">
-                        <h3 className="mb-4 text-xl font-bold text-[#211b14] dark:text-[#fff8ea] sm:text-2xl">Number of Guests</h3>
+                        <div className="mb-4">
+                            <h3 className="text-xl font-bold text-[#211b14] dark:text-[#fff8ea] sm:text-2xl">Guests for this booking</h3>
+                            <p className="mt-1 text-sm text-[#6b5d4c] dark:text-[#cfc2b2]">{guestHelpText}</p>
+                        </div>
+                        <div className="rounded-3xl border border-[#ead8b9] bg-white/80 p-4 dark:border-[#31392f] dark:bg-[#232823]/80">
+                            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                                <div>
+                                    <p className="text-xs font-black uppercase tracking-[0.16em] text-[#8b5f25] dark:text-[#e7c678]">Selected guests</p>
+                                    <p className="mt-1 text-2xl font-black text-[#211b14] dark:text-[#fff8ea]">
+                                        {guests} {Number(guests) === 1 ? 'guest' : 'guests'}
+                                    </p>
+                                </div>
+                                <span className="rounded-full bg-[#f0dfc5] px-3 py-1.5 text-xs font-black text-[#7a5527] dark:bg-[#2a2519] dark:text-[#e7c678]">
+                                    Max {maxGuests}
+                                </span>
+                            </div>
                         <div className="flex flex-wrap items-center gap-4 sm:gap-6">
                             <button
                                 onClick={() => setGuests(Math.max(1, guests - 1))}
@@ -407,8 +542,10 @@ const BookingPanel = ({
                                 <Plus size={20} className="transition-transform duration-300 group-hover:rotate-90" />
                             </button>
                         </div>
-                        <p className="mt-2 text-xs text-[#6b5d4c] dark:text-[#cfc2b2]">
-                            {experience === 'stay' ? `Maximum ${maxGuests} guests for ${selectedStay.type}.` : 'Type a guest count or use the controls.'}
+                        <p className="mt-3 text-xs text-[#6b5d4c] dark:text-[#cfc2b2]">
+                            {experience === 'stay'
+                                ? `Maximum ${maxGuests} guests for ${selectedStay.type} accommodation.`
+                                : `${dayAvailability?.available ?? 25} of ${dayAvailability?.limit ?? 25} day experience seats available for the selected date.`}
                         </p>
                         {experience === 'stay' && slotAvailability && (
                             <p className={`mt-2 text-xs font-bold ${slotAvailability.available > 0 ? 'text-[#527b52]' : 'text-red-600'}`}>
@@ -417,6 +554,7 @@ const BookingPanel = ({
                                     : `${slotLabel} ${slotUnitLabel} are full for this weekend.`}
                             </p>
                         )}
+                        </div>
                     </div>
 
                 {/* Calendar Button */}
@@ -528,7 +666,7 @@ const BookingPanel = ({
                 >
                     <>
                         <Sparkles size={20} className="animate-pulse" />
-                        {experience === 'day' ? 'Book Day Experience' : 'Book Your Weekend Retreat'}
+                        {experience === 'day' ? 'Book Day Experience' : 'Book Farm Stay + Experience'}
                         <ArrowRight size={20} />
                     </>
                 </motion.button>
@@ -637,6 +775,42 @@ const BookingPanel = ({
                                                     <div className="absolute -bottom-0.5 left-0 h-0.5 w-full rounded-full bg-gradient-to-r from-[#7a5527]/20 via-[#d6a23d]/30 to-[#7a5527]/20 opacity-0 transition-opacity duration-300 group-focus-within:opacity-100"></div>
                                                 </div>
                                                 {formErrors.phone && <p className="text-red-600 text-xs mt-1">{formErrors.phone}</p>}
+                                                <div className="mt-3 rounded-2xl border border-[#ead8b9] bg-white/70 p-3 dark:border-[#31392f] dark:bg-[#171d17]">
+                                                    <div className="flex flex-col gap-2 sm:flex-row">
+                                                        <button
+                                                            type="button"
+                                                            onClick={requestPhoneOtp}
+                                                            disabled={isPhoneOtpBusy || phoneVerified}
+                                                            className="flex-1 rounded-xl border border-[#7a5527] px-3 py-2 text-xs font-bold text-[#7a5527] transition hover:bg-[#f6ead8] disabled:cursor-not-allowed disabled:opacity-55 dark:border-[#e7c678] dark:text-[#e7c678] dark:hover:bg-[#232823]"
+                                                        >
+                                                            {phoneVerified ? 'Phone Verified' : phoneOtpSessionId ? 'Resend OTP' : 'Send Phone OTP'}
+                                                        </button>
+                                                        {phoneOtpSessionId && !phoneVerified && (
+                                                            <div className="flex flex-1 gap-2">
+                                                                <input
+                                                                    type="text"
+                                                                    inputMode="numeric"
+                                                                    maxLength="6"
+                                                                    value={phoneOtp}
+                                                                    onChange={(event) => setPhoneOtp(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                                                                    placeholder="OTP"
+                                                                    className="min-w-0 flex-1 rounded-xl border border-[#dfd1bb] px-3 py-2 text-xs font-bold outline-none focus:border-[#7a5527] dark:border-[#31392f] dark:bg-[#232823] dark:text-white"
+                                                                />
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={verifyPhoneOtp}
+                                                                    disabled={isPhoneOtpBusy}
+                                                                    className="rounded-xl bg-[#7a5527] px-3 py-2 text-xs font-bold text-white disabled:opacity-55"
+                                                                >
+                                                                    Verify
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <p className="mt-2 text-[11px] leading-relaxed text-[#7a5527] dark:text-[#d5c9b7]">
+                                                        {phoneOtpStatus || 'Optional: verify phone now so our team can follow up even if you do not finish booking.'}
+                                                    </p>
+                                                </div>
                                             </div>
 
                                             {/* Guests Field */}

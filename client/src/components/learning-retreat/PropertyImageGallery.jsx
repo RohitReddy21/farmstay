@@ -6,20 +6,21 @@ const PropertyImageGallery = ({ experience, stayType, stayOptions, linkedFarm, r
     const [currentSlide, setCurrentSlide] = useState(0);
     
     const getPropertyImages = () => {
+        if (experience === 'day') {
+            return [
+                'https://browncowsdairy.com/cdn/shop/files/families-in-farms.png?v=1775656252&width=1200',
+                'https://browncowsdairy.com/cdn/shop/files/students-in-farms.png?v=1775656385&width=1200',
+                'https://browncowsdairy.com/cdn/shop/files/nature-lovers-in-farms.png?v=1775656472&width=1200',
+                'https://browncowsdairy.com/cdn/shop/files/give-me-other-image.png?v=1775656183&width=1200'
+            ];
+        }
+
         // If we have a linked farm with images, use them
         if (linkedFarm?.images && linkedFarm.images.length > 0) {
             return linkedFarm.images.filter(img => img); // Filter out empty URLs
         }
         
         // Fallback to default images based on experience/stay type
-        if (experience === 'day') {
-            return [
-                retreatHeroImage || 'https://browncowsdairy.com/cdn/shop/files/IJJU8350_1.jpg?v=1775652524&width=1200',
-                'https://browncowsdairy.com/cdn/shop/files/give-me-other-image.png?v=1775656183&width=1200',
-                'https://browncowsdairy.com/cdn/shop/files/families-in-farms.png?v=1775656252&width=1200'
-            ];
-        }
-        
         if (stayType === 'Shared' || stayType === 'Couple') {
             // Use Mud Cottage images for both Shared and Couple stays
             return stayOptions[0]?.images || [
