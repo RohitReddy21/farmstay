@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
-import { ShieldCheck, ChevronLeft, Loader, CreditCard, Banknote } from 'lucide-react';
+import { ShieldCheck, ChevronLeft, Loader, CreditCard } from 'lucide-react';
 import API_URL from '../config';
 import { rememberGuestBooking } from '../utils/guestBookings';
 
@@ -99,8 +99,8 @@ const Checkout = () => {
                     totalPrice: item?.pricing?.totalPrice,
                     tax: item?.pricing?.tax,
                     status: 'Pending',
-                    paymentStatus: paymentMethod === 'cod' ? 'COD' : 'Authorized',
-                    paymentMethod: paymentMethod === 'cod' ? 'COD' : 'Razorpay',
+                    paymentStatus: 'Authorized',
+                    paymentMethod: 'Razorpay',
                     createdAt: new Date().toISOString()
                 }
             });
@@ -203,31 +203,7 @@ const Checkout = () => {
         }
     };
 
-    const handleCodBooking = async () => {
-        setIsProcessing(true);
-        setError(null);
-
-        try {
-            const { data } = await axios.post(`${API_URL}/api/bookings/cod`, buildBookingPayload(), authConfig);
-
-            if (!data.success) {
-                throw new Error('Failed to create COD booking');
-            }
-
-            finishCheckout('COD booking placed. We will notify you after admin review.', data);
-        } catch (err) {
-            console.error('COD checkout error:', err);
-            setError(err.response?.data?.message || 'Could not place COD booking. Please try again.');
-            setIsProcessing(false);
-        }
-    };
-
     const handleSubmitPayment = () => {
-        if (paymentMethod === 'cod') {
-            handleCodBooking();
-            return;
-        }
-
         handlePayment();
     };
 
@@ -328,7 +304,7 @@ const Checkout = () => {
                         <h1 className="mb-2 text-3xl font-bold text-[#211b14]">Secure Checkout</h1>
                         <p className="flex items-center gap-2 text-[#645747]">
                             <ShieldCheck size={18} className="text-[#527b52]" />
-                            Complete online payment or place a COD booking.
+                            Complete online payment to submit your booking for host review.
                         </p>
                     </div>
                 </div>
@@ -381,9 +357,9 @@ const Checkout = () => {
 
                     <div className="mb-8">
                         <h3 className="mb-2 text-xl font-bold text-[#211b14]">Payment</h3>
-                        <p className="mb-4 text-sm text-[#645747]">Choose how you want to place this pending approval booking.</p>
+                        <p className="mb-4 text-sm text-[#645747]">Complete online payment to place this pending approval booking.</p>
 
-                        <div className="mb-4 grid gap-3 sm:grid-cols-2">
+                        <div className="mb-4 grid gap-3">
                             <button
                                 type="button"
                                 onClick={() => setPaymentMethod('razorpay')}
@@ -399,6 +375,7 @@ const Checkout = () => {
                                 <p className="text-sm text-[#645747]">Pay now with UPI, cards, wallets, or net banking.</p>
                             </button>
 
+                            {/* COD temporarily disabled. Keep this block for quick re-enable later.
                             <button
                                 type="button"
                                 onClick={() => setPaymentMethod('cod')}
@@ -413,35 +390,35 @@ const Checkout = () => {
                                 </div>
                                 <p className="text-sm text-[#645747]">Place the booking now and pay after admin approval.</p>
                             </button>
+                            */}
                         </div>
 
                         <div className="overflow-hidden rounded-xl border-2 border-[#d6a23d]/60 bg-[#fffaf1]">
-                            {paymentMethod === 'razorpay' ? (
-                                <>
-                                    <div className="flex flex-col justify-between gap-3 border-b border-[#ead7b8] p-4 sm:flex-row sm:items-center">
-                                        <span className="font-medium text-[#211b14]">Razorpay Secure (UPI, Cards, Wallets)</span>
-                                        <div className="flex items-center gap-1.5">
-                                            <div className="rounded border border-[#e4d4bd] bg-white px-2 py-0.5 text-xs font-bold italic text-[#527b52]">UPI</div>
-                                            <div className="rounded border border-[#e4d4bd] bg-white px-2 py-0.5 text-xs font-bold italic text-[#7a5527]">VISA</div>
-                                            <div className="flex items-center rounded border border-[#e4d4bd] bg-white px-1.5 py-0.5">
-                                                <div className="z-10 -mr-1 h-2.5 w-2.5 rounded-full bg-[#8d3a24]"></div>
-                                                <div className="h-2.5 w-2.5 rounded-full bg-[#d6a23d]"></div>
-                                            </div>
-                                            <div className="rounded border border-[#e4d4bd] bg-white px-2 py-0.5 text-xs text-[#8b7a66]">+18</div>
-                                        </div>
+                            <div className="flex flex-col justify-between gap-3 border-b border-[#ead7b8] p-4 sm:flex-row sm:items-center">
+                                <span className="font-medium text-[#211b14]">Razorpay Secure (UPI, Cards, Wallets)</span>
+                                <div className="flex items-center gap-1.5">
+                                    <div className="rounded border border-[#e4d4bd] bg-white px-2 py-0.5 text-xs font-bold italic text-[#527b52]">UPI</div>
+                                    <div className="rounded border border-[#e4d4bd] bg-white px-2 py-0.5 text-xs font-bold italic text-[#7a5527]">VISA</div>
+                                    <div className="flex items-center rounded border border-[#e4d4bd] bg-white px-1.5 py-0.5">
+                                        <div className="z-10 -mr-1 h-2.5 w-2.5 rounded-full bg-[#8d3a24]"></div>
+                                        <div className="h-2.5 w-2.5 rounded-full bg-[#d6a23d]"></div>
                                     </div>
-                                    <div className="flex flex-col items-center bg-[#f8efdf] p-8 text-center text-sm text-[#645747]">
-                                        <ShieldCheck className="mb-4 h-12 w-12 text-[#c8a978]" strokeWidth={1.5} />
-                                        You will be redirected to Razorpay Secure to complete your payment. Your booking is sent for host review only after payment succeeds.
-                                    </div>
-                                </>
-                            ) : (
+                                    <div className="rounded border border-[#e4d4bd] bg-white px-2 py-0.5 text-xs text-[#8b7a66]">+18</div>
+                                </div>
+                            </div>
+                            <div className="flex flex-col items-center bg-[#f8efdf] p-8 text-center text-sm text-[#645747]">
+                                <ShieldCheck className="mb-4 h-12 w-12 text-[#c8a978]" strokeWidth={1.5} />
+                                You will be redirected to Razorpay Secure to complete your payment. Your booking is sent for host review only after payment succeeds.
+                            </div>
+                            {/* COD temporarily disabled. Keep this panel for quick re-enable later.
+                            {paymentMethod === 'cod' && (
                                 <div className="flex flex-col items-center bg-[#f8efdf] p-8 text-center text-sm text-[#645747]">
                                     <Banknote className="mb-4 h-12 w-12 text-[#527b52]" strokeWidth={1.5} />
                                     No online payment will be collected now. Your booking will be stored as COD and reviewed by the admin before confirmation.
                                 </div>
                             )}
-                        </div>
+                            */}
+                                        </div>
                     </div>
 
                     <div className="space-y-4">
@@ -460,8 +437,6 @@ const Checkout = () => {
                                     <Loader className="animate-spin" size={24} />
                                     Processing Securely...
                                 </>
-                            ) : paymentMethod === 'cod' ? (
-                                'Confirm COD Booking'
                             ) : (
                                 `Pay Rs ${grandTotal}`
                             )}

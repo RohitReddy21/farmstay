@@ -630,6 +630,10 @@ router.post('/verify-payment', optionalAuth, async (req, res) => {
 // @desc    Create a COD booking
 // @access  Public, attaches user when logged in
 router.post('/cod', optionalAuth, async (req, res) => {
+    return res.status(410).json({ message: 'COD booking is temporarily unavailable. Please use online payment.' });
+
+    /*
+    COD temporarily disabled. Keep this implementation for quick re-enable later.
     try {
         const payloads = getBookingPayloads(req.body);
         const bookings = [];
@@ -651,6 +655,7 @@ router.post('/cod', optionalAuth, async (req, res) => {
         console.error('COD Booking Error:', error);
         res.status(error.statusCode || 500).json({ message: error.statusCode ? error.message : 'Server Error: ' + error.message });
     }
+    */
 });
 
 // @route   GET /api/bookings/retreat/availability
