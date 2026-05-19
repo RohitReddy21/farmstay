@@ -5,6 +5,7 @@ const User = require('../models/User');
 const Booking = require('../models/Booking');
 const Farm = require('../models/Farm');
 const BlockedDate = require('../models/BlockedDate');
+const Coupon = require('../models/Coupon');
 const { verifyAdmin, verifyToken } = require('../middleware/authMiddleware');
 const upload = require('../middleware/uploadMiddleware');
 const { sendResendEmail } = require('../utils/email');
@@ -120,6 +121,63 @@ const startOfDay = (date) => {
     return value;
 };
 
+const endOfDay = (date) => {
+    const value = new Date(date);
+    value.setHours(23, 59, 59, 999);
+    return value;
+};
+
+const normalizeCouponCode = (code = '') => String(code).trim().toUpperCase().replace(/\s+/g, '');
+
+const buildCouponPayload = (body = {}) => {
+    const code = normalizeCouponCode(body.code);
+    const discountType = body.discountType === 'Fixed' ? 'Fixed' : 'Percentage';
+    const discountValue = Number(body.discountValue);
+    const maxDiscount = body.maxDiscount === '' || body.maxDiscount === null || body.maxDiscount === undefined
+        ? undefined
+        : Math.max(0, Number(body.maxDiscount));
+    const usageLimit = body.usageLimit === '' || body.usageLimit === null || body.usageLimit === undefined
+        ? undefined
+        : Math.max(0, Number(body.usageLimit));
+    const startDate = startOfDay(body.startDate);
+    const endDate = endOfDay(body.endDate);
+
+    if (!code) {
+        const error = new Error('Coupon code is required.');
+        error.statusCode = 400;
+        throw error;
+    }
+
+    if (!Number.isFinite(discountValue) || discountValue <= 0) {
+        const error = new Error('Discount value must be greater than 0.');
+        error.statusCode = 400;
+        throw error;
+    }
+
+    if (discountType === 'Percentage' && discountValue > 100) {
+        const error = new Error('Percentage discount cannot be more than 100%.');
+        error.statusCode = 400;
+        throw error;
+    }
+
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime()) || endDate < startDate) {
+        const error = new Error('Please select a valid coupon start and end date.');
+        error.statusCode = 400;
+        throw error;
+    }
+
+    return {
+        code,
+        discountType,
+        discountValue,
+        ...(maxDiscount !== undefined ? { maxDiscount } : { unsetMaxDiscount: true }),
+        startDate,
+        endDate,
+        ...(usageLimit !== undefined ? { usageLimit } : { unsetUsageLimit: true }),
+        isActive: body.isActive !== false
+    };
+};
+
 const hasRangeOverlap = (startDate, endDate) => ({
     $and: [{
         $or: [
@@ -187,6 +245,93 @@ router.get('/blocked-dates', verifyAdmin, async (req, res) => {
         res.json(blockedDates);
     } catch (error) {
         console.error('Error fetching blocked dates:', error);
+        res.status(500).json({ message: 'Server Error' });
+    }
+});
+
+// @route   GET /api/admin/coupons
+// @desc    Get private admin coupon codes
+router.get('/coupons', verifyAdmin, async (req, res) => {
+    try {
+        const coupons = await Coupon.find({}).sort({ createdAt: -1 });
+        res.json(coupons);
+    } catch (error) {
+        console.error('Error fetching coupons:', error);
+        res.status(500).json({ message: 'Server Error' });
+    }
+});
+
+// @route   POST /api/admin/coupons
+// @desc    Create a private coupon code
+router.post('/coupons', verifyAdmin, async (req, res) => {
+    try {
+        const payload = buildCouponPayload(req.body);
+        const { unsetMaxDiscount, unsetUsageLimit, ...couponData } = payload;
+        const coupon = await Coupon.create({
+            ...couponData,
+            maxDiscount: unsetMaxDiscount ? undefined : couponData.maxDiscount,
+            usageLimit: unsetUsageLimit ? undefined : couponData.usageLimit
+        });
+        res.status(201).json(coupon);
+    } catch (error) {
+        console.error('Error creating coupon:', error);
+        if (error.code === 11000) {
+            return res.status(409).json({ message: 'This coupon code already exists.' });
+        }
+        res.status(error.statusCode || 500).json({ message: error.statusCode ? error.message : 'Server Error' });
+    }
+});
+
+// @route   PUT /api/admin/coupons/:id
+// @desc    Update a private coupon code
+router.put('/coupons/:id', verifyAdmin, async (req, res) => {
+    try {
+        const payload = buildCouponPayload(req.body);
+        const update = { ...payload };
+        const unset = {};
+
+        if (payload.unsetMaxDiscount) {
+            delete update.maxDiscount;
+            delete update.unsetMaxDiscount;
+            unset.maxDiscount = '';
+        }
+        if (payload.unsetUsageLimit) {
+            delete update.usageLimit;
+            delete update.unsetUsageLimit;
+            unset.usageLimit = '';
+        }
+
+        const coupon = await Coupon.findByIdAndUpdate(
+            req.params.id,
+            { $set: update, ...(Object.keys(unset).length ? { $unset: unset } : {}) },
+            { new: true, runValidators: true }
+        );
+
+        if (!coupon) {
+            return res.status(404).json({ message: 'Coupon not found' });
+        }
+
+        res.json(coupon);
+    } catch (error) {
+        console.error('Error updating coupon:', error);
+        if (error.code === 11000) {
+            return res.status(409).json({ message: 'This coupon code already exists.' });
+        }
+        res.status(error.statusCode || 500).json({ message: error.statusCode ? error.message : 'Server Error' });
+    }
+});
+
+// @route   DELETE /api/admin/coupons/:id
+// @desc    Delete a private coupon code
+router.delete('/coupons/:id', verifyAdmin, async (req, res) => {
+    try {
+        const coupon = await Coupon.findByIdAndDelete(req.params.id);
+        if (!coupon) {
+            return res.status(404).json({ message: 'Coupon not found' });
+        }
+        res.json({ message: 'Coupon removed' });
+    } catch (error) {
+        console.error('Error deleting coupon:', error);
         res.status(500).json({ message: 'Server Error' });
     }
 });

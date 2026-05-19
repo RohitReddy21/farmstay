@@ -17,13 +17,29 @@ const getPaymentLabel = (booking) => (
         : 'Razorpay Online'
 );
 
-const getBookingTotal = (booking) => Number(booking.totalPrice || 0) + Number(booking.tax || 0);
+const getBookingGrossTotal = (booking) => Number(booking.totalPrice || 0) + Number(booking.tax || 0);
+const getBookingTotal = (booking) => Math.max(0, getBookingGrossTotal(booking) - Number(booking.discountAmount || 0));
 const getBookingNumber = (booking) => String(booking.bookingCode || booking._id || booking.id || '-');
 const WHATSAPP_NUMBER = '919989854411';
 const WHATSAPP_DISPLAY = '+91 99898 54411';
+const DEFAULT_OWNER_EMAIL = 'browncowsdairy@gmail.com';
 const isOnlinePaidBooking = (booking) => (
     String(booking.paymentMethod || '').toLowerCase() === 'razorpay'
     || ['Authorized', 'Captured'].includes(booking.paymentStatus)
+);
+
+const escapeHtml = (value = '') => String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+const getOwnerEmail = () => (
+    process.env.BOOKING_NOTIFICATION_EMAIL
+    || process.env.OWNER_EMAIL
+    || process.env.ADMIN_EMAIL
+    || DEFAULT_OWNER_EMAIL
 );
 
 const getBookingSupportNote = (booking) => (
@@ -216,6 +232,92 @@ const buildBookingStatusEmail = (booking, user = {}, status = 'Confirmed', rejec
     };
 };
 
+const buildOwnerBookingNotificationEmail = (booking, user = {}) => {
+    const bookingId = getBookingNumber(booking);
+    const guestName = booking.guestDetails?.name || user?.name || 'Guest';
+    const guestEmail = booking.guestDetails?.email || user?.email || '-';
+    const guestPhone = booking.guestDetails?.phone || user?.phone || '-';
+    const propertyTitle = booking.propertyTitle || booking.property?.title || 'Brown Cows Farm Stay';
+    const propertyLocation = booking.propertyLocation || booking.property?.location || '-';
+    const dates = `${formatDate(booking.startDate)} to ${formatDate(booking.endDate)}`;
+    const guests = getGuestCount(booking.guests);
+    const grossTotal = getBookingGrossTotal(booking);
+    const discountAmount = Number(booking.discountAmount || 0);
+    const payableAmount = getBookingTotal(booking);
+    const payment = getPaymentLabel(booking);
+    const bookingStatus = booking.status || 'Pending';
+    const paymentStatus = booking.paymentStatus || 'Pending';
+    const specialRequests = booking.guestDetails?.specialRequests || '-';
+    const couponCode = booking.couponCode || '-';
+    const variationLabel = booking.variation?.label || booking.variation?.type || booking.variation?.cottage || '-';
+    const adminUrl = `${(process.env.ADMIN_BOOKINGS_URL || `${process.env.CLIENT_URL || ''}/admin`).replace(/\/$/, '')}`;
+    const rows = [
+        ['Booking Number', bookingId],
+        ['Customer Name', guestName],
+        ['Customer Email', guestEmail],
+        ['Customer Phone', guestPhone],
+        ['Stay', propertyTitle],
+        ['Location', propertyLocation],
+        ['Room / Stay Type', variationLabel],
+        ['Dates', dates],
+        ['Guests', guests],
+        ['Subtotal + Tax', `Rs ${grossTotal.toLocaleString('en-IN')}`],
+        ['Coupon Code', couponCode],
+        ['Discount', `Rs ${discountAmount.toLocaleString('en-IN')}`],
+        ['Amount Payable', `Rs ${payableAmount.toLocaleString('en-IN')}`],
+        ['Payment Method', payment],
+        ['Payment Status', paymentStatus],
+        ['Booking Status', bookingStatus],
+        ['Special Requests', specialRequests]
+    ];
+
+    const text = [
+        'New Brown Cows booking received.',
+        '',
+        ...rows.map(([label, value]) => `${label}: ${value}`),
+        '',
+        adminUrl ? `View in admin: ${adminUrl}` : 'Open the admin dashboard to review this booking.'
+    ].join('\n');
+
+    const htmlRows = rows.map(([label, value]) => `
+        <tr>
+            <td style="padding:12px 14px;border-bottom:1px solid #ead7b8;color:#645747;font-size:14px;">${escapeHtml(label)}</td>
+            <td style="padding:12px 14px;border-bottom:1px solid #ead7b8;text-align:right;font-weight:700;color:#211b14;">${escapeHtml(value)}</td>
+        </tr>
+    `).join('');
+
+    const html = `
+        <div style="margin:0;padding:24px;background:#f7efe2;font-family:Arial,sans-serif;color:#211b14;">
+            <div style="max-width:680px;margin:0 auto;background:#fffaf1;border:1px solid #ead7b8;border-radius:18px;overflow:hidden;">
+                <div style="padding:24px;background:#4a7c59;color:#fff;">
+                    <div style="font-size:12px;letter-spacing:3px;text-transform:uppercase;font-weight:700;">Brown Cows Admin Alert</div>
+                    <h1 style="margin:10px 0 0;font-size:26px;line-height:1.2;">New Booking Received</h1>
+                </div>
+                <div style="padding:24px;">
+                    <div style="margin:0 0 20px;padding:16px;border:1px solid #e4c58f;background:#f8efdf;border-radius:14px;">
+                        <div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#8b5e34;font-weight:700;">Booking Number</div>
+                        <div style="margin-top:6px;font-size:24px;line-height:1.2;font-weight:800;color:#211b14;">${escapeHtml(bookingId)}</div>
+                    </div>
+                    <table style="width:100%;border-collapse:collapse;background:#fff;border:1px solid #ead7b8;border-radius:14px;overflow:hidden;">
+                        <tbody>${htmlRows}</tbody>
+                    </table>
+                    ${adminUrl ? `
+                        <div style="margin-top:20px;">
+                            <a href="${escapeHtml(adminUrl)}" style="display:inline-block;background:#7a5527;color:#ffffff;text-decoration:none;font-weight:700;border-radius:999px;padding:12px 18px;">Open Admin Dashboard</a>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        </div>
+    `;
+
+    return {
+        subject: `New booking received - ${propertyTitle} - ${bookingId}`,
+        text,
+        html
+    };
+};
+
 const sendBookingConfirmationEmail = async (booking, user = {}) => {
     const guestEmail = String(booking.guestDetails?.email || '').trim().toLowerCase();
     const userEmail = String(user?.email || '').trim().toLowerCase();
@@ -278,7 +380,58 @@ const sendBookingConfirmationEmail = async (booking, user = {}) => {
     }
 };
 
+const sendOwnerBookingNotificationEmail = async (booking, user = {}) => {
+    const to = getOwnerEmail();
+
+    if (!to) {
+        console.log('Owner booking notification skipped:', {
+            bookingId: String(booking._id || booking.id),
+            bookingCode: booking.bookingCode || undefined
+        });
+        return { skipped: true };
+    }
+
+    const guestEmail = String(booking.guestDetails?.email || user?.email || '').trim().toLowerCase();
+    const email = buildOwnerBookingNotificationEmail(booking, user);
+
+    try {
+        const success = await sendResendEmail({
+            to,
+            subject: email.subject,
+            text: email.text,
+            html: email.html,
+            replyTo: guestEmail || undefined
+        });
+
+        if (!success) {
+            console.error('Owner booking notification provider returned failure:', {
+                bookingId: String(booking._id || booking.id),
+                bookingCode: booking.bookingCode || undefined,
+                to
+            });
+            return { success: false };
+        }
+
+        console.log('Owner booking notification sent:', {
+            bookingId: String(booking._id || booking.id),
+            bookingCode: booking.bookingCode || undefined,
+            to
+        });
+        return { success: true };
+    } catch (error) {
+        console.error('Owner booking notification failed:', {
+            bookingId: String(booking._id || booking.id),
+            bookingCode: booking.bookingCode || undefined,
+            to,
+            message: error.message
+        });
+        return { success: false, error };
+    }
+};
+
 module.exports = {
     sendBookingConfirmationEmail,
-    buildBookingStatusEmail
+    sendOwnerBookingNotificationEmail,
+    buildBookingStatusEmail,
+    buildOwnerBookingNotificationEmail
 };

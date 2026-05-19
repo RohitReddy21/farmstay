@@ -10,6 +10,9 @@ import {
     rememberGuestBooking,
     updateStoredGuestBooking
 } from '../utils/guestBookings';
+import BookingWhatsAppActions from '../components/bookings/BookingWhatsAppActions';
+import MyBookingsLoading from '../components/bookings/MyBookingsLoading';
+import BookingFilterTabs from '../components/bookings/BookingFilterTabs';
 
 const formatDate = (date) => date ? new Date(date).toLocaleDateString('en-IN') : '-';
 const formatCurrency = (amount) => `Rs ${Number(amount || 0).toLocaleString('en-IN')}`;
@@ -122,42 +125,6 @@ const getStatusBadge = (status = 'Pending') => {
         </span>
     );
 };
-
-const getBookingNumber = (booking) => booking?.bookingCode || booking?._id || '';
-
-const getBookingWhatsAppUrl = (booking, action) => {
-    const bookingNumber = getBookingNumber(booking);
-    const title = booking?.property?.title || booking?.propertyTitle || booking?.farm?.title || 'Brown Cows Dairy booking';
-    const dateText = `${formatDate(booking?.startDate)} to ${formatDate(booking?.endDate)}`;
-    const message = action === 'cancel'
-        ? `Hi, I want to cancel my Brown Cows Dairy booking. Booking Number: ${bookingNumber}. Stay: ${title}. Dates: ${dateText}.`
-        : `Hi, I want to edit/reschedule my Brown Cows Dairy booking. Booking Number: ${bookingNumber}. Stay: ${title}. Dates: ${dateText}.`;
-
-    return `https://wa.me/919989854411?text=${encodeURIComponent(message)}`;
-};
-
-const BookingWhatsAppActions = ({ booking, className = '' }) => (
-    <div className={`grid gap-2 sm:grid-cols-2 ${className}`}>
-        <a
-            href={getBookingWhatsAppUrl(booking, 'edit')}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#7a5527] px-4 py-2.5 text-sm font-bold text-[#7a5527] transition hover:bg-[#fffaf1] dark:border-[#e7c678] dark:text-[#e7c678] dark:hover:bg-[#171d17]"
-        >
-            <MessageCircle size={15} />
-            Edit Booking
-        </a>
-        <a
-            href={getBookingWhatsAppUrl(booking, 'cancel')}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-300 px-4 py-2.5 text-sm font-bold text-red-700 transition hover:bg-red-50"
-        >
-            <MessageCircle size={15} />
-            Cancel Booking
-        </a>
-    </div>
-);
 
 const MyBookings = () => {
     const { user } = useAuth();
@@ -375,47 +342,13 @@ const MyBookings = () => {
     const filteredBookings = getFilteredBookings();
 
     if (loading) {
-        return (
-            <div className="mx-auto max-w-7xl px-4 py-8">
-                <div className="mb-8 space-y-3">
-                    <div className="h-4 w-40 animate-pulse rounded bg-[#ead7b8]" />
-                    <div className="h-9 w-56 animate-pulse rounded bg-[#ead7b8]" />
-                    <div className="h-5 w-full max-w-md animate-pulse rounded bg-[#f1e3cc]" />
-                </div>
-                <div className="space-y-4 md:hidden">
-                    {Array.from({ length: 3 }).map((_, index) => (
-                        <div key={index} className="rounded-2xl border border-[#ead7b8] bg-[#fffaf1] p-4 shadow-md">
-                            <div className="mb-4 h-6 w-2/3 animate-pulse rounded bg-[#ead7b8]" />
-                            <div className="mb-3 grid grid-cols-2 gap-3">
-                                <div className="h-20 animate-pulse rounded-xl bg-[#f1e3cc]" />
-                                <div className="h-20 animate-pulse rounded-xl bg-[#f1e3cc]" />
-                            </div>
-                            <div className="space-y-2">
-                                <div className="h-4 animate-pulse rounded bg-[#f1e3cc]" />
-                                <div className="h-4 w-4/5 animate-pulse rounded bg-[#f1e3cc]" />
-                            </div>
-                        </div>
-                    ))}
-                </div>
-                <div className="hidden rounded-3xl border border-[#ead7b8] bg-[#fffaf1] p-5 shadow-xl md:block">
-                    <div className="space-y-3">
-                        {Array.from({ length: 5 }).map((_, index) => (
-                            <div key={index} className="grid grid-cols-6 gap-4">
-                                {Array.from({ length: 6 }).map((__, cell) => (
-                                    <div key={cell} className="h-10 animate-pulse rounded bg-[#f1e3cc]" />
-                                ))}
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </div>
-        );
+        return <MyBookingsLoading />;
     }
 
     if (!user) {
         const guestBooking = bookings[0];
         const guestTotal = guestBooking
-            ? Number(guestBooking.totalPrice || 0) + Number(guestBooking.tax || 0)
+            ? Math.max(0, Number(guestBooking.totalPrice || 0) + Number(guestBooking.tax || 0) - Number(guestBooking.discountAmount || 0))
             : 0;
 
         return (
@@ -435,7 +368,9 @@ const MyBookings = () => {
                     {bookings.length > 0 && (
                         <div className="mt-7 space-y-4">
                             {bookings.map((booking) => {
-                                const total = Number(booking.totalPrice || 0) + Number(booking.tax || 0);
+                                const grossTotal = Number(booking.totalPrice || 0) + Number(booking.tax || 0);
+                                const discountAmount = Number(booking.discountAmount || 0);
+                                const total = Math.max(0, grossTotal - discountAmount);
                                 return (
                                     <div key={booking._id} className="rounded-2xl border border-[#ead7b8] bg-[#f8efdf] p-4 dark:border-[#31392f] dark:bg-[#232823]">
                                         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -702,21 +637,7 @@ const MyBookings = () => {
                 </div>
             )}
 
-            <div className="mb-6 flex gap-2 overflow-x-auto border-b border-[#ead7b8]">
-                {['all', 'upcoming', 'past'].map((tab) => (
-                    <button
-                        key={tab}
-                        onClick={() => setFilter(tab)}
-                        className={`whitespace-nowrap px-4 pb-3 text-sm font-bold transition ${
-                            filter === tab
-                                ? 'border-b-2 border-primary text-primary'
-                                : 'text-[#645747] hover:text-[#211b14]'
-                        }`}
-                    >
-                        {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                    </button>
-                ))}
-            </div>
+            <BookingFilterTabs filter={filter} setFilter={setFilter} />
 
             {filteredBookings.length === 0 ? (
                 <div className="rounded-3xl border border-[#ead7b8] bg-[#fffaf1] py-16 text-center">
@@ -735,7 +656,9 @@ const MyBookings = () => {
                         {filteredBookings.map((booking, index) => {
                             const title = booking.property?.title || booking.propertyTitle || booking.farm?.title || 'Unknown Property';
                             const location = booking.property?.location || booking.propertyLocation || booking.farm?.location || '';
-                            const total = Number(booking.totalPrice || 0) + Number(booking.tax || 0);
+                            const grossTotal = Number(booking.totalPrice || 0) + Number(booking.tax || 0);
+                            const discountAmount = Number(booking.discountAmount || 0);
+                            const total = Math.max(0, grossTotal - discountAmount);
                             const isLast = index === filteredBookings.length - 1;
 
                             return (
@@ -802,6 +725,12 @@ const MyBookings = () => {
                                                 <span>Tax</span>
                                                 <span>Rs {Number(booking.tax || 0).toLocaleString('en-IN')}</span>
                                             </div>
+                                            {discountAmount > 0 && (
+                                                <div className="mt-1 flex items-center justify-between gap-4 text-xs font-semibold text-[#3f6b3f]">
+                                                    <span>Coupon {booking.couponCode}</span>
+                                                    <span>- Rs {discountAmount.toLocaleString('en-IN')}</span>
+                                                </div>
+                                            )}
                                         </div>
 
                                         <div className="mt-4 flex flex-col gap-3">
@@ -845,7 +774,9 @@ const MyBookings = () => {
                                 {filteredBookings.map((booking) => {
                                     const title = booking.property?.title || booking.propertyTitle || booking.farm?.title || 'Unknown Property';
                                     const location = booking.property?.location || booking.propertyLocation || booking.farm?.location || '';
-                                    const total = Number(booking.totalPrice || 0) + Number(booking.tax || 0);
+                                    const grossTotal = Number(booking.totalPrice || 0) + Number(booking.tax || 0);
+                                    const discountAmount = Number(booking.discountAmount || 0);
+                                    const total = Math.max(0, grossTotal - discountAmount);
 
                                     return (
                                         <tr key={booking._id} className="bg-[#fffaf1] transition hover:bg-[#f8efdf]/70">
@@ -869,6 +800,11 @@ const MyBookings = () => {
                                             <td className="px-5 py-4">
                                                 <div className="font-bold text-[#211b14]">Rs {total.toLocaleString('en-IN')}</div>
                                                 <div className="text-xs text-[#645747]">Tax: Rs {Number(booking.tax || 0).toLocaleString('en-IN')}</div>
+                                                {discountAmount > 0 && (
+                                                    <div className="text-xs font-semibold text-[#3f6b3f]">
+                                                        Coupon {booking.couponCode}: -Rs {discountAmount.toLocaleString('en-IN')}
+                                                    </div>
+                                                )}
                                             </td>
                                             <td className="px-5 py-4 text-[#645747]">{booking.paymentStatus || 'Pending'}</td>
                                             <td className="px-5 py-4">{getStatusBadge(booking.status)}</td>

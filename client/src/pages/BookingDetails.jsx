@@ -126,7 +126,9 @@ const BookingDetails = () => {
 
     const title = booking.property?.title || booking.propertyTitle || 'Brown Cows Dairy Stay';
     const location = booking.property?.location || booking.propertyLocation || 'Brown Cows Dairy';
-    const total = Number(booking.totalPrice || 0) + Number(booking.tax || 0);
+    const grossTotal = Number(booking.totalPrice || 0) + Number(booking.tax || 0);
+    const discountAmount = Number(booking.discountAmount || 0);
+    const total = Math.max(0, grossTotal - discountAmount);
 
     return (
         <div className="mx-auto max-w-4xl px-4 py-8">
@@ -176,6 +178,12 @@ const BookingDetails = () => {
                             <span className="font-semibold text-[#645747]">Tax</span>
                             <span className="font-bold text-[#211b14]">{formatCurrency(booking.tax)}</span>
                         </div>
+                        {discountAmount > 0 && (
+                            <div className="mb-3 flex items-center justify-between gap-4">
+                                <span className="font-semibold text-[#3f6b3f]">Coupon {booking.couponCode}</span>
+                                <span className="font-bold text-[#3f6b3f]">- {formatCurrency(discountAmount)}</span>
+                            </div>
+                        )}
                         <div className="border-t border-[#ead7b8] pt-3">
                             <div className="flex items-center justify-between gap-4 text-lg">
                                 <span className="font-bold text-[#211b14]">Total</span>

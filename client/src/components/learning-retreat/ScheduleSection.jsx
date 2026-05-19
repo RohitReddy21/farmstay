@@ -25,14 +25,14 @@ const ScheduleSection = ({ schedule }) => {
                             transition={{ duration: 0.4, delay: dayIndex * 0.1 }}
                             className="rounded-3xl border border-[#d6a23d]/30 bg-gradient-to-r from-[#7a5527] to-[#5d3d19] p-5 shadow-xl sm:p-6"
                         >
-                            <h3 className="text-lg font-bold text-white mb-2">
+                            <h3 className="mb-2 text-lg font-bold text-white">
                                 {day.day}
                             </h3>
                             <p className="text-white/80">
                                 {day.items.length} Activities Planned
                             </p>
                         </motion.div>
-                        
+
                         <div className="space-y-4">
                             {day.items.map((item, itemIndex) => (
                                 <motion.div
@@ -45,10 +45,10 @@ const ScheduleSection = ({ schedule }) => {
                                 >
                                     <div className="flex gap-3 rounded-2xl border-2 border-[#dfd1bb]/30 bg-gradient-to-br from-[#fffaf1] to-[#f9f4ed] p-4 transition-all duration-300 hover:border-[#d6a23d]/50 hover:shadow-xl dark:border-[#31392f]/30 dark:from-[#1a211a] dark:to-[#232823] sm:gap-4 sm:p-5 lg:hover:scale-[1.02]">
                                         <div className="flex-shrink-0">
-                                            <div className="w-4 h-4 rounded-full bg-gradient-to-r from-[#7a5527] to-[#5d3d19] mt-2 group-hover:scale-150 transition-transform duration-300" />
+                                            <div className="mt-2 h-4 w-4 rounded-full bg-gradient-to-r from-[#7a5527] to-[#5d3d19] transition-transform duration-300 group-hover:scale-150" />
                                         </div>
                                         <div className="flex-1">
-                                            <h4 className="font-bold text-[#211b14] dark:text-[#fff8ea] mb-2">
+                                            <h4 className="mb-2 font-bold text-[#211b14] dark:text-[#fff8ea]">
                                                 {item[0]}
                                             </h4>
                                             <p className="text-sm leading-relaxed text-[#645747] dark:text-[#d5c9b7] sm:text-base">

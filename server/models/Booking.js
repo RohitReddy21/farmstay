@@ -15,6 +15,9 @@ const bookingSchema = new mongoose.Schema({
     },
     totalPrice: { type: Number, required: true },
     tax: { type: Number, default: 0 },
+    coupon: { type: mongoose.Schema.Types.ObjectId, ref: 'Coupon' },
+    couponCode: { type: String },
+    discountAmount: { type: Number, default: 0 },
     guestDetails: {
         name: { type: String, required: true },
         email: { type: String },

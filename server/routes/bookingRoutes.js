@@ -6,11 +6,11 @@ const Booking = require('../models/Booking');
 const Farm = require('../models/Farm');
 const Payment = require('../models/Payment');
 const BlockedDate = require('../models/BlockedDate');
+const Coupon = require('../models/Coupon');
 const mongoose = require('mongoose');
 const { optionalAuth } = require('../middleware/authMiddleware');
-const { sendBookingNotification } = require('../utils/notifications');
 const { sendBookingWhatsAppConfirmation } = require('../utils/whatsapp');
-const { sendBookingConfirmationEmail } = require('../utils/bookingEmail');
+const { sendBookingConfirmationEmail, sendOwnerBookingNotificationEmail } = require('../utils/bookingEmail');
 const { sendBookingSMSConfirmation } = require('../utils/sms');
 
 const ACTIVE_BOOKING_STATUSES = ['Confirmed', 'Pending', 'Approved'];
@@ -397,8 +397,115 @@ function getBookingPayloads(body = {}) {
     return Array.isArray(body.items) && body.items.length ? body.items : [body];
 }
 
-function getBookingAmount(payload = {}) {
+function getBookingGrossAmount(payload = {}) {
     return Number(payload.totalPrice || 0) + Number(payload.tax || 0);
+}
+
+function getBookingPayableAmount(payload = {}) {
+    return Math.max(0, getBookingGrossAmount(payload) - Number(payload.discountAmount || 0));
+}
+
+function normalizeCouponCode(code = '') {
+    return String(code).trim().toUpperCase().replace(/\s+/g, '');
+}
+
+function getRequestedCouponCode(body = {}) {
+    return normalizeCouponCode(body.couponCode || body.coupon?.code);
+}
+
+function createCouponError(message, statusCode = 400) {
+    const error = new Error(message);
+    error.statusCode = statusCode;
+    return error;
+}
+
+function calculateCouponDiscount(coupon, grossTotal) {
+    const amount = Math.max(0, Math.round(Number(grossTotal || 0)));
+    if (!coupon || amount <= 0) return 0;
+
+    const value = Number(coupon.discountValue || 0);
+    let discount = coupon.discountType === 'Percentage'
+        ? Math.round((amount * value) / 100)
+        : Math.round(value);
+
+    if (coupon.maxDiscount) {
+        discount = Math.min(discount, Number(coupon.maxDiscount));
+    }
+
+    return Math.min(Math.max(0, discount), Math.max(0, amount - 1));
+}
+
+async function getCouponQuote(body = {}) {
+    const payloads = getBookingPayloads(body);
+    const grossTotal = Math.round(payloads.reduce((sum, payload) => sum + getBookingGrossAmount(payload), 0));
+    const couponCode = getRequestedCouponCode(body);
+
+    if (!couponCode) {
+        return {
+            payloads,
+            grossTotal,
+            discountAmount: 0,
+            finalAmount: grossTotal,
+            coupon: null
+        };
+    }
+
+    const coupon = await Coupon.findOne({ code: couponCode });
+    if (!coupon) {
+        throw createCouponError('This coupon code is not valid.');
+    }
+
+    const now = new Date();
+    if (!coupon.isActive) {
+        throw createCouponError('This coupon is not active right now.');
+    }
+    if (coupon.startDate && coupon.startDate > now) {
+        throw createCouponError('This coupon is not active yet.');
+    }
+    if (coupon.endDate && coupon.endDate < now) {
+        throw createCouponError('This coupon has expired.');
+    }
+    if (coupon.usageLimit && Number(coupon.usedCount || 0) >= Number(coupon.usageLimit)) {
+        throw createCouponError('This coupon has reached its usage limit.');
+    }
+    const discountAmount = calculateCouponDiscount(coupon, grossTotal);
+    if (discountAmount <= 0) {
+        throw createCouponError('This coupon cannot be applied to this checkout.');
+    }
+
+    return {
+        payloads,
+        grossTotal,
+        discountAmount,
+        finalAmount: Math.max(1, grossTotal - discountAmount),
+        coupon
+    };
+}
+
+function applyCouponToPayloads(payloads, quote) {
+    if (!quote?.coupon || !quote.discountAmount) {
+        return payloads.map((payload) => ({ ...payload, discountAmount: 0 }));
+    }
+
+    let remainingDiscount = quote.discountAmount;
+    const totalGross = Math.max(1, quote.grossTotal);
+
+    return payloads.map((payload, index) => {
+        const isLast = index === payloads.length - 1;
+        const itemGross = getBookingGrossAmount(payload);
+        const itemDiscount = isLast
+            ? remainingDiscount
+            : Math.min(remainingDiscount, Math.round((quote.discountAmount * itemGross) / totalGross));
+
+        remainingDiscount -= itemDiscount;
+
+        return {
+            ...payload,
+            coupon: quote.coupon._id,
+            couponCode: quote.coupon.code,
+            discountAmount: itemDiscount
+        };
+    });
 }
 
 function generateBookingCode() {
@@ -451,7 +558,10 @@ async function createBookingFromPayload(payload, req, paymentInfo = {}) {
         totalPrice,
         tax,
         variation,
-        retreatMeta
+        retreatMeta,
+        coupon,
+        couponCode,
+        discountAmount = 0
     } = payload;
     const bookingGuestDetails = {
         ...guestDetails,
@@ -484,6 +594,9 @@ async function createBookingFromPayload(payload, req, paymentInfo = {}) {
         retreatMeta,
         totalPrice,
         tax,
+        coupon,
+        couponCode,
+        discountAmount,
         status: 'Pending',
         paymentId: paymentInfo.paymentId,
         paymentStatus: paymentInfo.paymentStatus,
@@ -496,13 +609,16 @@ async function createBookingFromPayload(payload, req, paymentInfo = {}) {
         razorpayOrderId: paymentInfo.razorpayOrderId,
         razorpayPaymentId: paymentInfo.razorpayPaymentId,
         razorpaySignature: paymentInfo.razorpaySignature,
-        amount: getBookingAmount(payload),
+        amount: getBookingPayableAmount(payload),
         status: paymentInfo.paymentStatus,
         paymentMethod: paymentInfo.paymentMethod
     });
 
     sendBookingWhatsAppConfirmation(booking).catch((whatsappError) => {
         console.error('WhatsApp notification error:', whatsappError);
+    });
+    sendOwnerBookingNotificationEmail(booking, req.user || null).catch((emailError) => {
+        console.error('Owner booking notification error:', emailError);
     });
     await sendBookingConfirmationEmail(booking, req.user || null);
     sendBookingSMSConfirmation(booking).catch((smsError) => {
@@ -511,6 +627,33 @@ async function createBookingFromPayload(payload, req, paymentInfo = {}) {
 
     return booking;
 }
+
+// @route   POST /api/bookings/validate-coupon
+// @desc    Validate a private coupon code for checkout
+// @access  Public, attaches user when logged in
+router.post('/validate-coupon', optionalAuth, async (req, res) => {
+    try {
+        const quote = await getCouponQuote(req.body);
+        if (!quote.coupon) {
+            return res.status(400).json({ success: false, message: 'Please enter a coupon code.' });
+        }
+
+        res.json({
+            success: true,
+            coupon: {
+                code: quote.coupon.code,
+                discountType: quote.coupon.discountType,
+                discountValue: quote.coupon.discountValue
+            },
+            grossTotal: quote.grossTotal,
+            discountAmount: quote.discountAmount,
+            finalAmount: quote.finalAmount,
+            message: `Coupon ${quote.coupon.code} applied.`
+        });
+    } catch (error) {
+        res.status(error.statusCode || 500).json({ success: false, message: error.statusCode ? error.message : 'Could not apply coupon right now.' });
+    }
+});
 
 // @route   POST /api/bookings/create-order
 // @desc    Create a Razorpay order after pre-checking availability
@@ -531,7 +674,8 @@ router.post('/create-order', optionalAuth, async (req, res) => {
             });
         }
 
-        const amountInPaise = Math.round(payloads.reduce((sum, payload) => sum + getBookingAmount(payload), 0) * 100);
+        const quote = await getCouponQuote(req.body);
+        const amountInPaise = Math.round(quote.finalAmount * 100);
 
         // Create Razorpay Order
         const options = {
@@ -554,7 +698,12 @@ router.post('/create-order', optionalAuth, async (req, res) => {
         res.json({
             success: true,
             orderId: order.id,
-            amount: order.amount
+            amount: order.amount,
+            coupon: quote.coupon ? {
+                code: quote.coupon.code,
+                discountAmount: quote.discountAmount,
+                finalAmount: quote.finalAmount
+            } : null
         });
 
     } catch (error) {
@@ -598,7 +747,19 @@ router.post('/verify-payment', optionalAuth, async (req, res) => {
                 });
             }
 
-            const payloads = getBookingPayloads(bookingDetails);
+            const quote = await getCouponQuote(bookingDetails);
+            let razorpayOrder = null;
+            try {
+                razorpayOrder = await razorpay.orders.fetch(razorpay_order_id);
+            } catch (orderFetchError) {
+                console.error('Razorpay order fetch failed:', orderFetchError);
+            }
+
+            if (razorpayOrder && Number(razorpayOrder.amount) !== Math.round(quote.finalAmount * 100)) {
+                return res.status(400).json({ success: false, message: 'Paid amount does not match the booking total.' });
+            }
+
+            const payloads = applyCouponToPayloads(quote.payloads, quote);
             const bookings = [];
             for (const payload of payloads) {
                 const booking = await createBookingFromPayload(payload, req, {
@@ -610,6 +771,10 @@ router.post('/verify-payment', optionalAuth, async (req, res) => {
                     paymentMethod: 'Razorpay'
                 });
                 bookings.push(booking);
+            }
+
+            if (quote.coupon) {
+                await Coupon.updateOne({ _id: quote.coupon._id }, { $inc: { usedCount: 1 } });
             }
 
             return res.json({
@@ -630,12 +795,9 @@ router.post('/verify-payment', optionalAuth, async (req, res) => {
 // @desc    Create a COD booking
 // @access  Public, attaches user when logged in
 router.post('/cod', optionalAuth, async (req, res) => {
-    return res.status(410).json({ message: 'COD booking is temporarily unavailable. Please use online payment.' });
-
-    /*
-    COD temporarily disabled. Keep this implementation for quick re-enable later.
     try {
-        const payloads = getBookingPayloads(req.body);
+        const quote = await getCouponQuote(req.body);
+        const payloads = applyCouponToPayloads(quote.payloads, quote);
         const bookings = [];
         for (const payload of payloads) {
             const booking = await createBookingFromPayload(payload, req, {
@@ -643,6 +805,10 @@ router.post('/cod', optionalAuth, async (req, res) => {
                 paymentMethod: 'COD'
             });
             bookings.push(booking);
+        }
+
+        if (quote.coupon) {
+            await Coupon.updateOne({ _id: quote.coupon._id }, { $inc: { usedCount: 1 } });
         }
 
         res.json({
@@ -655,7 +821,6 @@ router.post('/cod', optionalAuth, async (req, res) => {
         console.error('COD Booking Error:', error);
         res.status(error.statusCode || 500).json({ message: error.statusCode ? error.message : 'Server Error: ' + error.message });
     }
-    */
 });
 
 // @route   GET /api/bookings/retreat/availability
