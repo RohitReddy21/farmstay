@@ -4,6 +4,7 @@ const User = require('../models/User');
 const Booking = require('../models/Booking');
 const Farm = require('../models/Farm');
 const BlockedDate = require('../models/BlockedDate');
+const OpenDate = require('../models/OpenDate');
 const bcrypt = require('bcryptjs');
 const { verifyToken } = require('../middleware/authMiddleware');
 
@@ -76,16 +77,55 @@ const checkBookingOverlap = async (booking, startDate, endDate) => {
 const checkManualDateBlock = async (propertyId, startDate, endDate) => {
     const blockedDate = await BlockedDate.findOne({
         farm: propertyId,
-        $and: [{
-            $or: [
-                { startDate: { $lte: startDate }, endDate: { $gte: startDate } },
-                { startDate: { $lte: endDate }, endDate: { $gte: endDate } },
-                { startDate: { $gte: startDate }, endDate: { $lte: endDate } }
-            ]
-        }]
+        startDate: { $lt: endDate },
+        endDate: { $gte: startDate }
     });
 
     return !!blockedDate;
+};
+
+const getWeekendDates = (startDate, endDate) => {
+    const dates = [];
+    const cursor = startOfDay(startDate);
+    const last = startOfDay(endDate);
+
+    while (cursor < last) {
+        const day = cursor.getDay();
+        if (day === 0 || day === 6) dates.push(new Date(cursor));
+        cursor.setDate(cursor.getDate() + 1);
+    }
+
+    return dates;
+};
+
+const isWeekendRangeOpened = async (propertyId, startDate, endDate, variation) => {
+    const weekendDates = getWeekendDates(startDate, endDate);
+    if (!weekendDates.length) return true;
+
+    const selectedCottages = getSelectedCottages(variation);
+    for (const date of weekendDates) {
+        const openDates = await OpenDate.find({
+            farm: propertyId,
+            startDate: { $lte: date },
+            endDate: { $gte: date }
+        }).select('cottages');
+
+        if (!openDates.length) return false;
+        if (!selectedCottages.length) continue;
+
+        const allSelectedCottagesOpened = selectedCottages.every((cottage) => openDates.some((openDate) => (
+            !openDate.cottages?.length || openDate.cottages.includes(cottage)
+        )));
+
+        if (!allSelectedCottagesOpened) return false;
+    }
+
+    return true;
+};
+
+const isWeekendBlockedForProperty = async (property, startDate, endDate, variation) => {
+    if (property?.availability !== 'Monday to Friday' || !getWeekendDates(startDate, endDate).length) return false;
+    return !(await isWeekendRangeOpened(property._id, startDate, endDate, variation));
 };
 
 // @route   GET /api/users/profile
@@ -263,6 +303,11 @@ router.put('/bookings/:id', verifyToken, async (req, res) => {
         const guestLimit = Number(variationConfig?.capacity || property.capacity || 1);
         if (guestCount > guestLimit) {
             return res.status(400).json({ message: `Maximum ${guestLimit} guests allowed for this stay.` });
+        }
+
+        const hasWeekendBlock = await isWeekendBlockedForProperty(property, nextStart, nextEnd, booking.variation);
+        if (hasWeekendBlock) {
+            return res.status(400).json({ message: 'This farm stay is available Monday to Friday only unless admin opens the selected weekend dates.' });
         }
 
         const hasConflict = await checkBookingOverlap(booking, nextStart, nextEnd);

@@ -1,4 +1,4 @@
-import { Ban, CalendarDays, ChevronLeft, ChevronRight, Loader, Plus, Trash2 } from 'lucide-react';
+import { Ban, CalendarDays, ChevronLeft, ChevronRight, Loader, LockOpen, Plus, Trash2 } from 'lucide-react';
 
 const AdminCalendarSection = ({
     farms,
@@ -10,21 +10,34 @@ const AdminCalendarSection = ({
     calendarStats,
     statusStyles,
     blockForm,
+    openForm,
     blockError,
+    openError,
     blockSaving,
+    openSaving,
     onBlockFormChange,
+    onOpenFormChange,
     onCreateBlockedDate,
+    onCreateOpenDate,
     selectedFarmBlocks,
+    selectedFarmOpenDates,
     onDeleteBlockedDate,
+    onDeleteOpenDate,
     calendarDays,
     formatDateKey,
     getCalendarDayStatus,
     selectedFarm,
     bookings,
     blockedDates,
+    openDates,
     visibleMonth,
     formatDate
-}) => (
+}) => {
+    const selectedFarmCottageOptions = Array.from(new Set(
+        (selectedFarm?.variations || []).flatMap((variation) => variation.availableCottages || [])
+    ));
+
+    return (
     <section className="order-5 mb-8 rounded-xl border border-[#ead7b8] bg-white p-4 shadow-md sm:p-6">
         <div className="mb-5 flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
             <div>
@@ -80,11 +93,12 @@ const AdminCalendarSection = ({
             </div>
         ) : (
             <>
-                <div className="mb-4 grid gap-2 sm:grid-cols-4">
+                <div className="mb-4 grid gap-2 sm:grid-cols-5">
                     {[
                         ['booked', 'Booked', calendarStats.booked],
                         ['pending', 'Pending', calendarStats.pending],
                         ['blocked', 'Blocked', calendarStats.blocked],
+                        ['open', 'Opened', calendarStats.open],
                         ['available', 'Available', calendarStats.available]
                     ].map(([key, label, count]) => (
                         <div key={key} className={`rounded-xl border px-3 py-2 text-sm font-bold ${statusStyles[key]}`}>
@@ -94,7 +108,7 @@ const AdminCalendarSection = ({
                     ))}
                 </div>
 
-                <div className="mb-4 grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+                <div className="mb-4 grid gap-4 lg:grid-cols-2">
                     <form onSubmit={onCreateBlockedDate} className="rounded-xl border border-[#ead7b8] bg-[#fffaf1] p-4">
                         <div className="mb-3 flex items-center gap-2 text-[#7a5527]">
                             <Ban size={18} />
@@ -149,6 +163,88 @@ const AdminCalendarSection = ({
                         </button>
                     </form>
 
+                    <form onSubmit={onCreateOpenDate} className="rounded-xl border border-[#b8d7ea] bg-[#f3fbff] p-4">
+                        <div className="mb-3 flex items-center gap-2 text-[#245b7a]">
+                            <LockOpen size={18} />
+                            <h3 className="font-bold text-[#211b14]">Open Weekend Dates</h3>
+                        </div>
+
+                        {openError && (
+                            <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
+                                {openError}
+                            </div>
+                        )}
+
+                        <div className="grid gap-3 sm:grid-cols-3">
+                            <label className="text-sm font-bold text-[#211b14]">
+                                Start Date
+                                <input
+                                    type="date"
+                                    value={openForm.startDate}
+                                    onChange={(event) => onOpenFormChange('startDate', event.target.value)}
+                                    className="mt-1 w-full rounded-lg border border-[#b8d7ea] bg-white px-3 py-2 text-base outline-none focus:border-[#245b7a]"
+                                />
+                            </label>
+                            <label className="text-sm font-bold text-[#211b14]">
+                                End Date
+                                <input
+                                    type="date"
+                                    min={openForm.startDate}
+                                    value={openForm.endDate}
+                                    onChange={(event) => onOpenFormChange('endDate', event.target.value)}
+                                    className="mt-1 w-full rounded-lg border border-[#b8d7ea] bg-white px-3 py-2 text-base outline-none focus:border-[#245b7a]"
+                                />
+                            </label>
+                            <label className="text-sm font-bold text-[#211b14]">
+                                Reason
+                                <input
+                                    type="text"
+                                    value={openForm.reason}
+                                    onChange={(event) => onOpenFormChange('reason', event.target.value)}
+                                    placeholder="Approved by admin"
+                                    className="mt-1 w-full rounded-lg border border-[#b8d7ea] bg-white px-3 py-2 text-base outline-none focus:border-[#245b7a]"
+                                />
+                            </label>
+                        </div>
+
+                        {selectedFarmCottageOptions.length > 0 && (
+                            <div className="mt-3">
+                                <p className="mb-2 text-sm font-bold text-[#211b14]">
+                                    Cottages to open <span className="font-medium text-gray-500">(leave all unchecked to open all)</span>
+                                </p>
+                                <div className="grid gap-2 sm:grid-cols-2">
+                                    {selectedFarmCottageOptions.map((cottage) => (
+                                        <label key={cottage} className="flex items-center gap-2 rounded-lg border border-[#b8d7ea] bg-white px-3 py-2 text-sm font-semibold text-[#211b14]">
+                                            <input
+                                                type="checkbox"
+                                                checked={openForm.cottages.includes(cottage)}
+                                                onChange={(event) => {
+                                                    const nextCottages = event.target.checked
+                                                        ? [...openForm.cottages, cottage]
+                                                        : openForm.cottages.filter((item) => item !== cottage);
+                                                    onOpenFormChange('cottages', nextCottages);
+                                                }}
+                                                className="h-4 w-4 accent-[#245b7a]"
+                                            />
+                                            {cottage}
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        <button
+                            type="submit"
+                            disabled={openSaving}
+                            className="mt-4 inline-flex items-center justify-center gap-2 rounded-lg bg-[#245b7a] px-4 py-2 font-bold text-white transition hover:bg-[#1c4962] disabled:cursor-not-allowed disabled:opacity-70"
+                        >
+                            {openSaving ? <Loader size={18} className="animate-spin" /> : <Plus size={18} />}
+                            Open Dates
+                        </button>
+                    </form>
+                </div>
+
+                <div className="mb-4 grid gap-4 lg:grid-cols-2">
                     <div className="rounded-xl border border-[#ead7b8] bg-[#fffaf1] p-4">
                         <h3 className="mb-3 font-bold text-[#211b14]">Manual Blocks</h3>
                         <div className="max-h-[210px] space-y-2 overflow-y-auto pr-1">
@@ -180,6 +276,41 @@ const AdminCalendarSection = ({
                             )}
                         </div>
                     </div>
+
+                    <div className="rounded-xl border border-[#b8d7ea] bg-[#f3fbff] p-4">
+                        <h3 className="mb-3 font-bold text-[#211b14]">Opened Weekend Dates</h3>
+                        <div className="max-h-[210px] space-y-2 overflow-y-auto pr-1">
+                            {selectedFarmOpenDates.length === 0 ? (
+                                <p className="rounded-lg border border-dashed border-[#b8d7ea] bg-white p-3 text-sm text-gray-500">
+                                    No opened weekend dates for this farm.
+                                </p>
+                            ) : (
+                                selectedFarmOpenDates.map((openDate) => (
+                                    <div key={openDate._id} className="flex items-start justify-between gap-3 rounded-lg border border-[#b8d7ea] bg-white p-3">
+                                        <div>
+                                            <div className="text-sm font-bold text-[#211b14]">
+                                                {formatDate(openDate.startDate)} to {formatDate(openDate.endDate)}
+                                            </div>
+                                            <div className="mt-1 text-xs text-gray-500">
+                                                {openDate.cottages?.length ? openDate.cottages.join(', ') : 'All cottages'}
+                                            </div>
+                                            <div className="mt-1 text-xs text-gray-500">
+                                                {openDate.reason || 'Opened by admin'}
+                                            </div>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => onDeleteOpenDate(openDate._id)}
+                                            className="rounded-lg p-2 text-red-600 transition hover:bg-red-50"
+                                            aria-label="Delete opened date"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
                 </div>
 
                 <div className="overflow-x-auto rounded-xl border border-[#ead7b8]">
@@ -193,7 +324,7 @@ const AdminCalendarSection = ({
                         <div className="grid grid-cols-7">
                             {calendarDays.map((day) => {
                                 const dayKey = formatDateKey(day);
-                                const status = getCalendarDayStatus(selectedFarm, day, bookings, blockedDates);
+                                const status = getCalendarDayStatus(selectedFarm, day, bookings, blockedDates, openDates);
                                 const isMuted = day.getMonth() !== visibleMonth;
                                 const isToday = dayKey === formatDateKey(new Date());
 
@@ -228,6 +359,11 @@ const AdminCalendarSection = ({
                                                 {block.reason || 'Manual block'}
                                             </div>
                                         ))}
+                                        {!isMuted && status.openDates?.slice(0, 1).map((openDate) => (
+                                            <div key={openDate._id} className="mb-1 truncate rounded-md bg-[#eef8ff] px-2 py-1 text-[11px] font-semibold text-[#245b7a]">
+                                                {openDate.cottages?.length ? openDate.cottages.join(', ') : 'Opened for booking'}
+                                            </div>
+                                        ))}
                                     </div>
                                 );
                             })}
@@ -237,6 +373,7 @@ const AdminCalendarSection = ({
             </>
         )}
     </section>
-);
+    );
+};
 
 export default AdminCalendarSection;

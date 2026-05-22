@@ -5,6 +5,7 @@ const User = require('../models/User');
 const Booking = require('../models/Booking');
 const Farm = require('../models/Farm');
 const BlockedDate = require('../models/BlockedDate');
+const OpenDate = require('../models/OpenDate');
 const Coupon = require('../models/Coupon');
 const { verifyAdmin, verifyToken } = require('../middleware/authMiddleware');
 const upload = require('../middleware/uploadMiddleware');
@@ -129,6 +130,12 @@ const endOfDay = (date) => {
 
 const normalizeCouponCode = (code = '') => String(code).trim().toUpperCase().replace(/\s+/g, '');
 
+const normalizeCottages = (value) => {
+    if (!value) return [];
+    const list = Array.isArray(value) ? value : String(value).split(/[\n,]+/g);
+    return [...new Set(list.map((item) => String(item).trim()).filter(Boolean))];
+};
+
 const buildCouponPayload = (body = {}) => {
     const code = normalizeCouponCode(body.code);
     const discountType = body.discountType === 'Fixed' ? 'Fixed' : 'Percentage';
@@ -245,6 +252,22 @@ router.get('/blocked-dates', verifyAdmin, async (req, res) => {
         res.json(blockedDates);
     } catch (error) {
         console.error('Error fetching blocked dates:', error);
+        res.status(500).json({ message: 'Server Error' });
+    }
+});
+
+// @route   GET /api/admin/open-dates
+// @desc    Get admin-opened date ranges for weekday-only stays
+router.get('/open-dates', verifyAdmin, async (req, res) => {
+    try {
+        const query = req.query.farm ? { farm: req.query.farm } : {};
+        const openDates = await OpenDate.find(query)
+            .populate('farm', 'title location')
+            .populate('createdBy', 'name email')
+            .sort({ startDate: 1 });
+        res.json(openDates);
+    } catch (error) {
+        console.error('Error fetching open dates:', error);
         res.status(500).json({ message: 'Server Error' });
     }
 });
@@ -394,6 +417,56 @@ router.post('/blocked-dates', verifyAdmin, async (req, res) => {
     }
 });
 
+// @route   POST /api/admin/open-dates
+// @desc    Open selected date ranges that are normally unavailable by farm rules
+router.post('/open-dates', verifyAdmin, async (req, res) => {
+    try {
+        const { farm, startDate, endDate, reason } = req.body;
+        const selectedFarm = await Farm.findById(farm);
+        if (!selectedFarm) {
+            return res.status(404).json({ message: 'Farm not found' });
+        }
+
+        const start = startOfDay(startDate);
+        const end = startOfDay(endDate);
+        if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+            return res.status(400).json({ message: 'Please select valid start and end dates.' });
+        }
+
+        if (end < start) {
+            return res.status(400).json({ message: 'End date must be the same as or after start date.' });
+        }
+
+        const cottages = normalizeCottages(req.body.cottages);
+        const existingBlock = await BlockedDate.findOne({
+            farm,
+            ...hasRangeOverlap(start, end)
+        });
+
+        if (existingBlock) {
+            return res.status(409).json({ message: 'Remove the manual block for this date range before opening it.' });
+        }
+
+        const openDate = await OpenDate.create({
+            farm,
+            startDate: start,
+            endDate: end,
+            cottages,
+            reason: String(reason || 'Opened by admin').trim(),
+            createdBy: req.user._id
+        });
+
+        const populatedOpenDate = await OpenDate.findById(openDate._id)
+            .populate('farm', 'title location')
+            .populate('createdBy', 'name email');
+
+        res.status(201).json(populatedOpenDate);
+    } catch (error) {
+        console.error('Error creating open date:', error);
+        res.status(500).json({ message: 'Server Error' });
+    }
+});
+
 // @route   DELETE /api/admin/blocked-dates/:id
 // @desc    Remove a manual blocked date range
 router.delete('/blocked-dates/:id', verifyAdmin, async (req, res) => {
@@ -405,6 +478,21 @@ router.delete('/blocked-dates/:id', verifyAdmin, async (req, res) => {
         res.json({ message: 'Blocked date removed' });
     } catch (error) {
         console.error('Error deleting blocked date:', error);
+        res.status(500).json({ message: 'Server Error' });
+    }
+});
+
+// @route   DELETE /api/admin/open-dates/:id
+// @desc    Remove an admin-opened date range
+router.delete('/open-dates/:id', verifyAdmin, async (req, res) => {
+    try {
+        const openDate = await OpenDate.findByIdAndDelete(req.params.id);
+        if (!openDate) {
+            return res.status(404).json({ message: 'Open date not found' });
+        }
+        res.json({ message: 'Open date removed' });
+    } catch (error) {
+        console.error('Error deleting open date:', error);
         res.status(500).json({ message: 'Server Error' });
     }
 });

@@ -244,13 +244,30 @@ const FarmDetails = () => {
         const date = value instanceof Date ? value : new Date(value);
         return new Date(date.getFullYear(), date.getMonth(), date.getDate());
     };
+    const addDays = (date, days) => {
+        const value = toLocalDateOnly(date);
+        value.setDate(value.getDate() + days);
+        return value;
+    };
     const isSameLocalDay = (first, second) => toLocalDateOnly(first).getTime() === toLocalDateOnly(second).getTime();
 
-    const unavailableRanges = useMemo(() => unavailableDates.map((booking) => ({
-        ...booking,
-        rangeStart: toLocalDateOnly(booking.startDate),
-        rangeEnd: toLocalDateOnly(booking.endDate)
-    })), [unavailableDates]);
+    const unavailableRanges = useMemo(() => unavailableDates
+        .filter((booking) => booking.source !== 'weekend-open')
+        .map((booking) => ({
+            ...booking,
+            rangeStart: toLocalDateOnly(booking.startDate),
+            rangeEnd: toLocalDateOnly(booking.endDate),
+            rangeEndExclusive: booking.source === 'manual-block'
+                ? addDays(booking.endDate, 1)
+                : toLocalDateOnly(booking.endDate)
+        })), [unavailableDates]);
+    const weekendOpenRanges = useMemo(() => unavailableDates
+        .filter((dateRange) => dateRange.source === 'weekend-open')
+        .map((dateRange) => ({
+            ...dateRange,
+            rangeStart: toLocalDateOnly(dateRange.startDate),
+            rangeEnd: toLocalDateOnly(dateRange.endDate)
+        })), [unavailableDates]);
     const visibleThumbnailLimit = 8;
     const mediaThumbnails = useMemo(
         () => allMedia.slice(0, showAllGalleryImages ? allMedia.length : visibleThumbnailLimit),
@@ -262,7 +279,7 @@ const FarmDetails = () => {
         const newCheckIn = toLocalDateOnly(startDate);
         const newCheckOut = toLocalDateOnly(endDate);
         const bookingStart = booking.rangeStart || new Date(booking.startDate);
-        const bookingEnd = booking.rangeEnd || new Date(booking.endDate);
+        const bookingEnd = booking.rangeEndExclusive || booking.rangeEnd || new Date(booking.endDate);
         return newCheckIn < bookingEnd && newCheckOut > bookingStart;
     };
 
@@ -270,6 +287,7 @@ const FarmDetails = () => {
         const day = toLocalDateOnly(date);
         const bookingStart = booking.rangeStart || new Date(booking.startDate);
         const bookingEnd = booking.rangeEnd || new Date(booking.endDate);
+        if (booking.source === 'manual-block') return day >= bookingStart && day <= bookingEnd;
         return day >= bookingStart && day < bookingEnd;
     };
 
@@ -277,6 +295,7 @@ const FarmDetails = () => {
         const day = toLocalDateOnly(date);
         const bookingStart = booking.rangeStart || new Date(booking.startDate);
         const bookingEnd = booking.rangeEnd || new Date(booking.endDate);
+        if (booking.source === 'manual-block') return day >= bookingStart && day <= bookingEnd;
         return day > bookingStart && day < bookingEnd;
     };
 
@@ -287,6 +306,11 @@ const FarmDetails = () => {
 
     const getVariationCottage = (variation) => getVariationCottages(variation)[0] || variation?.type;
 
+    const isDateInInclusiveRange = (date, range) => {
+        const day = toLocalDateOnly(date);
+        return day >= range.rangeStart && day <= range.rangeEnd;
+    };
+
     const bookingMatchesVariation = (booking, variation = selectedVariation) => {
         if (!hasVariations) return true;
         if (!booking?.variation?.cottage && !booking?.variation?.cottages?.length) return true;
@@ -295,6 +319,24 @@ const FarmDetails = () => {
             ? booking.variation.cottages
             : [booking?.variation?.cottage].filter(Boolean);
         return cottages.some((cottage) => bookedCottages.includes(cottage));
+    };
+
+    const isWeekendDateOpen = (date, variation = selectedVariation) => {
+        if (!isWeekdayOnlyFarm) return true;
+        const day = date.getDay();
+        if (day !== 0 && day !== 6) return true;
+
+        const matchingOpenRanges = weekendOpenRanges.filter((openDate) => isDateInInclusiveRange(date, openDate));
+        if (!matchingOpenRanges.length) return false;
+        if (!hasVariations) return true;
+
+        const selectedCottages = getVariationCottages(variation);
+        if (!selectedCottages.length) return true;
+
+        return selectedCottages.every((cottage) => matchingOpenRanges.some((openDate) => {
+            const openedCottages = openDate.variation?.cottages || [];
+            return openedCottages.length === 0 || openedCottages.includes(cottage);
+        }));
     };
 
     const getCalendarBookingStatus = (date) => {
@@ -321,7 +363,7 @@ const FarmDetails = () => {
         year: 'numeric'
     });
 
-    const rangeIncludesWeekend = (startDate, endDate) => {
+    const rangeIncludesBlockedWeekend = (startDate, endDate, variation = selectedVariation) => {
         const cursor = new Date(startDate);
         cursor.setHours(0, 0, 0, 0);
         const last = new Date(endDate);
@@ -329,7 +371,7 @@ const FarmDetails = () => {
 
         while (cursor < last) {
             const day = cursor.getDay();
-            if (day === 0 || day === 6) return true;
+            if ((day === 0 || day === 6) && !isWeekendDateOpen(cursor, variation)) return true;
             cursor.setDate(cursor.getDate() + 1);
         }
 
@@ -342,7 +384,7 @@ const FarmDetails = () => {
             return false;
         }
 
-        if (rangeIncludesWeekend(startDate, endDate)) {
+        if (rangeIncludesBlockedWeekend(startDate, endDate)) {
             setWeekendDateConflict({
                 start: formatDateForDisplay(startDate),
                 end: formatDateForDisplay(endDate)
@@ -392,7 +434,7 @@ const FarmDetails = () => {
         // Disable based on farm availability rules
         if (farm?.availability === 'Monday to Friday') {
             const day = date.getDay();
-            return day === 0 || day === 6; // Disable Sunday (0) and Saturday (6)
+            return (day === 0 || day === 6) && !isWeekendDateOpen(date); // Disable unopened Sunday/Saturday
         }
 
         return false;
@@ -405,13 +447,14 @@ const FarmDetails = () => {
     const isWeekendBlockedDate = (date) => {
         if (farm?.availability !== 'Monday to Friday') return false;
         const day = date.getDay();
-        return day === 0 || day === 6;
+        return (day === 0 || day === 6) && !isWeekendDateOpen(date);
     };
 
     const renderCalendarDay = (date) => {
         const bookingStatus = getCalendarBookingStatus(date);
         const booked = Boolean(bookingStatus && bookingStatus.type !== 'checkout');
         const weekendBlocked = isWeekendBlockedDate(date);
+        const weekendOpened = isWeekdayOnlyFarm && [0, 6].includes(date.getDay()) && isWeekendDateOpen(date);
         const isManualBlock = bookingStatus?.booking?.source === 'manual-block';
         const dotClass = isManualBlock ? 'bg-gray-500' : 'bg-red-500';
 
@@ -428,6 +471,12 @@ const FarmDetails = () => {
                     <span
                         aria-label="Weekend unavailable"
                         className="absolute bottom-0.5 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-amber-500"
+                    />
+                )}
+                {!booked && weekendOpened && (
+                    <span
+                        aria-label="Weekend opened by admin"
+                        className="absolute bottom-0.5 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-sky-500"
                     />
                 )}
             </span>
@@ -573,7 +622,8 @@ const FarmDetails = () => {
     useEffect(() => {
         if (!farm || !dateSelection[0].startDate || !dateSelection[0].endDate) return;
         checkDateConflict(dateSelection[0].startDate, dateSelection[0].endDate);
-    }, [selectedVariation, selectedCottage, unavailableRanges, farm]);
+        checkWeekendConflict(dateSelection[0].startDate, dateSelection[0].endDate);
+    }, [selectedVariation, selectedCottage, unavailableRanges, weekendOpenRanges, farm]);
 
     const handleBooking = async (e) => {
         e.preventDefault();
@@ -1232,10 +1282,16 @@ const FarmDetails = () => {
                                                         Blocked
                                                     </span>
                                                     {farm?.availability === 'Monday to Friday' && (
-                                                        <span className="inline-flex items-center gap-1.5">
-                                                            <span className="h-2 w-2 rounded-full bg-amber-500" />
-                                                            Weekend unavailable
-                                                        </span>
+                                                        <>
+                                                            <span className="inline-flex items-center gap-1.5">
+                                                                <span className="h-2 w-2 rounded-full bg-amber-500" />
+                                                                Weekend unavailable
+                                                            </span>
+                                                            <span className="inline-flex items-center gap-1.5">
+                                                                <span className="h-2 w-2 rounded-full bg-sky-500" />
+                                                                Opened by admin
+                                                            </span>
+                                                        </>
                                                     )}
                                                 </div>
                                                 <p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">

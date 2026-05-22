@@ -6,6 +6,7 @@ const Booking = require('../models/Booking');
 const Farm = require('../models/Farm');
 const Payment = require('../models/Payment');
 const BlockedDate = require('../models/BlockedDate');
+const OpenDate = require('../models/OpenDate');
 const Coupon = require('../models/Coupon');
 const mongoose = require('mongoose');
 const { optionalAuth } = require('../middleware/authMiddleware');
@@ -31,10 +32,13 @@ const razorpay = new Razorpay({
 });
 
 // Helper function to check for date overlaps
+function getSelectedCottages(variation = {}) {
+    if (Array.isArray(variation?.cottages) && variation.cottages.length) return variation.cottages;
+    return variation?.cottage ? [variation.cottage] : [];
+}
+
 async function hasOverlap(propertyId, roomId, startDate, endDate, variation, excludeBookingId) {
-    const selectedCottages = Array.isArray(variation?.cottages) && variation.cottages.length
-        ? variation.cottages
-        : (variation?.cottage ? [variation.cottage] : []);
+    const selectedCottages = getSelectedCottages(variation);
     const resourceFilter = selectedCottages.length
         ? {
             $or: [
@@ -60,7 +64,7 @@ async function hasManualDateBlock(propertyId, startDate, endDate) {
     const blockedDate = await BlockedDate.findOne({
         farm: propertyId,
         startDate: { $lt: endDate },
-        endDate: { $gt: startDate }
+        endDate: { $gte: startDate }
     });
 
     return !!blockedDate;
@@ -81,10 +85,52 @@ function rangeIncludesWeekend(startDate, endDate) {
     return false;
 }
 
-function isWeekendBlockedForProperty(property, startDate, endDate, isRetreatBooking = false) {
+function getWeekendDates(startDate, endDate) {
+    const dates = [];
+    const cursor = new Date(startDate);
+    cursor.setHours(0, 0, 0, 0);
+    const last = new Date(endDate);
+    last.setHours(0, 0, 0, 0);
+
+    while (cursor < last) {
+        const day = cursor.getDay();
+        if (day === 0 || day === 6) dates.push(new Date(cursor));
+        cursor.setDate(cursor.getDate() + 1);
+    }
+
+    return dates;
+}
+
+async function isWeekendRangeOpened(propertyId, startDate, endDate, variation) {
+    const weekendDates = getWeekendDates(startDate, endDate);
+    if (!weekendDates.length) return true;
+
+    const selectedCottages = getSelectedCottages(variation);
+    for (const date of weekendDates) {
+        const openDates = await OpenDate.find({
+            farm: propertyId,
+            startDate: { $lte: date },
+            endDate: { $gte: date }
+        }).select('cottages');
+
+        if (!openDates.length) return false;
+        if (!selectedCottages.length) continue;
+
+        const allSelectedCottagesOpened = selectedCottages.every((cottage) => openDates.some((openDate) => (
+            !openDate.cottages?.length || openDate.cottages.includes(cottage)
+        )));
+
+        if (!allSelectedCottagesOpened) return false;
+    }
+
+    return true;
+}
+
+async function isWeekendBlockedForProperty(property, startDate, endDate, variation, isRetreatBooking = false) {
     // If this is a retreat booking, don't apply the weekend block (retreat IS for weekends)
     if (isRetreatBooking) return false;
-    return property?.availability === 'Monday to Friday' && rangeIncludesWeekend(startDate, endDate);
+    if (property?.availability !== 'Monday to Friday' || !rangeIncludesWeekend(startDate, endDate)) return false;
+    return !(await isWeekendRangeOpened(property._id, startDate, endDate, variation));
 }
 
 function toDateValue(date) {
@@ -345,7 +391,7 @@ async function validateBookingAvailability({ propertyId, roomId, startDate, endD
         throw error;
     }
 
-    if (isWeekendBlockedForProperty(property, start, end, !!retreatMeta)) {
+    if (await isWeekendBlockedForProperty(property, start, end, variation, !!retreatMeta)) {
         const error = new Error('This farm stay is available Monday to Friday only. Saturdays and Sundays are reserved for the 2-day Learning Retreat.');
         error.statusCode = 400;
         throw error;
@@ -985,6 +1031,7 @@ router.get('/property/:id/availability', async (req, res) => {
             status: { $in: ['Confirmed', 'Pending', 'Approved'] }
         }).select('startDate endDate room variation status');
         const blockedDates = await BlockedDate.find({ farm: req.params.id }).select('startDate endDate reason');
+        const openDates = await OpenDate.find({ farm: req.params.id }).select('startDate endDate reason cottages');
         res.json([
             ...bookings.map((booking) => booking.toObject()),
             ...blockedDates.map((block) => ({
@@ -994,6 +1041,17 @@ router.get('/property/:id/availability', async (req, res) => {
                 reason: block.reason,
                 source: 'manual-block',
                 variation: null
+            })),
+            ...openDates.map((openDate) => ({
+                _id: openDate._id,
+                startDate: openDate.startDate,
+                endDate: openDate.endDate,
+                reason: openDate.reason,
+                source: 'weekend-open',
+                variation: {
+                    cottage: null,
+                    cottages: openDate.cottages || []
+                }
             }))
         ]);
     } catch (error) {

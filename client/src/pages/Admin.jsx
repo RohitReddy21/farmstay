@@ -63,7 +63,7 @@ const getBlockFarmId = (block) => {
     return typeof block.farm === 'object' ? block.farm._id : block.farm;
 };
 
-const getCalendarDayStatus = (farm, date, bookings, blockedDates) => {
+const getCalendarDayStatus = (farm, date, bookings, blockedDates, openDates = []) => {
     if (!farm) return { type: 'available', label: 'Available', bookings: [] };
 
     const dayBookings = bookings.filter((booking) => (
@@ -74,6 +74,9 @@ const getCalendarDayStatus = (farm, date, bookings, blockedDates) => {
     const manualBlocks = blockedDates.filter((block) => (
         getBlockFarmId(block) === farm._id && blockIncludesDate(block, date)
     ));
+    const openedDates = openDates.filter((openDate) => (
+        getBlockFarmId(openDate) === farm._id && blockIncludesDate(openDate, date)
+    ));
 
     const booked = dayBookings.filter((booking) => ['Confirmed', 'Approved', 'Completed'].includes(booking.status));
     const pending = dayBookings.filter((booking) => booking.status === 'Pending');
@@ -81,6 +84,7 @@ const getCalendarDayStatus = (farm, date, bookings, blockedDates) => {
     if (booked.length) return { type: 'booked', label: 'Booked', bookings: booked };
     if (pending.length) return { type: 'pending', label: 'Pending', bookings: pending };
     if (manualBlocks.length) return { type: 'blocked', label: 'Blocked', bookings: [], blocks: manualBlocks };
+    if (openedDates.length) return { type: 'open', label: 'Opened', bookings: [], blocks: [], openDates: openedDates };
     if (isBlockedFarmDate(farm, date)) return { type: 'blocked', label: 'Blocked', bookings: [], blocks: [] };
     return { type: 'available', label: 'Available', bookings: [] };
 };
@@ -89,6 +93,7 @@ const statusStyles = {
     booked: 'border-[#b9d8ae] bg-[#eef7e9] text-[#2f5f32]',
     pending: 'border-[#ead7b8] bg-[#fff6dd] text-[#8a642d]',
     blocked: 'border-[#ded6ca] bg-[#f1eee7] text-[#7b6a58]',
+    open: 'border-[#b8d7ea] bg-[#eef8ff] text-[#245b7a]',
     available: 'border-[#ead7b8] bg-white text-[#645747]'
 };
 
@@ -129,6 +134,7 @@ const Admin = () => {
     const [bookings, setBookings] = useState([]);
     const [farms, setFarms] = useState([]);
     const [blockedDates, setBlockedDates] = useState([]);
+    const [openDates, setOpenDates] = useState([]);
     const [coupons, setCoupons] = useState([]);
     const [couponForm, setCouponForm] = useState(getDefaultCouponForm);
     const [couponSaving, setCouponSaving] = useState(false);
@@ -140,8 +146,16 @@ const Admin = () => {
         endDate: formatDateKey(new Date()),
         reason: ''
     });
+    const [openForm, setOpenForm] = useState({
+        startDate: formatDateKey(new Date()),
+        endDate: formatDateKey(new Date()),
+        cottages: [],
+        reason: ''
+    });
     const [blockSaving, setBlockSaving] = useState(false);
     const [blockError, setBlockError] = useState('');
+    const [openSaving, setOpenSaving] = useState(false);
+    const [openError, setOpenError] = useState('');
     const [bookingFilter, setBookingFilter] = useState('all');
     const { user } = useAuth();
     const navigate = useNavigate();
@@ -176,6 +190,9 @@ const Admin = () => {
 
             const blockedDatesRes = await axios.get(`${API_URL}/api/admin/blocked-dates`, authConfig());
             setBlockedDates(blockedDatesRes.data);
+
+            const openDatesRes = await axios.get(`${API_URL}/api/admin/open-dates`, authConfig());
+            setOpenDates(openDatesRes.data);
 
             const couponsRes = await axios.get(`${API_URL}/api/admin/coupons`, authConfig());
             setCoupons(couponsRes.data);
@@ -374,12 +391,15 @@ const Admin = () => {
     const visibleMonth = calendarMonth.getMonth();
     const calendarStats = calendarDays.reduce((stats, day) => {
         if (day.getMonth() !== visibleMonth) return stats;
-        const status = getCalendarDayStatus(selectedFarm, day, bookings, blockedDates).type;
+        const status = getCalendarDayStatus(selectedFarm, day, bookings, blockedDates, openDates).type;
         stats[status] += 1;
         return stats;
-    }, { booked: 0, pending: 0, blocked: 0, available: 0 });
+    }, { booked: 0, pending: 0, blocked: 0, open: 0, available: 0 });
     const selectedFarmBlocks = blockedDates
         .filter((block) => getBlockFarmId(block) === selectedFarmId)
+        .sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+    const selectedFarmOpenDates = openDates
+        .filter((openDate) => getBlockFarmId(openDate) === selectedFarmId)
         .sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -405,9 +425,21 @@ const Admin = () => {
         setCalendarMonth((current) => new Date(current.getFullYear(), current.getMonth() + direction, 1));
     };
 
+    const handleSelectedFarmChange = (farmId) => {
+        setSelectedFarmId(farmId);
+        setOpenForm((current) => ({ ...current, cottages: [] }));
+        setBlockError('');
+        setOpenError('');
+    };
+
     const handleBlockFormChange = (field, value) => {
         setBlockForm((current) => ({ ...current, [field]: value }));
         setBlockError('');
+    };
+
+    const handleOpenFormChange = (field, value) => {
+        setOpenForm((current) => ({ ...current, [field]: value }));
+        setOpenError('');
     };
 
     const handleCreateBlockedDate = async (event) => {
@@ -446,6 +478,44 @@ const Admin = () => {
         }
     };
 
+    const handleCreateOpenDate = async (event) => {
+        event.preventDefault();
+        if (!selectedFarmId) return;
+
+        if (!openForm.startDate || !openForm.endDate) {
+            setOpenError('Please select start and end dates.');
+            return;
+        }
+
+        if (new Date(openForm.endDate) < new Date(openForm.startDate)) {
+            setOpenError('End date must be the same as or after start date.');
+            return;
+        }
+
+        try {
+            setOpenSaving(true);
+            const { data } = await axios.post(`${API_URL}/api/admin/open-dates`, {
+                farm: selectedFarmId,
+                startDate: openForm.startDate,
+                endDate: openForm.endDate,
+                cottages: openForm.cottages,
+                reason: openForm.reason
+            }, authConfig());
+
+            setOpenDates((current) => [...current, data]);
+            setOpenForm({
+                startDate: openForm.startDate,
+                endDate: openForm.endDate,
+                cottages: [],
+                reason: ''
+            });
+        } catch (error) {
+            setOpenError(error.response?.data?.message || 'Could not open dates.');
+        } finally {
+            setOpenSaving(false);
+        }
+    };
+
     const handleDeleteBlockedDate = async (blockId) => {
         if (!window.confirm('Remove this manual date block?')) return;
 
@@ -455,6 +525,18 @@ const Admin = () => {
         } catch (error) {
             console.error('Error deleting blocked date:', error);
             alert(error.response?.data?.message || 'Could not remove blocked date.');
+        }
+    };
+
+    const handleDeleteOpenDate = async (openDateId) => {
+        if (!window.confirm('Remove this opened weekend permission?')) return;
+
+        try {
+            await axios.delete(`${API_URL}/api/admin/open-dates/${openDateId}`, authConfig());
+            setOpenDates((current) => current.filter((openDate) => openDate._id !== openDateId));
+        } catch (error) {
+            console.error('Error deleting open date:', error);
+            alert(error.response?.data?.message || 'Could not remove opened date.');
         }
     };
 
@@ -492,25 +574,33 @@ const Admin = () => {
             <AdminCalendarSection
                 farms={farms}
                 selectedFarmId={selectedFarmId}
-                onSelectedFarmChange={setSelectedFarmId}
+                onSelectedFarmChange={handleSelectedFarmChange}
                 calendarMonth={calendarMonth}
                 monthLabel={monthLabel}
                 shiftCalendarMonth={shiftCalendarMonth}
                 calendarStats={calendarStats}
                 statusStyles={statusStyles}
                 blockForm={blockForm}
+                openForm={openForm}
                 blockError={blockError}
+                openError={openError}
                 blockSaving={blockSaving}
+                openSaving={openSaving}
                 onBlockFormChange={handleBlockFormChange}
+                onOpenFormChange={handleOpenFormChange}
                 onCreateBlockedDate={handleCreateBlockedDate}
+                onCreateOpenDate={handleCreateOpenDate}
                 selectedFarmBlocks={selectedFarmBlocks}
+                selectedFarmOpenDates={selectedFarmOpenDates}
                 onDeleteBlockedDate={handleDeleteBlockedDate}
+                onDeleteOpenDate={handleDeleteOpenDate}
                 calendarDays={calendarDays}
                 formatDateKey={formatDateKey}
                 getCalendarDayStatus={getCalendarDayStatus}
                 selectedFarm={selectedFarm}
                 bookings={bookings}
                 blockedDates={blockedDates}
+                openDates={openDates}
                 visibleMonth={visibleMonth}
                 formatDate={formatDate}
             />
