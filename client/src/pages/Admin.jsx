@@ -84,7 +84,7 @@ const getCalendarDayStatus = (farm, date, bookings, blockedDates, openDates = []
     if (booked.length) return { type: 'booked', label: 'Booked', bookings: booked };
     if (pending.length) return { type: 'pending', label: 'Pending', bookings: pending };
     if (manualBlocks.length) return { type: 'blocked', label: 'Blocked', bookings: [], blocks: manualBlocks };
-    if (openedDates.length) return { type: 'open', label: 'Opened', bookings: [], blocks: [], openDates: openedDates };
+    if (openedDates.length) return { type: 'open', label: 'Unblocked', bookings: [], blocks: [], openDates: openedDates };
     if (isBlockedFarmDate(farm, date)) return { type: 'blocked', label: 'Blocked', bookings: [], blocks: [] };
     return { type: 'available', label: 'Available', bookings: [] };
 };
@@ -156,6 +156,7 @@ const Admin = () => {
     const [blockError, setBlockError] = useState('');
     const [openSaving, setOpenSaving] = useState(false);
     const [openError, setOpenError] = useState('');
+    const [openNotice, setOpenNotice] = useState('');
     const [bookingFilter, setBookingFilter] = useState('all');
     const { user } = useAuth();
     const navigate = useNavigate();
@@ -430,6 +431,7 @@ const Admin = () => {
         setOpenForm((current) => ({ ...current, cottages: [] }));
         setBlockError('');
         setOpenError('');
+        setOpenNotice('');
     };
 
     const handleBlockFormChange = (field, value) => {
@@ -440,6 +442,25 @@ const Admin = () => {
     const handleOpenFormChange = (field, value) => {
         setOpenForm((current) => ({ ...current, [field]: value }));
         setOpenError('');
+        setOpenNotice('');
+    };
+
+    const handlePrepareUnblockDate = (dateValue) => {
+        setOpenForm({
+            startDate: dateValue,
+            endDate: dateValue,
+            cottages: [],
+            reason: ''
+        });
+        setOpenError('');
+        setOpenNotice('');
+
+        window.requestAnimationFrame(() => {
+            document.getElementById('unblock-dates-form')?.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center'
+            });
+        });
     };
 
     const handleCreateBlockedDate = async (event) => {
@@ -502,7 +523,8 @@ const Admin = () => {
                 reason: openForm.reason
             }, authConfig());
 
-            setOpenDates((current) => [...current, data]);
+            await fetchData();
+            setOpenNotice(data.message || 'Dates unblocked and available for client booking.');
             setOpenForm({
                 startDate: openForm.startDate,
                 endDate: openForm.endDate,
@@ -511,17 +533,19 @@ const Admin = () => {
             });
         } catch (error) {
             setOpenError(error.response?.data?.message || 'Could not open dates.');
+            setOpenNotice('');
         } finally {
             setOpenSaving(false);
         }
     };
 
     const handleDeleteBlockedDate = async (blockId) => {
-        if (!window.confirm('Remove this manual date block?')) return;
+        if (!window.confirm('Unblock this manually blocked date range for booking?')) return;
 
         try {
-            await axios.delete(`${API_URL}/api/admin/blocked-dates/${blockId}`, authConfig());
-            setBlockedDates((current) => current.filter((block) => block._id !== blockId));
+            const { data } = await axios.delete(`${API_URL}/api/admin/blocked-dates/${blockId}`, authConfig());
+            await fetchData();
+            setOpenNotice(data.message || 'Dates unblocked and available for client booking.');
         } catch (error) {
             console.error('Error deleting blocked date:', error);
             alert(error.response?.data?.message || 'Could not remove blocked date.');
@@ -529,7 +553,7 @@ const Admin = () => {
     };
 
     const handleDeleteOpenDate = async (openDateId) => {
-        if (!window.confirm('Remove this opened weekend permission?')) return;
+        if (!window.confirm('Remove this unblock permission? Restricted dates may become unavailable again.')) return;
 
         try {
             await axios.delete(`${API_URL}/api/admin/open-dates/${openDateId}`, authConfig());
@@ -584,12 +608,14 @@ const Admin = () => {
                 openForm={openForm}
                 blockError={blockError}
                 openError={openError}
+                openNotice={openNotice}
                 blockSaving={blockSaving}
                 openSaving={openSaving}
                 onBlockFormChange={handleBlockFormChange}
                 onOpenFormChange={handleOpenFormChange}
                 onCreateBlockedDate={handleCreateBlockedDate}
                 onCreateOpenDate={handleCreateOpenDate}
+                onPrepareUnblockDate={handlePrepareUnblockDate}
                 selectedFarmBlocks={selectedFarmBlocks}
                 selectedFarmOpenDates={selectedFarmOpenDates}
                 onDeleteBlockedDate={handleDeleteBlockedDate}

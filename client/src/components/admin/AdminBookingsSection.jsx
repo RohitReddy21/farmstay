@@ -68,9 +68,9 @@ const AdminBookingsSection = ({
                                     <button
                                         type="button"
                                         onClick={() => onDeleteBlockedDate(block._id)}
-                                        className="rounded-lg bg-red-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-red-600"
+                                        className="rounded-lg bg-[#245b7a] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#1c4962]"
                                     >
-                                        Remove
+                                        Unblock
                                     </button>
                                 </td>
                             </tr>

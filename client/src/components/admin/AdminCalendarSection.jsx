@@ -13,12 +13,14 @@ const AdminCalendarSection = ({
     openForm,
     blockError,
     openError,
+    openNotice,
     blockSaving,
     openSaving,
     onBlockFormChange,
     onOpenFormChange,
     onCreateBlockedDate,
     onCreateOpenDate,
+    onPrepareUnblockDate,
     selectedFarmBlocks,
     selectedFarmOpenDates,
     onDeleteBlockedDate,
@@ -98,7 +100,7 @@ const AdminCalendarSection = ({
                         ['booked', 'Booked', calendarStats.booked],
                         ['pending', 'Pending', calendarStats.pending],
                         ['blocked', 'Blocked', calendarStats.blocked],
-                        ['open', 'Opened', calendarStats.open],
+                        ['open', 'Unblocked', calendarStats.open],
                         ['available', 'Available', calendarStats.available]
                     ].map(([key, label, count]) => (
                         <div key={key} className={`rounded-xl border px-3 py-2 text-sm font-bold ${statusStyles[key]}`}>
@@ -163,15 +165,23 @@ const AdminCalendarSection = ({
                         </button>
                     </form>
 
-                    <form onSubmit={onCreateOpenDate} className="rounded-xl border border-[#b8d7ea] bg-[#f3fbff] p-4">
+                    <form id="unblock-dates-form" onSubmit={onCreateOpenDate} className="rounded-xl border border-[#b8d7ea] bg-[#f3fbff] p-4">
                         <div className="mb-3 flex items-center gap-2 text-[#245b7a]">
                             <LockOpen size={18} />
-                            <h3 className="font-bold text-[#211b14]">Open Weekend Dates</h3>
+                            <h3 className="font-bold text-[#211b14]">Unblock Dates for Booking</h3>
                         </div>
+                        <p className="mb-3 text-sm text-[#566978]">
+                            Use this for manual blocks or weekend-unavailable dates. Selected dates become bookable by clients.
+                        </p>
 
                         {openError && (
                             <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
                                 {openError}
+                            </div>
+                        )}
+                        {openNotice && (
+                            <div className="mb-3 rounded-lg border border-[#b9d8ae] bg-[#eef7e9] px-3 py-2 text-sm font-semibold text-[#2f5f32]">
+                                {openNotice}
                             </div>
                         )}
 
@@ -201,7 +211,7 @@ const AdminCalendarSection = ({
                                     type="text"
                                     value={openForm.reason}
                                     onChange={(event) => onOpenFormChange('reason', event.target.value)}
-                                    placeholder="Approved by admin"
+                                    placeholder="Available for booking"
                                     className="mt-1 w-full rounded-lg border border-[#b8d7ea] bg-white px-3 py-2 text-base outline-none focus:border-[#245b7a]"
                                 />
                             </label>
@@ -210,7 +220,7 @@ const AdminCalendarSection = ({
                         {selectedFarmCottageOptions.length > 0 && (
                             <div className="mt-3">
                                 <p className="mb-2 text-sm font-bold text-[#211b14]">
-                                    Cottages to open <span className="font-medium text-gray-500">(leave all unchecked to open all)</span>
+                                    Cottages to unblock <span className="font-medium text-gray-500">(leave all unchecked to open all)</span>
                                 </p>
                                 <div className="grid gap-2 sm:grid-cols-2">
                                     {selectedFarmCottageOptions.map((cottage) => (
@@ -239,7 +249,7 @@ const AdminCalendarSection = ({
                             className="mt-4 inline-flex items-center justify-center gap-2 rounded-lg bg-[#245b7a] px-4 py-2 font-bold text-white transition hover:bg-[#1c4962] disabled:cursor-not-allowed disabled:opacity-70"
                         >
                             {openSaving ? <Loader size={18} className="animate-spin" /> : <Plus size={18} />}
-                            Open Dates
+                            Unblock Dates
                         </button>
                     </form>
                 </div>
@@ -266,10 +276,11 @@ const AdminCalendarSection = ({
                                         <button
                                             type="button"
                                             onClick={() => onDeleteBlockedDate(block._id)}
-                                            className="rounded-lg p-2 text-red-600 transition hover:bg-red-50"
-                                            aria-label="Delete blocked date"
+                                            className="inline-flex items-center gap-1.5 rounded-lg border border-[#b8d7ea] bg-[#eef8ff] px-3 py-2 text-xs font-bold text-[#245b7a] transition hover:bg-[#dceffc]"
+                                            aria-label="Unblock this date range"
                                         >
-                                            <Trash2 size={16} />
+                                            <LockOpen size={14} />
+                                            Unblock
                                         </button>
                                     </div>
                                 ))
@@ -278,11 +289,11 @@ const AdminCalendarSection = ({
                     </div>
 
                     <div className="rounded-xl border border-[#b8d7ea] bg-[#f3fbff] p-4">
-                        <h3 className="mb-3 font-bold text-[#211b14]">Opened Weekend Dates</h3>
+                        <h3 className="mb-3 font-bold text-[#211b14]">Unblocked Dates</h3>
                         <div className="max-h-[210px] space-y-2 overflow-y-auto pr-1">
                             {selectedFarmOpenDates.length === 0 ? (
                                 <p className="rounded-lg border border-dashed border-[#b8d7ea] bg-white p-3 text-sm text-gray-500">
-                                    No opened weekend dates for this farm.
+                                    No unblocked dates for this farm.
                                 </p>
                             ) : (
                                 selectedFarmOpenDates.map((openDate) => (
@@ -295,14 +306,14 @@ const AdminCalendarSection = ({
                                                 {openDate.cottages?.length ? openDate.cottages.join(', ') : 'All cottages'}
                                             </div>
                                             <div className="mt-1 text-xs text-gray-500">
-                                                {openDate.reason || 'Opened by admin'}
+                                                {openDate.reason || 'Unblocked by admin'}
                                             </div>
                                         </div>
                                         <button
                                             type="button"
                                             onClick={() => onDeleteOpenDate(openDate._id)}
                                             className="rounded-lg p-2 text-red-600 transition hover:bg-red-50"
-                                            aria-label="Delete opened date"
+                                            aria-label="Remove unblock permission"
                                         >
                                             <Trash2 size={16} />
                                         </button>
@@ -361,9 +372,19 @@ const AdminCalendarSection = ({
                                         ))}
                                         {!isMuted && status.openDates?.slice(0, 1).map((openDate) => (
                                             <div key={openDate._id} className="mb-1 truncate rounded-md bg-[#eef8ff] px-2 py-1 text-[11px] font-semibold text-[#245b7a]">
-                                                {openDate.cottages?.length ? openDate.cottages.join(', ') : 'Opened for booking'}
+                                                {openDate.cottages?.length ? openDate.cottages.join(', ') : 'Unblocked for booking'}
                                             </div>
                                         ))}
+                                        {!isMuted && status.type === 'blocked' && (
+                                            <button
+                                                type="button"
+                                                onClick={() => onPrepareUnblockDate(dayKey)}
+                                                className="mt-1 inline-flex items-center gap-1 rounded-md border border-[#b8d7ea] bg-[#eef8ff] px-2 py-1 text-[11px] font-bold text-[#245b7a] transition hover:bg-[#dceffc]"
+                                            >
+                                                <LockOpen size={12} />
+                                                Unblock
+                                            </button>
+                                        )}
                                     </div>
                                 );
                             })}

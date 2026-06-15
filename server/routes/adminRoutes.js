@@ -195,6 +195,61 @@ const hasRangeOverlap = (startDate, endDate) => ({
     }]
 });
 
+const addDays = (date, days) => {
+    const value = startOfDay(date);
+    value.setDate(value.getDate() + days);
+    return value;
+};
+
+const rangeContainsWeekendDay = (startDate, endDate) => {
+    const cursor = startOfDay(startDate);
+    while (cursor <= endDate) {
+        if (cursor.getDay() === 0 || cursor.getDay() === 6) return true;
+        cursor.setDate(cursor.getDate() + 1);
+    }
+    return false;
+};
+
+const unblockManualDateRange = async (farm, startDate, endDate) => {
+    const overlappingBlocks = await BlockedDate.find({
+        farm,
+        ...hasRangeOverlap(startDate, endDate)
+    });
+
+    for (const block of overlappingBlocks) {
+        const remainingRanges = [];
+        const blockStart = startOfDay(block.startDate);
+        const blockEnd = startOfDay(block.endDate);
+
+        if (blockStart < startDate) {
+            remainingRanges.push({
+                startDate: blockStart,
+                endDate: addDays(startDate, -1)
+            });
+        }
+
+        if (blockEnd > endDate) {
+            remainingRanges.push({
+                startDate: addDays(endDate, 1),
+                endDate: blockEnd
+            });
+        }
+
+        await BlockedDate.deleteOne({ _id: block._id });
+
+        if (remainingRanges.length) {
+            await BlockedDate.insertMany(remainingRanges.map((range) => ({
+                farm: block.farm,
+                ...range,
+                reason: block.reason,
+                createdBy: block.createdBy
+            })));
+        }
+    }
+
+    return overlappingBlocks.length;
+};
+
 const normalizeVideoUrl = (rawUrl) => {
     const url = String(rawUrl || '').trim();
     if (!url) return '';
@@ -418,7 +473,7 @@ router.post('/blocked-dates', verifyAdmin, async (req, res) => {
 });
 
 // @route   POST /api/admin/open-dates
-// @desc    Open selected date ranges that are normally unavailable by farm rules
+// @desc    Unblock manual blocks and open dates normally unavailable by farm rules
 router.post('/open-dates', verifyAdmin, async (req, res) => {
     try {
         const { farm, startDate, endDate, reason } = req.body;
@@ -438,13 +493,19 @@ router.post('/open-dates', verifyAdmin, async (req, res) => {
         }
 
         const cottages = normalizeCottages(req.body.cottages);
-        const existingBlock = await BlockedDate.findOne({
-            farm,
-            ...hasRangeOverlap(start, end)
-        });
+        const removedManualBlocks = await unblockManualDateRange(farm, start, end);
+        const requiresAvailabilityOverride = (
+            selectedFarm.availability === 'Monday to Friday'
+            && rangeContainsWeekendDay(start, end)
+        );
 
-        if (existingBlock) {
-            return res.status(409).json({ message: 'Remove the manual block for this date range before opening it.' });
+        if (!requiresAvailabilityOverride) {
+            return res.json({
+                message: removedManualBlocks
+                    ? 'Dates unblocked and available for client booking.'
+                    : 'Selected dates are already available for client booking.',
+                removedManualBlocks
+            });
         }
 
         const openDate = await OpenDate.create({
@@ -460,7 +521,11 @@ router.post('/open-dates', verifyAdmin, async (req, res) => {
             .populate('farm', 'title location')
             .populate('createdBy', 'name email');
 
-        res.status(201).json(populatedOpenDate);
+        res.status(201).json({
+            ...populatedOpenDate.toObject(),
+            removedManualBlocks,
+            message: 'Dates unblocked and available for client booking.'
+        });
     } catch (error) {
         console.error('Error creating open date:', error);
         res.status(500).json({ message: 'Server Error' });
@@ -468,14 +533,35 @@ router.post('/open-dates', verifyAdmin, async (req, res) => {
 });
 
 // @route   DELETE /api/admin/blocked-dates/:id
-// @desc    Remove a manual blocked date range
+// @desc    Unblock a complete manual date range and open restricted weekend dates
 router.delete('/blocked-dates/:id', verifyAdmin, async (req, res) => {
     try {
-        const blockedDate = await BlockedDate.findByIdAndDelete(req.params.id);
+        const blockedDate = await BlockedDate.findById(req.params.id);
         if (!blockedDate) {
             return res.status(404).json({ message: 'Blocked date not found' });
         }
-        res.json({ message: 'Blocked date removed' });
+
+        const selectedFarm = await Farm.findById(blockedDate.farm).select('availability');
+        let openDate = null;
+        if (
+            selectedFarm?.availability === 'Monday to Friday'
+            && rangeContainsWeekendDay(blockedDate.startDate, blockedDate.endDate)
+        ) {
+            openDate = await OpenDate.create({
+                farm: blockedDate.farm,
+                startDate: blockedDate.startDate,
+                endDate: blockedDate.endDate,
+                cottages: [],
+                reason: 'Unblocked by admin',
+                createdBy: req.user._id
+            });
+        }
+
+        await blockedDate.deleteOne();
+        res.json({
+            message: 'Dates unblocked and available for client booking.',
+            openDate
+        });
     } catch (error) {
         console.error('Error deleting blocked date:', error);
         res.status(500).json({ message: 'Server Error' });

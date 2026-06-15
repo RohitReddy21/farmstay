@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
@@ -36,7 +36,7 @@ import {
     X
 } from 'lucide-react';
 import { DateRange } from 'react-date-range';
-import 'react-date-range/dist/styles.css'; 
+import 'react-date-range/dist/styles.css';
 import 'react-date-range/dist/theme/default.css';
 
 import API_URL from '../config';
@@ -93,6 +93,17 @@ const FarmDetails = () => {
     });
     const [selectedVariation, setSelectedVariation] = useState(null);
     const [selectedCottage, setSelectedCottage] = useState(null);
+
+    const fetchReviews = useCallback(async () => {
+        try {
+            const { data } = await axios.get(`${API_URL}/api/reviews/farm/${id}`);
+            setReviews(data.reviews);
+            setAverageRating(data.averageRating);
+            setTotalReviews(data.totalReviews);
+        } catch (error) {
+            console.error('Error fetching reviews:', error);
+        }
+    }, [id]);
 
     const wholeMudCottageVariation = {
         type: 'Whole Mud Cottage',
@@ -496,7 +507,7 @@ const FarmDetails = () => {
     const handleDateChange = (item) => {
         setDateSelection([item.selection]);
         setBookingError('');
-        
+
         checkDateConflict(item.selection.startDate, item.selection.endDate);
         checkWeekendConflict(item.selection.startDate, item.selection.endDate);
     };
@@ -581,17 +592,6 @@ const FarmDetails = () => {
             }
         };
 
-        const fetchReviews = async () => {
-            try {
-                const { data } = await axios.get(`${API_URL}/api/reviews/farm/${id}`);
-                setReviews(data.reviews);
-                setAverageRating(data.averageRating);
-                setTotalReviews(data.totalReviews);
-            } catch (error) {
-                console.error('Error fetching reviews:', error);
-            }
-        };
-
         const checkReviewEligibility = async () => {
             if (!user) return;
             try {
@@ -600,9 +600,9 @@ const FarmDetails = () => {
                     headers: { Authorization: `Bearer ${token}` }
                 });
 
-                const completedBooking = data.find(b =>
-                    b.farm && b.farm._id === id &&
-                    b.status === 'completed'
+                const completedBooking = data.find((booking) =>
+                    (booking.property?._id === id || booking.property === id) &&
+                    String(booking.status || '').toLowerCase() === 'completed'
                 );
 
                 if (completedBooking) {
@@ -617,7 +617,7 @@ const FarmDetails = () => {
         fetchAvailability();
         fetchReviews();
         checkReviewEligibility();
-    }, [id, user]);
+    }, [id, user, fetchReviews]);
 
     useEffect(() => {
         if (!farm || !dateSelection[0].startDate || !dateSelection[0].endDate) return;
@@ -1010,22 +1010,19 @@ const FarmDetails = () => {
 
                                     return (
                                         <div key={step} className="min-w-0">
-                                            <div className={`mb-1 h-1.5 rounded-full transition-colors ${
-                                                isComplete || isCurrent ? 'bg-primary' : 'bg-[#ead7b8]'
-                                            }`} />
+                                            <div className={`mb-1 h-1.5 rounded-full transition-colors ${isComplete || isCurrent ? 'bg-primary' : 'bg-[#ead7b8]'
+                                                }`} />
                                             <div className="flex flex-col items-center gap-1 text-center">
-                                                <span className={`flex h-7 w-7 items-center justify-center rounded-full border text-xs font-black transition-colors ${
-                                                    isComplete
+                                                <span className={`flex h-7 w-7 items-center justify-center rounded-full border text-xs font-black transition-colors ${isComplete
                                                         ? 'border-primary bg-primary text-white'
                                                         : isCurrent
                                                             ? 'border-primary bg-white text-primary'
                                                             : 'border-[#ead7b8] bg-white text-gray-400'
-                                                }`}>
+                                                    }`}>
                                                     {isComplete ? <Check size={14} strokeWidth={4} /> : index + 1}
                                                 </span>
-                                                <span className={`text-[10px] font-bold leading-tight ${
-                                                    isComplete || isCurrent ? 'text-[#211b14]' : 'text-gray-400'
-                                                }`}>
+                                                <span className={`text-[10px] font-bold leading-tight ${isComplete || isCurrent ? 'text-[#211b14]' : 'text-gray-400'
+                                                    }`}>
                                                     {step}
                                                 </span>
                                             </div>
@@ -1058,7 +1055,7 @@ const FarmDetails = () => {
                                         >
                                             {farmVariations.map((variation) => (
                                                 <option key={variation.type} value={variation.type}>
-                                                    {dateSelection[0].startDate && dateSelection[0].endDate && !isBookingBlocked 
+                                                    {dateSelection[0].startDate && dateSelection[0].endDate && !isBookingBlocked
                                                         ? `${variation.label} - Rs ${variation.price} - Max ${variation.capacity} guests`
                                                         : `${variation.label} - Max ${variation.capacity} guests`
                                                     }
@@ -1113,18 +1110,16 @@ const FarmDetails = () => {
                                                     guests: Math.min(Number(current.guests) || 1, variation.capacity || farm.capacity || 1)
                                                 }));
                                             }}
-                                            className={`group w-full rounded-2xl border p-3 text-left transition-all ${
-                                                selectedVariation?.type === variation.type
+                                            className={`group w-full rounded-2xl border p-3 text-left transition-all ${selectedVariation?.type === variation.type
                                                     ? 'border-primary bg-[#fff8ed] shadow-sm ring-2 ring-primary/10'
                                                     : 'border-gray-200 bg-white hover:border-primary/50 hover:bg-gray-50'
-                                            }`}
+                                                }`}
                                         >
                                             <div className="flex items-start justify-between gap-3">
-                                                <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border ${
-                                                    selectedVariation?.type === variation.type
+                                                <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border ${selectedVariation?.type === variation.type
                                                         ? 'border-primary bg-primary text-white'
                                                         : 'border-gray-200 bg-gray-50 text-gray-400 group-hover:border-primary/40 group-hover:text-primary'
-                                                }`}>
+                                                    }`}>
                                                     <Check size={16} strokeWidth={3} />
                                                 </div>
                                                 <div className="min-w-0">
@@ -1245,11 +1240,11 @@ const FarmDetails = () => {
                                         {/* Modal Wrapper */}
                                         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/40 backdrop-blur-sm">
                                             {/* Backdrop Click Area */}
-                                            <div 
+                                            <div
                                                 className="absolute inset-0"
                                                 onClick={() => setIsCalendarOpen(false)}
                                             />
-                                            
+
                                             {/* Calendar Modal */}
                                             <motion.div
                                                 initial={{ opacity: 0, scale: 0.95 }}
@@ -1258,80 +1253,80 @@ const FarmDetails = () => {
                                                 transition={{ duration: 0.2 }}
                                                 className="relative z-10 bg-white rounded-3xl shadow-2xl p-4 md:p-6 w-full max-w-[min(100%,400px)] border border-gray-100 flex flex-col items-center"
                                             >
-                                            <div className="w-full overflow-x-auto overflow-y-hidden no-scrollbar flex justify-center">
-                                                <DateRange
-                                                    ranges={dateSelection}
-                                                    onChange={handleDateChange}
-                                                    minDate={new Date()}
-                                                    rangeColors={['#7a5527']}
-                                                    disabledDay={isDateDisabled}
-                                                    dayContentRenderer={renderCalendarDay}
-                                                    showDateDisplay={false}
-                                                    className="farm-date-range border-none rounded-2xl font-inter"
-                                                    months={1}
-                                                />
-                                            </div>
-                                            <div className="mt-3 w-full rounded-2xl border border-[#ead7b8] bg-[#fffaf1] p-3">
-                                                <div className="mb-2 flex flex-wrap items-center gap-3 text-xs font-semibold text-gray-600">
-                                                    <span className="inline-flex items-center gap-1.5">
-                                                        <span className="h-2 w-2 rounded-full bg-red-500" />
-                                                        Booked
-                                                    </span>
-                                                    <span className="inline-flex items-center gap-1.5">
-                                                        <span className="h-2 w-2 rounded-full bg-gray-500" />
-                                                        Blocked
-                                                    </span>
-                                                    {farm?.availability === 'Monday to Friday' && (
-                                                        <>
-                                                            <span className="inline-flex items-center gap-1.5">
-                                                                <span className="h-2 w-2 rounded-full bg-amber-500" />
-                                                                Weekend unavailable
-                                                            </span>
-                                                            <span className="inline-flex items-center gap-1.5">
-                                                                <span className="h-2 w-2 rounded-full bg-sky-500" />
-                                                                Opened by admin
-                                                            </span>
-                                                        </>
+                                                <div className="w-full overflow-x-auto overflow-y-hidden no-scrollbar flex justify-center">
+                                                    <DateRange
+                                                        ranges={dateSelection}
+                                                        onChange={handleDateChange}
+                                                        minDate={new Date()}
+                                                        rangeColors={['#7a5527']}
+                                                        disabledDay={isDateDisabled}
+                                                        dayContentRenderer={renderCalendarDay}
+                                                        showDateDisplay={false}
+                                                        className="farm-date-range border-none rounded-2xl font-inter"
+                                                        months={1}
+                                                    />
+                                                </div>
+                                                <div className="mt-3 w-full rounded-2xl border border-[#ead7b8] bg-[#fffaf1] p-3">
+                                                    <div className="mb-2 flex flex-wrap items-center gap-3 text-xs font-semibold text-gray-600">
+                                                        <span className="inline-flex items-center gap-1.5">
+                                                            <span className="h-2 w-2 rounded-full bg-red-500" />
+                                                            Booked
+                                                        </span>
+                                                        <span className="inline-flex items-center gap-1.5">
+                                                            <span className="h-2 w-2 rounded-full bg-gray-500" />
+                                                            Blocked
+                                                        </span>
+                                                        {farm?.availability === 'Monday to Friday' && (
+                                                            <>
+                                                                <span className="inline-flex items-center gap-1.5">
+                                                                    <span className="h-2 w-2 rounded-full bg-amber-500" />
+                                                                    Weekend unavailable
+                                                                </span>
+                                                                <span className="inline-flex items-center gap-1.5">
+                                                                    <span className="h-2 w-2 rounded-full bg-sky-500" />
+                                                                    Opened by admin
+                                                                </span>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                    <p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">
+                                                        Unavailable dates
+                                                    </p>
+                                                    {visibleUnavailableRanges.length > 0 ? (
+                                                        <div className="mt-2 space-y-1.5">
+                                                            {visibleUnavailableRanges.map((booking) => (
+                                                                <div
+                                                                    key={`${booking.startDate}-${booking.endDate}-${booking._id || booking.id || ''}`}
+                                                                    className="flex items-center justify-between gap-3 rounded-xl bg-white px-3 py-2 text-xs font-semibold text-gray-700"
+                                                                >
+                                                                    <span>
+                                                                        {formatDateForDisplay(booking.rangeStart)} - {formatDateForDisplay(booking.rangeEnd)}
+                                                                    </span>
+                                                                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] ${booking.source === 'manual-block' ? 'bg-gray-100 text-gray-600' : 'bg-red-50 text-red-600'}`}>
+                                                                        {booking.source === 'manual-block' ? 'Blocked' : 'Booked'}
+                                                                    </span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        <p className="mt-2 text-xs font-medium text-gray-500">
+                                                            No upcoming booked dates for this option.
+                                                        </p>
                                                     )}
                                                 </div>
-                                                <p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">
-                                                    Unavailable dates
-                                                </p>
-                                                {visibleUnavailableRanges.length > 0 ? (
-                                                    <div className="mt-2 space-y-1.5">
-                                                        {visibleUnavailableRanges.map((booking) => (
-                                                            <div
-                                                                key={`${booking.startDate}-${booking.endDate}-${booking._id || booking.id || ''}`}
-                                                                className="flex items-center justify-between gap-3 rounded-xl bg-white px-3 py-2 text-xs font-semibold text-gray-700"
-                                                            >
-                                                                <span>
-                                                                    {formatDateForDisplay(booking.rangeStart)} - {formatDateForDisplay(booking.rangeEnd)}
-                                                                </span>
-                                                                <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] ${booking.source === 'manual-block' ? 'bg-gray-100 text-gray-600' : 'bg-red-50 text-red-600'}`}>
-                                                                    {booking.source === 'manual-block' ? 'Blocked' : 'Booked'}
-                                                                </span>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                ) : (
-                                                    <p className="mt-2 text-xs font-medium text-gray-500">
-                                                        No upcoming booked dates for this option.
-                                                    </p>
-                                                )}
-                                            </div>
-                                            <div className="mt-3 pt-4 border-t border-gray-100 flex justify-center w-full">
-                                                <button
-                                                    type="button"
-                                                    onClick={(e) => {
-                                                        e.preventDefault();
-                                                        setIsCalendarOpen(false);
-                                                    }}
-                                                    className="px-6 py-2.5 bg-primary text-white font-bold rounded-xl hover:bg-primary-800 transition-all shadow-md active:scale-95 w-full sm:w-auto"
-                                                >
-                                                    Apply Dates
-                                                </button>
-                                            </div>
-                                        </motion.div>
+                                                <div className="mt-3 pt-4 border-t border-gray-100 flex justify-center w-full">
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            setIsCalendarOpen(false);
+                                                        }}
+                                                        className="px-6 py-2.5 bg-primary text-white font-bold rounded-xl hover:bg-primary-800 transition-all shadow-md active:scale-95 w-full sm:w-auto"
+                                                    >
+                                                        Apply Dates
+                                                    </button>
+                                                </div>
+                                            </motion.div>
                                         </div>
                                     </>
                                 )}
@@ -1375,147 +1370,146 @@ const FarmDetails = () => {
 
             {/* Full Width Content Section */}
             <LazySection placeholderClassName="min-h-[720px] rounded-2xl md:rounded-3xl bg-white/50">
-            <div className="bg-white rounded-2xl md:rounded-3xl shadow-lg border border-gray-100 p-6 md:p-8 lg:p-10">
-                {/* Title and Meta Info */}
-                <div className="border-b border-gray-200 pb-6 mb-8">
-                    <div className="flex items-start justify-between mb-4">
-                        <FavoriteButton farmId={farm._id} size={28} />
-                    </div>
-                    <div className="flex flex-wrap items-center gap-4 md:gap-6 text-gray-600 mb-4">
-                        {farm.subCategory && (
-                            <span className="bg-blue-100 text-blue-800 text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wider border border-blue-200">
-                                {farm.subCategory}
-                            </span>
-                        )}
-                        {farm.availability && (
-                            <span className={`text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wider border ${
-                                farm.availability === 'All Days'
-                                ? 'bg-purple-100 text-purple-800 border-purple-200'
-                                : 'bg-orange-100 text-orange-800 border-orange-200'
-                            }`}>
-                                {farm.availability}
-                            </span>
-                        )}
-                    </div>
-                    <div className="flex flex-wrap items-center gap-4 md:gap-6 text-gray-600">
-                        <div className="flex items-center gap-2">
-                            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                                <MapPin size={20} className="text-primary" />
-                            </div>
-                            <span className="font-medium text-base md:text-lg">{farm.location}</span>
+                <div className="bg-white rounded-2xl md:rounded-3xl shadow-lg border border-gray-100 p-6 md:p-8 lg:p-10">
+                    {/* Title and Meta Info */}
+                    <div className="border-b border-gray-200 pb-6 mb-8">
+                        <div className="flex items-start justify-between mb-4">
+                            <FavoriteButton farmId={farm._id} size={28} />
                         </div>
-                        <div className="flex items-center gap-2">
-                            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                                <Users size={20} className="text-primary" />
-                            </div>
-                            <span className="text-base md:text-lg">Up to <span className="font-semibold">{guestLimit}</span> guests</span>
+                        <div className="flex flex-wrap items-center gap-4 md:gap-6 text-gray-600 mb-4">
+                            {farm.subCategory && (
+                                <span className="bg-blue-100 text-blue-800 text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wider border border-blue-200">
+                                    {farm.subCategory}
+                                </span>
+                            )}
+                            {farm.availability && (
+                                <span className={`text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wider border ${farm.availability === 'All Days'
+                                        ? 'bg-purple-100 text-purple-800 border-purple-200'
+                                        : 'bg-orange-100 text-orange-800 border-orange-200'
+                                    }`}>
+                                    {farm.availability}
+                                </span>
+                            )}
                         </div>
-                        {totalReviews > 0 && (
+                        <div className="flex flex-wrap items-center gap-4 md:gap-6 text-gray-600">
                             <div className="flex items-center gap-2">
-                                <StarRating rating={averageRating} size={20} />
-                                <span className="font-bold text-xs">{averageRating.toFixed(1)}</span>
-                                <span className="text-gray-500 text-xs">({totalReviews} {totalReviews === 1 ? 'review' : 'reviews'})</span>
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                {/* Description */}
-                <div className="mb-10">
-                    <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-5 flex items-center gap-3">
-                        <div className="w-1.5 h-8 bg-gradient-to-b from-primary to-primary-800 rounded-full"></div>
-                        About this farm
-                    </h2>
-                    <p className="text-gray-700 leading-relaxed whitespace-pre-line text-xs md:text-base">
-                        {farm.description}
-    
-                    </p>
-
-                    {/* Host Profile Section (Mock Data) */}
-                    <div className="mt-8 pt-8 border-t border-gray-100 flex items-start sm:items-center gap-4 md:gap-6 group cursor-pointer">
-                        <div className="relative">
-                            <img
-                                src="/images/host-kusuma.png?v=20260429"
-                                alt="Host"
-                                loading="lazy"
-                                decoding="async"
-                                className="w-16 h-16 md:w-20 md:h-20 rounded-full object-cover shadow-md ring-4 ring-white group-hover:ring-primary/20 transition-all"
-                            />
-                            <div className="absolute -bottom-1 -right-1 bg-primary text-white p-1 rounded-full shadow-sm">
-                                <Check size={12} strokeWidth={4} />
-                            </div>
-                        </div>
-                        <div className="flex-1">
-                            <h3 className="text-xl font-bold text-gray-900 mb-1">Hosted by Kusuma Ijju</h3>
-                            <p className="text-gray-500 text-sm mb-2">Superhost · Joined in 2022</p>
-                            <p className="text-gray-600 text-sm md:text-base line-clamp-2">
-                                We love sharing our organic farm with guests! I'm always available to show you around the vineyards or recommend local hiking trails.
-                            </p>
-                        </div>
-                        <a
-  href="https://wa.me/916300612812?text=Hi%20I%20am%20interested%20in%20your%20farmstay"
-  target="_blank"
-  rel="noopener noreferrer"
-  className="hidden sm:block px-4 py-2 border border-gray-300 rounded-lg hover:border-gray-900 hover:bg-gray-50 font-medium transition-all text-center"
->
-  Contact Host
-</a>
-                    </div>
-                </div>
-
-                {/* Amenities */}
-                <div>
-                    <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-5 flex items-center gap-3">
-                        <div className="w-1.5 h-8 bg-gradient-to-b from-primary to-primary-800 rounded-full"></div>
-                        {selectedVariation ? `${selectedVariation.type} offers` : 'What this place offers'}
-                    </h2>
-                    {selectedVariation?.availableCottages?.[0] && (
-                        <p className="mb-4 text-sm font-medium text-gray-500">
-                            Showing amenities for <span className="text-gray-900">{selectedVariation.availableCottages[0]}</span>
-                        </p>
-                    )}
-                    <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
-                        {displayedAmenities.map((amenity, index) => {
-                            const AmenityIcon = getAmenityIcon(amenity);
-                            return (
-                            <div key={index} className="group flex min-h-[96px] flex-col justify-between rounded-2xl border border-gray-100 bg-[#fbfaf7] p-4 transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:bg-white hover:shadow-md">
-                                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-white">
-                                    <AmenityIcon size={20} />
+                                <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+                                    <MapPin size={20} className="text-primary" />
                                 </div>
-                                <span className="text-sm font-bold leading-snug text-gray-800 md:text-base">{amenity}</span>
+                                <span className="font-medium text-base md:text-lg">{farm.location}</span>
                             </div>
-                            );
-                        })}
+                            <div className="flex items-center gap-2">
+                                <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+                                    <Users size={20} className="text-primary" />
+                                </div>
+                                <span className="text-base md:text-lg">Up to <span className="font-semibold">{guestLimit}</span> guests</span>
+                            </div>
+                            {totalReviews > 0 && (
+                                <div className="flex items-center gap-2">
+                                    <StarRating rating={averageRating} size={20} />
+                                    <span className="font-bold text-xs">{averageRating.toFixed(1)}</span>
+                                    <span className="text-gray-500 text-xs">({totalReviews} {totalReviews === 1 ? 'review' : 'reviews'})</span>
+                                </div>
+                            )}
+                        </div>
                     </div>
-                </div>
 
-                {/* Map Section */}
-                <div className="border-t border-gray-200 pt-10 mt-10">
-                    <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-                        <div className="w-1.5 h-8 bg-gradient-to-b from-primary to-primary-800 rounded-full"></div>
-                        Where you'll be
-                    </h2>
-                    <p className="text-gray-600 mb-6 text-lg">{farm.location}</p>
-                    <div className="w-full h-[300px] md:h-[400px] bg-gray-100 rounded-2xl overflow-hidden shadow-sm border border-gray-200 relative">
-                        <iframe
-                            width="100%"
-                            height="100%"
-                            style={{ border: 0 }}
-                            loading="lazy"
-                            allowFullScreen
-                            referrerPolicy="no-referrer-when-downgrade"
-                            src={`https://maps.google.com/maps?q=${encodeURIComponent(farm.location)}&t=&z=13&ie=UTF8&iwloc=&output=embed`}
-                            title="Farm Location"
-                            className="grayscale-[20%] hover:grayscale-0 transition-all duration-500"
-                        ></iframe>
-                        {/* Map Overlay Guard (Optional: prevents accidental scrolling unless clicked/active, but simple iframe is usually fine) */}
+                    {/* Description */}
+                    <div className="mb-10">
+                        <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-5 flex items-center gap-3">
+                            <div className="w-1.5 h-8 bg-gradient-to-b from-primary to-primary-800 rounded-full"></div>
+                            About this farm
+                        </h2>
+                        <p className="text-gray-700 leading-relaxed whitespace-pre-line text-xs md:text-base">
+                            {farm.description}
+
+                        </p>
+
+                        {/* Host Profile Section (Mock Data) */}
+                        <div className="mt-8 pt-8 border-t border-gray-100 flex items-start sm:items-center gap-4 md:gap-6 group cursor-pointer">
+                            <div className="relative">
+                                <img
+                                    src="/images/host-kusuma.png?v=20260429"
+                                    alt="Host"
+                                    loading="lazy"
+                                    decoding="async"
+                                    className="w-16 h-16 md:w-20 md:h-20 rounded-full object-cover shadow-md ring-4 ring-white group-hover:ring-primary/20 transition-all"
+                                />
+                                <div className="absolute -bottom-1 -right-1 bg-primary text-white p-1 rounded-full shadow-sm">
+                                    <Check size={12} strokeWidth={4} />
+                                </div>
+                            </div>
+                            <div className="flex-1">
+                                <h3 className="text-xl font-bold text-gray-900 mb-1">Hosted by Kusuma Ijju</h3>
+                                <p className="text-gray-500 text-sm mb-2">Superhost · Joined in 2022</p>
+                                <p className="text-gray-600 text-sm md:text-base line-clamp-2">
+                                    We love sharing our organic farm with guests! I'm always available to show you around the vineyards or recommend local hiking trails.
+                                </p>
+                            </div>
+                            <a
+                                href="https://wa.me/916300612812?text=Hi%20I%20am%20interested%20in%20your%20farmstay"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hidden sm:block px-4 py-2 border border-gray-300 rounded-lg hover:border-gray-900 hover:bg-gray-50 font-medium transition-all text-center"
+                            >
+                                Contact Host
+                            </a>
+                        </div>
+                    </div>
+
+                    {/* Amenities */}
+                    <div>
+                        <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-5 flex items-center gap-3">
+                            <div className="w-1.5 h-8 bg-gradient-to-b from-primary to-primary-800 rounded-full"></div>
+                            {selectedVariation ? `${selectedVariation.type} offers` : 'What this place offers'}
+                        </h2>
+                        {selectedVariation?.availableCottages?.[0] && (
+                            <p className="mb-4 text-sm font-medium text-gray-500">
+                                Showing amenities for <span className="text-gray-900">{selectedVariation.availableCottages[0]}</span>
+                            </p>
+                        )}
+                        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+                            {displayedAmenities.map((amenity, index) => {
+                                const AmenityIcon = getAmenityIcon(amenity);
+                                return (
+                                    <div key={index} className="group flex min-h-[96px] flex-col justify-between rounded-2xl border border-gray-100 bg-[#fbfaf7] p-4 transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:bg-white hover:shadow-md">
+                                        <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-white">
+                                            <AmenityIcon size={20} />
+                                        </div>
+                                        <span className="text-sm font-bold leading-snug text-gray-800 md:text-base">{amenity}</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Map Section */}
+                    <div className="border-t border-gray-200 pt-10 mt-10">
+                        <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+                            <div className="w-1.5 h-8 bg-gradient-to-b from-primary to-primary-800 rounded-full"></div>
+                            Where you'll be
+                        </h2>
+                        <p className="text-gray-600 mb-6 text-lg">{farm.location}</p>
+                        <div className="w-full h-[300px] md:h-[400px] bg-gray-100 rounded-2xl overflow-hidden shadow-sm border border-gray-200 relative">
+                            <iframe
+                                width="100%"
+                                height="100%"
+                                style={{ border: 0 }}
+                                loading="lazy"
+                                allowFullScreen
+                                referrerPolicy="no-referrer-when-downgrade"
+                                src={`https://maps.google.com/maps?q=${encodeURIComponent(farm.location)}&t=&z=13&ie=UTF8&iwloc=&output=embed`}
+                                title="Farm Location"
+                                className="grayscale-[20%] hover:grayscale-0 transition-all duration-500"
+                            ></iframe>
+                            {/* Map Overlay Guard (Optional: prevents accidental scrolling unless clicked/active, but simple iframe is usually fine) */}
+                        </div>
                     </div>
                 </div>
-            </div>
             </LazySection>
 
             {/* Reviews Section */}
-            {/* <div className="bg-white rounded-2xl md:rounded-3xl shadow-lg border border-gray-100 p-6 md:p-8 lg:p-10">
+            <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-lg md:rounded-3xl md:p-8 lg:p-10">
                 <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6 flex items-center gap-3">
                     <div className="w-1.5 h-8 bg-gradient-to-b from-primary to-primary-800 rounded-full"></div>
                     Guest Reviews
@@ -1533,13 +1527,15 @@ const FarmDetails = () => {
                     <ReviewForm
                         farmId={id}
                         bookingId={eligibleBookingId}
-                        onReviewSubmitted={() => {
+                        onReviewSubmitted={async () => {
                             setShowReviewForm(false);
-                            fetchReviews();
+                            setEligibleBookingId(null);
+                            await fetchReviews();
                         }}
+                        onCancel={() => setShowReviewForm(false)}
                     />
                 )}
-            </div> */}
+            </div>
 
             {/* Booking Confirmation Modal */}
             <BookingConfirmationModal
@@ -1595,18 +1591,18 @@ const FarmDetails = () => {
                                     <div>
                                         <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#8a642d]">Dates</p>
                                         <p className="mt-1 font-semibold text-[#211b14]">
-                                            {dateSelection[0].startDate && dateSelection[0].endDate 
+                                            {dateSelection[0].startDate && dateSelection[0].endDate
                                                 ? `${dateSelection[0].startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${dateSelection[0].endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
                                                 : 'Select dates'
                                             }
                                         </p>
                                     </div>
                                     {dateSelection[0].startDate && dateSelection[0].endDate && !isBookingBlocked && (
-                                    <div>
-                                        <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#8a642d]">Total</p>
-                                        <p className="mt-1 font-semibold text-[#211b14]">₹{selectedGrandTotal.toLocaleString('en-IN')}</p>
-                                    </div>
-                                )}
+                                        <div>
+                                            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#8a642d]">Total</p>
+                                            <p className="mt-1 font-semibold text-[#211b14]">₹{selectedGrandTotal.toLocaleString('en-IN')}</p>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
@@ -1695,11 +1691,10 @@ const FarmDetails = () => {
                                                 value={bookingData.guests}
                                                 placeholder="Enter number of guests"
                                                 aria-invalid={Boolean(guestCountError)}
-                                                className={`w-full rounded-xl border-2 px-4 py-3 text-base outline-none transition-all ${
-                                                    guestCountError
+                                                className={`w-full rounded-xl border-2 px-4 py-3 text-base outline-none transition-all ${guestCountError
                                                         ? 'border-red-400 bg-red-50 text-red-900 focus:ring-4 focus:ring-red-200'
                                                         : 'border-[#dfd1bb] bg-white focus:border-primary focus:ring-4 focus:ring-primary/15'
-                                                }`}
+                                                    }`}
                                                 onChange={(e) => {
                                                     const value = e.target.value.replace(/\D/g, '');
                                                     const error = validateGuestCount(value);
@@ -1733,11 +1728,10 @@ const FarmDetails = () => {
                                     <button
                                         type="submit"
                                         disabled={isBookingBlocked || selectedIsBookedForDates}
-                                        className={`flex-1 rounded-2xl px-6 py-3 font-bold text-white shadow-lg transition ${
-                                            isBookingBlocked || selectedIsBookedForDates
+                                        className={`flex-1 rounded-2xl px-6 py-3 font-bold text-white shadow-lg transition ${isBookingBlocked || selectedIsBookedForDates
                                                 ? 'cursor-not-allowed bg-gray-300 text-gray-500'
                                                 : 'bg-gradient-to-r from-[#7a5527] to-[#5d3d19] hover:from-[#8b6230] hover:to-[#6d441a]'
-                                        }`}
+                                            }`}
                                     >
                                         {isBookingBlocked || selectedIsBookedForDates ? 'Dates Unavailable' : 'Book Now'}
                                     </button>

@@ -3,16 +3,42 @@ const router = express.Router();
 const Review = require('../models/Review');
 const Booking = require('../models/Booking');
 const { verifyToken } = require('../middleware/authMiddleware');
+const upload = require('../middleware/uploadMiddleware');
+
+const fileToPublicUrl = (req, file) => {
+    const pathOrUrl = file?.path ? String(file.path) : '';
+    if (pathOrUrl.startsWith('http://') || pathOrUrl.startsWith('https://')) return pathOrUrl;
+
+    const filename = file?.filename ? String(file.filename) : '';
+    if (!filename) return pathOrUrl;
+
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    return `${baseUrl}/uploads/${filename}`;
+};
+
+const reviewPhotoUpload = (req, res, next) => {
+    const handler = upload.array('photos', 4);
+    handler(req, res, (err) => {
+        if (!err) return next();
+        console.error('Review photo upload error:', err);
+        return res.status(400).json({
+            message: 'Review photo upload failed',
+            error: err.message
+        });
+    });
+};
 
 // @route   POST /api/reviews
 // @desc    Add a review
 // @access  Private
-router.post('/', verifyToken, async (req, res) => {
+router.post('/', verifyToken, reviewPhotoUpload, async (req, res) => {
     try {
         const { farmId, bookingId, rating, comment } = req.body;
+        const numericRating = Number(rating);
+        const photos = (req.files || []).map((file) => fileToPublicUrl(req, file)).filter(Boolean);
 
         // Validate rating
-        if (!rating || rating < 1 || rating > 5) {
+        if (!numericRating || numericRating < 1 || numericRating > 5) {
             return res.status(400).json({ message: 'Rating must be between 1 and 5' });
         }
 
@@ -22,10 +48,10 @@ router.post('/', verifyToken, async (req, res) => {
             if (!booking) {
                 return res.status(404).json({ message: 'Booking not found' });
             }
-            if (booking.user.toString() !== req.user._id) {
+            if (String(booking.user) !== String(req.user._id)) {
                 return res.status(403).json({ message: 'Not authorized' });
             }
-            if (booking.status !== 'completed') {
+            if (String(booking.status || '').toLowerCase() !== 'completed') {
                 return res.status(400).json({ message: 'Can only review completed bookings' });
             }
         }
@@ -45,8 +71,9 @@ router.post('/', verifyToken, async (req, res) => {
             user: req.user._id,
             farm: farmId,
             booking: bookingId,
-            rating,
-            comment
+            rating: numericRating,
+            comment,
+            photos
         });
 
         const populatedReview = await Review.findById(review._id)
@@ -98,7 +125,7 @@ router.put('/:id', verifyToken, async (req, res) => {
         }
 
         // Check if review belongs to user
-        if (review.user.toString() !== req.user._id) {
+        if (String(review.user) !== String(req.user._id)) {
             return res.status(403).json({ message: 'Not authorized' });
         }
 
@@ -129,7 +156,7 @@ router.delete('/:id', verifyToken, async (req, res) => {
         }
 
         // Check if review belongs to user
-        if (review.user.toString() !== req.user._id) {
+        if (String(review.user) !== String(req.user._id)) {
             return res.status(403).json({ message: 'Not authorized' });
         }
 

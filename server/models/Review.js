@@ -25,7 +25,8 @@ const reviewSchema = new mongoose.Schema({
         type: String,
         required: true,
         maxlength: 1000
-    }
+    },
+    photos: [{ type: String }]
 }, {
     timestamps: true
 });
