@@ -3,6 +3,14 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 
+const getGoogleLoginError = (err) => {
+    if (err.response?.status === 404) {
+        return 'Google login endpoint was not found on the configured backend. Check VITE_API_URL and redeploy the backend.';
+    }
+
+    return err.response?.data?.message || 'Google Login Failed';
+};
+
 const Login = () => {
     const [email, setEmail] = useState('');
     const [message, setMessage] = useState('');
@@ -47,7 +55,7 @@ const Login = () => {
                                     await googleLogin(credentialResponse.credential);
                                     navigate(redirectTo, { replace: true, state: redirectState });
                                 } catch (err) {
-                                    setError('Google Login Failed');
+                                    setError(getGoogleLoginError(err));
                                 }
                             }}
                             onError={() => {

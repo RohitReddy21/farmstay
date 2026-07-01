@@ -20,7 +20,9 @@ const app = express();
 app.set('trust proxy', 1);
 
 app.use(compression());
-app.use(helmet());
+app.use(helmet({
+  crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' }
+}));
 
 const serverStartedAt = new Date().toISOString();
 
