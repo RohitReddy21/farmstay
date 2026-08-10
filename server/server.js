@@ -93,7 +93,10 @@ app.use((req, res, next) => {
 });
 
 app.use(express.json());
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', (req, res, next) => {
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  next();
+}, express.static(path.join(__dirname, 'uploads')));
 
 const sendHealthResponse = (req, res) => {
   res.set('Cache-Control', 'no-store');
@@ -187,6 +190,8 @@ connectDB();
 // Routes
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/farms', require('./routes/farmRoutes'));
+app.use('/api/blogs', require('./routes/blogRoutes'));
+app.use('/api/admin/blogs', require('./routes/blogAdminRoutes'));
 app.use('/api/bookings', require('./routes/bookingRoutes'));
 app.use('/api/admin', require('./routes/adminRoutes'));
 app.use('/api/db', require('./routes/dbViewerRoutes'));

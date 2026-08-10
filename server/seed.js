@@ -18,7 +18,7 @@ const mudCottageImages = [
 const mudCottage1SharedContent = {
     description: "Traditional mud cottage designed for shared accommodation in a grounded, earthy living experience.\n\nDetails:\n- Up to 2 guests\n- Shared accommodation cottage\n- Traditional mud cottage stay\n- Perfect for friends or solo travelers",
     location: "BrownCows Dairy Farm",
-    price: 4999,
+    price: 2499,
     capacity: 2,
     images: mudCottageImages,
     videos: [
@@ -30,7 +30,7 @@ const mudCottage1SharedContent = {
 const mudCottage2CoupleContent = {
     description: "Traditional mud cottage designed for couples seeking intimate, earthy living experience.\n\nDetails:\n- 2 guests\n- 1 king size bed\n- Private bathroom\n- Romantic ambiance",
     location: "BrownCows Dairy Farm",
-    price: 4999,
+    price: 2499,
     capacity: 2,
     images: mudCottageImages,
     videos: [
@@ -42,7 +42,7 @@ const mudCottage2CoupleContent = {
 const limestoneVillaContent = {
     description: "Spacious duplex villa built with natural limestone, offering orchard views and modern comfort blended with rustic charm.\n\nDetails:\n- Up to 4 guests\n- 3 beds (1 king + 2 single)\n- 2 bathrooms\n- Duplex structure",
     location: "BrownCows Dairy Farm",
-    price: 7999,
+    price: 14999,
     capacity: 4,
     images: [
         "/images/Limestone/DSC00349.JPG",
@@ -139,9 +139,9 @@ const seedData = async () => {
             },
             {
                 title: "Traditional Mud Cottage",
-                description: "Experience authentic farm living in our four traditional mud cottages. Mud Cottage 1 and 2 are for shared accommodation. Mud Cottage 3 and 4 are for couple accommodation. Each single cottage is priced at Rs 4,999 and allows a maximum of 2 guests.",
+                description: "Experience authentic farm living in our four traditional mud cottages. Mud Cottage 1 and 2 are for shared accommodation. Mud Cottage 3 and 4 are for couple accommodation. Each single cottage is priced at Rs 2,499 and allows a maximum of 2 guests.",
                 location: "BrownCows Dairy Farm",
-                price: 4999,
+                price: 2499,
                 capacity: 2,
                 images: mudCottageImages,
                 videos: [
@@ -155,7 +155,7 @@ const seedData = async () => {
                     {
                         type: "Whole Mud Cottage",
                         label: "Whole Mud Cottage - All 4 Cottages",
-                        price: 19999,
+                        price: 9996,
                         capacity: 8,
                         amenities: ["Whole Mud Cottage Booking", "Shared Accommodation", "Couple Accommodation", "Traditional Mud Cottage", "Earthy Living", "Farm Experience", "Wifi", "AC", "Firepit", "Breakfast Included", "Free Parking", "Bonfire Nights", "Farm Activities"],
                         availableCottages: ["Traditional Mud Cottage - 1", "Traditional Mud Cottage - 2", "Traditional Mud Cottage - 3", "Traditional Mud Cottage - 4"]
@@ -163,7 +163,7 @@ const seedData = async () => {
                     {
                         type: "Mud Cottage 1",
                         label: "Mud Cottage 1 - Shared Accommodation",
-                        price: 4999,
+                        price: 2499,
                         capacity: 2,
                         amenities: ["Shared Accommodation", "Traditional Mud Cottage", "Earthy Living", "Farm Experience", "Wifi", "AC", "Firepit", "Breakfast Included", "Free Parking", "Bonfire Nights", "Farm Activities"],
                         availableCottages: ["Traditional Mud Cottage - 1"]
@@ -171,7 +171,7 @@ const seedData = async () => {
                     {
                         type: "Mud Cottage 2",
                         label: "Mud Cottage 2 - Shared Accommodation",
-                        price: 4999,
+                        price: 2499,
                         capacity: 2,
                         amenities: ["Shared Accommodation", "Traditional Mud Cottage", "Earthy Living", "Farm Experience", "Wifi", "AC", "Firepit", "Breakfast Included", "Free Parking", "Bonfire Nights", "Farm Activities"],
                         availableCottages: ["Traditional Mud Cottage - 2"]
@@ -179,7 +179,7 @@ const seedData = async () => {
                     {
                         type: "Mud Cottage 3",
                         label: "Mud Cottage 3 - Couple Accommodation",
-                        price: 4999,
+                        price: 2499,
                         capacity: 2,
                         amenities: ["King Size Bed", "Private Bathroom", "Traditional Mud Cottage", "Earthy Living", "Farm Experience", "Wifi", "AC", "Romantic Ambiance", "Breakfast Included", "Free Parking", "Couple Bonfire Experience", "Garden Views"],
                         availableCottages: ["Traditional Mud Cottage - 3"]
@@ -187,7 +187,7 @@ const seedData = async () => {
                     {
                         type: "Mud Cottage 4",
                         label: "Mud Cottage 4 - Couple Accommodation",
-                        price: 4999,
+                        price: 2499,
                         capacity: 2,
                         amenities: ["King Size Bed", "Private Bathroom", "Traditional Mud Cottage", "Earthy Living", "Farm Experience", "Wifi", "AC", "Romantic Ambiance", "Breakfast Included", "Free Parking", "Couple Bonfire Experience", "Garden Views"],
                         availableCottages: ["Traditional Mud Cottage - 4"]

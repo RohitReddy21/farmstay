@@ -7,6 +7,7 @@ import RegisteredUsersSection from '../components/admin/RegisteredUsersSection';
 import AdminBookingsSection from '../components/admin/AdminBookingsSection';
 import PrivateCouponsSection from '../components/admin/PrivateCouponsSection';
 import AdminCalendarSection from '../components/admin/AdminCalendarSection';
+import BlogManager from '../components/admin/BlogManager';
 
 const formatDate = (date) => date ? new Date(date).toLocaleDateString('en-IN') : '-';
 const formatDateKey = (date) => {
@@ -575,6 +576,8 @@ const Admin = () => {
                     Reset Website Content
                 </button>
             </div>
+
+            <BlogManager />
 
             <PrivateCouponsSection
                 coupons={coupons}

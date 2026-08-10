@@ -28,6 +28,8 @@ const Favorites = lazy(() => import('./pages/Favorites'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const Cart = lazy(() => import('./pages/Cart'));
 const Checkout = lazy(() => import('./pages/Checkout'));
+const Blogs = lazy(() => import('./pages/Blogs'));
+const BlogDetails = lazy(() => import('./pages/BlogDetails'));
 
 const AnimatedRoutes = () => {
     const location = useLocation();
@@ -40,6 +42,8 @@ const AnimatedRoutes = () => {
                 <Route path="/register" element={<Navigate to="/login" replace state={location.state} />} />
                 <Route path="/forgot-password" element={<PageTransition><ForgotPassword /></PageTransition>} />
                 <Route path="/farms" element={<PageTransition><Farms /></PageTransition>} />
+                <Route path="/blogs" element={<PageTransition><Blogs /></PageTransition>} />
+                <Route path="/blogs/:slug" element={<PageTransition><BlogDetails /></PageTransition>} />
                 <Route path="/farm/:id" element={<PageTransition><FarmDetails /></PageTransition>} />
                 <Route path="/2-day-learning-retreat" element={<PageTransition><LearningRetreat /></PageTransition>} />
                 <Route path="/learning-retreat" element={<PageTransition><LearningRetreat /></PageTransition>} />

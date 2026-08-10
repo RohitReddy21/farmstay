@@ -176,6 +176,7 @@ const socialLinks = [
 
 const exploreLinks = [
     { to: '/farms', label: 'Farm Stays' },
+    { to: '/blogs', label: 'Blog' },
     { to: '/2-day-learning-retreat', label: 'Learning Retreat' },
     { href: 'https://browncowsdairy.com/', label: 'Our Products' },
     { to: '/bookings', label: 'My Bookings' },

@@ -27,6 +27,7 @@ const Navbar = () => {
                     {/* Desktop Menu */}
                     <div className="hidden md:flex items-center space-x-4 lg:space-x-6">
                         <Link to="/farms" className="px-2 py-1 text-[#645747] transition hover:text-[#7a5527] dark:text-[#d5c9b7] dark:hover:text-[#e7c678]">Explore Farms</Link>
+                        <Link to="/blogs" className="px-2 py-1 text-[#645747] transition hover:text-[#7a5527] dark:text-[#d5c9b7] dark:hover:text-[#e7c678]">Blog</Link>
                         <Link to="/2-day-learning-retreat" className="px-2 py-1 text-[#645747] transition hover:text-[#7a5527] dark:text-[#d5c9b7] dark:hover:text-[#e7c678]">Learning Retreat</Link>
                         <Link to="/bookings" className="px-2 py-1 text-[#645747] transition hover:text-[#7a5527] dark:text-[#d5c9b7] dark:hover:text-[#e7c678]">My Bookings</Link>
                         <Link to="/cart" className="relative inline-flex items-center gap-1 px-2 py-1 text-[#645747] transition hover:text-[#7a5527] dark:text-[#d5c9b7] dark:hover:text-[#e7c678]">
@@ -109,6 +110,13 @@ const Navbar = () => {
                                 className="rounded-lg px-4 py-3 font-medium text-[#645747] transition-all hover:bg-[#f4ead8] hover:text-[#7a5527] dark:text-[#d5c9b7] dark:hover:bg-[#232823] dark:hover:text-[#e7c678]"
                             >
                                 Explore Farms
+                            </Link>
+                            <Link
+                                to="/blogs"
+                                onClick={() => setIsOpen(false)}
+                                className="rounded-lg px-4 py-3 font-medium text-[#645747] transition-all hover:bg-[#f4ead8] hover:text-[#7a5527] dark:text-[#d5c9b7] dark:hover:bg-[#232823] dark:hover:text-[#e7c678]"
+                            >
+                                Blog
                             </Link>
                             <Link
                                 to="/2-day-learning-retreat"
@@ -224,4 +232,3 @@ const Navbar = () => {
 };
 
 export default Navbar;
-
