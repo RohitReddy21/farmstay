@@ -37,10 +37,10 @@ const CheckoutPaymentPanel = ({
                         : 'border-[#ead7b8] bg-white hover:border-[#cfa86b]'
                     }`}
                 >
-                    <div className="mb-2 flex items-center gap-2 font-bold text-[#211b14]">
+                    {/* <div className="mb-2 flex items-center gap-2 font-bold text-[#211b14]">
                         <Banknote size={20} className="text-[#4a7c59]" />
                         COD / Pay at Farm
-                    </div>
+                    </div> */}
                     <p className="text-sm text-[#645747]">Submit your booking now and pay after Brown Cows confirms it.</p>
                 </button>
             </div>
