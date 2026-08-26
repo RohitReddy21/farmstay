@@ -325,10 +325,10 @@ const Checkout = () => {
                 <div className="flex items-center justify-between border-b border-[#ead7b8] bg-[#f8efdf] p-8">
                     <div>
                         <h1 className="mb-2 text-3xl font-bold text-[#211b14]">Secure Checkout</h1>
-                        <p className="flex items-center gap-2 text-[#645747]">
+                        {/* <p className="flex items-center gap-2 text-[#645747]">
                             <ShieldCheck size={18} className="text-[#527b52]" />
                             Choose online payment or COD to submit your booking for host review.
-                        </p>
+                        </p> */}
                     </div>
                 </div>
 
