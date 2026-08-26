@@ -64,7 +64,9 @@ const CheckoutSuccess = ({
                 ) : null}
                 <div className="mt-3 flex items-center justify-between gap-4">
                     <span className="text-sm text-[#645747]">Payment</span>
-                    <span className="font-semibold text-[#211b14]">Razorpay Online</span>
+                    <span className="font-semibold text-[#211b14]">
+                        {completedBooking?.paymentMethod === 'cod' ? 'COD / Pay at Farm' : 'Razorpay Online'}
+                    </span>
                 </div>
             </div>
 

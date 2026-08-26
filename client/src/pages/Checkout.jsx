@@ -28,6 +28,9 @@ const Checkout = () => {
     const navigate = useNavigate();
     const [isProcessing, setIsProcessing] = useState(false);
     const [error, setError] = useState(null);
+    // COD is disabled for now — keeping the state wired up so it can be re-enabled later.
+    // const [paymentMethod, setPaymentMethod] = useState('razorpay');
+    const paymentMethod = 'razorpay';
     const [confirmationMessage, setConfirmationMessage] = useState('');
     const [isCheckoutComplete, setIsCheckoutComplete] = useState(false);
     const [completedBooking, setCompletedBooking] = useState(null);
@@ -81,7 +84,7 @@ const Checkout = () => {
             total: amountToPay,
             couponCode: appliedCoupon?.code,
             discountAmount,
-            paymentMethod: 'razorpay',
+            paymentMethod,
             bookingTypeLabel,
             startDate: primaryItem?.startDate,
             endDate: primaryItem?.endDate,
@@ -110,8 +113,8 @@ const Checkout = () => {
                     totalPrice: item?.pricing?.totalPrice,
                     tax: item?.pricing?.tax,
                     status: 'Pending',
-                    paymentStatus: 'Authorized',
-                    paymentMethod: 'Razorpay',
+                    paymentStatus: paymentMethod === 'cod' ? 'COD' : 'Authorized',
+                    paymentMethod: paymentMethod === 'cod' ? 'COD' : 'Razorpay',
                     couponCode: appliedCoupon?.code,
                     discountAmount: index === 0 ? discountAmount : 0,
                     createdAt: new Date().toISOString()
@@ -267,7 +270,33 @@ const Checkout = () => {
         }
     };
 
+    // COD is disabled for now — kept here so it can be re-enabled by wiring the button back up.
+    // const handleCodBooking = async () => {
+    //     setIsProcessing(true);
+    //     setError(null);
+    //
+    //     try {
+    //         const bookingPayload = buildBookingPayload();
+    //         const { data } = await axios.post(`${API_URL}/api/bookings/cod`, bookingPayload, authConfig);
+    //
+    //         if (!data.success) {
+    //             throw new Error('Failed to place COD booking');
+    //         }
+    //
+    //         finishCheckout('Your COD booking request has been received. Brown Cows will review and confirm availability.', data);
+    //     } catch (err) {
+    //         console.error('COD checkout error:', err);
+    //         setError(err.response?.data?.message || err.message || 'Something went wrong while placing your COD booking.');
+    //         setIsProcessing(false);
+    //     }
+    // };
+
     const handleSubmitPayment = () => {
+        // if (paymentMethod === 'cod') {
+        //     handleCodBooking();
+        //     return;
+        // }
+
         handlePayment();
     };
 
@@ -302,6 +331,7 @@ const Checkout = () => {
                         <p className="flex items-center gap-2 text-[#645747]">
                             <ShieldCheck size={18} className="text-[#527b52]" />
                             Complete secure payment to submit your booking for host review.
+                            {/* Choose online payment or COD to submit your booking for host review. */}
                         </p>
                     </div>
                 </div>
@@ -349,6 +379,8 @@ const Checkout = () => {
                     />
 
                     <CheckoutPaymentPanel
+                        paymentMethod={paymentMethod}
+                        // setPaymentMethod={setPaymentMethod}
                         isProcessing={isProcessing}
                         isCheckoutComplete={isCheckoutComplete}
                         amountToPay={amountToPay}
